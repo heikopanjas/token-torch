@@ -1,6 +1,6 @@
 # burn — Development Guide
 
-Last updated: 2026-05-26 (burn-app moved to Sources/)
+Last updated: 2026-05-26 (README expanded for user-facing docs)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -293,6 +293,14 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`burn-cli`** version in `BurnCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-05-26: Expand README for end users
+
+**What**: Rewrote `README.md` with mission statement, provider matrix, full CLI examples (aliases, dates, scope), quota credential sources, repo layout, security notes, and link to `AGENTS.md`.
+
+**Why**: Initial README was sparse; user-facing docs should stand alone without reading AGENTS.md.
+
+**How**: `README.md` only (no version bump).
 
 ### 2026-05-26: Move burn-app to Sources/
 
