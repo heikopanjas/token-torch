@@ -1,6 +1,6 @@
 # burn — Development Guide
 
-Last updated: 2026-05-26 (README expanded for user-facing docs)
+Last updated: 2026-05-26 (menu bar Refresh command row)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -293,6 +293,24 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`burn-cli`** version in `BurnCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-05-26: Menu bar Refresh command row
+
+**What**: Removed the header refresh toolbar button; added a **Refresh** row (⌘R) above **Settings…** in the menu bar panel. Disabled while loading.
+
+**How**: `BurnApp.swift`. Version `3.2.15`.
+
+### 2026-05-26: Menu bar status icon uses cursor.pdf
+
+**What**: `MenuBarIcon` loads `Pictures/cursor.pdf` for the menu bar extra label; falls back to `flame.fill` if missing.
+
+**How**: `BurnApp.swift`. Version `3.2.14`.
+
+### 2026-05-26: Menu bar status icon uses brain SF Symbol
+
+**What**: `MenuBarStatusIcon` used `Image(systemName: "brain")` briefly; reverted to cursor.pdf.
+
+**How**: `BurnApp.swift`. Version `3.2.13`.
 
 ### 2026-05-26: Expand README for end users
 

@@ -117,22 +117,10 @@ struct MenuBarContentView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
-                HStack(alignment: .center, spacing: 6) {
-                    if model.isLoading {
-                        ProgressView()
-                            .controlSize(.small)
-                            .frame(width: 14, height: 14)
-                    }
-                    Button {
-                        model.refresh()
-                    } label: {
-                        Image(systemName: "arrow.counterclockwise")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Refresh")
-                    .disabled(model.isLoading)
+                if model.isLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                        .frame(width: 14, height: 14)
                 }
             }
             .frame(height: 16, alignment: .center)
@@ -154,6 +142,14 @@ struct MenuBarContentView: View {
 
             Divider()
             VStack(spacing: 0) {
+                MenuBarCommandRow(
+                    title: "Refresh",
+                    shortcutLabel: "⌘R",
+                    key: "r",
+                    modifiers: .command,
+                    isDisabled: model.isLoading,
+                    action: { model.refresh() }
+                )
                 MenuBarCommandRow(
                     title: "Settings…",
                     shortcutLabel: "⌘,",
@@ -182,6 +178,7 @@ private struct MenuBarCommandRow: View {
     let shortcutLabel: String
     let key: KeyEquivalent
     let modifiers: EventModifiers
+    var isDisabled = false
     let action: () -> Void
 
     var body: some View {
@@ -198,6 +195,7 @@ private struct MenuBarCommandRow: View {
         }
         .buttonStyle(.plain)
         .keyboardShortcut(key, modifiers: modifiers)
+        .disabled(isDisabled)
     }
 }
 
@@ -593,9 +591,11 @@ struct ProviderSettingsTab: View {
             Toggle("Enable subscription quota", isOn: $flags.subscriptionQuotaEnabled)
                 .onChange(of: flags) { _, newValue in saveFlags(newValue) }
 
-            Text("Clears burn’s copied subscription credentials only. Vendor app logins are not changed. Use after re-login in Claude Code, Codex CLI, or Cursor IDE.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Text(
+                "Clears burn’s copied subscription credentials only. Vendor app logins are not changed. Use after re-login in Claude Code, Codex CLI, or Cursor IDE."
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
             Button("Reset subscription credentials") {
                 resetSubscriptionCredentials()
             }

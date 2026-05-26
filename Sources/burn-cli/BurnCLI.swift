@@ -7,7 +7,7 @@ struct BurnCLI: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "burn-cli",
         abstract: "Monitor Anthropic, OpenAI, and Cursor usage (org billing and personal subscription quotas)",
-        version: "3.2.11",
+        version: "3.2.15",
         subcommands: [AnthropicCommand.self, OpenAICommand.self, CursorCommand.self]
     )
 }
