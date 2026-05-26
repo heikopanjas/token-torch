@@ -1,0 +1,21 @@
+<svg role="img" viewBox="0 0 15 15"
+  xmlns="http://www.w3.org/2000/svg">
+  <title>Clawd</title>
+  <!-- Pixel art from clawd-on-desk / clawd-tank (Claude Code mascot); monochrome static idle pose. -->
+  <defs>
+    <mask id="clawd-eyes">
+      <rect width="15" height="15" fill="white" />
+      <rect x="4" y="5" width="1" height="2" fill="black" />
+      <rect x="10" y="5" width="1" height="2" fill="black" />
+    </mask>
+  </defs>
+  <g fill="black" mask="url(#clawd-eyes)">
+    <rect x="3" y="8" width="1" height="4" />
+    <rect x="5" y="8" width="1" height="4" />
+    <rect x="9" y="8" width="1" height="4" />
+    <rect x="11" y="8" width="1" height="4" />
+    <rect x="2" y="3" width="11" height="7" />
+    <rect x="0" y="6" width="2" height="2" />
+    <rect x="13" y="6" width="2" height="2" />
+  </g>
+</svg>
