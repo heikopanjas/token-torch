@@ -7,7 +7,20 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		B00101000000000000000001 /* BurnApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000001 /* BurnApp.swift */; };
+		B00101000000000000000001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000001 /* AppDelegate.swift */; };
+		B00101000000000000000013 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000015 /* main.swift */; };
+		B00101000000000000000008 /* AppActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000000A /* AppActions.swift */; };
+		B00101000000000000000009 /* MenuBarViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000000B /* MenuBarViewModel.swift */; };
+		B0010100000000000000000A /* MenuFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000000C /* MenuFormat.swift */; };
+		B0010100000000000000000B /* ProviderIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000000D /* ProviderIcons.swift */; };
+		B0010100000000000000000C /* ReportLabels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000000E /* ReportLabels.swift */; };
+		B0010100000000000000000D /* UsageMenuItemViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000000F /* UsageMenuItemViews.swift */; };
+		B0010100000000000000000E /* MenuBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000010 /* MenuBuilder.swift */; };
+		B0010100000000000000000F /* StatusItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000011 /* StatusItemController.swift */; };
+		B00101000000000000000010 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000012 /* SettingsWindowController.swift */; };
+		B00101000000000000000011 /* GeneralSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000013 /* GeneralSettingsViewController.swift */; };
+		B00101000000000000000012 /* ProviderSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000014 /* ProviderSettingsViewController.swift */; };
+		B00101000000000000000014 /* SettingsStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000016 /* SettingsStyle.swift */; };
 		B00101000000000000000002 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000002 /* Assets.xcassets */; };
 		B00101000000000000000003 /* BurnCore in Frameworks */ = {isa = PBXBuildFile; productRef = B0010A000000000000000001 /* BurnCore */; };
 		B00101000000000000000004 /* claude.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000006 /* claude.pdf */; };
@@ -17,7 +30,20 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		B00102000000000000000001 /* BurnApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BurnApp.swift; sourceTree = "<group>"; };
+		B00102000000000000000001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		B00102000000000000000015 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		B0010200000000000000000A /* AppActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppActions.swift; sourceTree = "<group>"; };
+		B0010200000000000000000B /* MenuBarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarViewModel.swift; sourceTree = "<group>"; };
+		B0010200000000000000000C /* MenuFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuFormat.swift; sourceTree = "<group>"; };
+		B0010200000000000000000D /* ProviderIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderIcons.swift; sourceTree = "<group>"; };
+		B0010200000000000000000E /* ReportLabels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportLabels.swift; sourceTree = "<group>"; };
+		B0010200000000000000000F /* UsageMenuItemViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageMenuItemViews.swift; sourceTree = "<group>"; };
+		B00102000000000000000010 /* MenuBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBuilder.swift; sourceTree = "<group>"; };
+		B00102000000000000000011 /* StatusItemController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusItemController.swift; sourceTree = "<group>"; };
+		B00102000000000000000012 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
+		B00102000000000000000013 /* GeneralSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsViewController.swift; sourceTree = "<group>"; };
+		B00102000000000000000014 /* ProviderSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSettingsViewController.swift; sourceTree = "<group>"; };
+		B00102000000000000000016 /* SettingsStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStyle.swift; sourceTree = "<group>"; };
 		B00102000000000000000002 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B00102000000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B00102000000000000000004 /* burn-app.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "burn-app.entitlements"; sourceTree = "<group>"; };
@@ -52,12 +78,41 @@
 		B00104000000000000000002 /* burn-app */ = {
 			isa = PBXGroup;
 			children = (
-				B00102000000000000000001 /* BurnApp.swift */,
+				B00102000000000000000015 /* main.swift */,
+				B00102000000000000000001 /* AppDelegate.swift */,
+				B0010200000000000000000A /* AppActions.swift */,
+				B00104000000000000000005 /* MenuBar */,
+				B00104000000000000000006 /* Settings */,
 				B00102000000000000000002 /* Assets.xcassets */,
 				B00102000000000000000003 /* Info.plist */,
 				B00102000000000000000004 /* burn-app.entitlements */,
 			);
 			path = "burn-app";
+			sourceTree = "<group>";
+		};
+		B00104000000000000000005 /* MenuBar */ = {
+			isa = PBXGroup;
+			children = (
+				B0010200000000000000000B /* MenuBarViewModel.swift */,
+				B0010200000000000000000C /* MenuFormat.swift */,
+				B0010200000000000000000D /* ProviderIcons.swift */,
+				B0010200000000000000000E /* ReportLabels.swift */,
+				B0010200000000000000000F /* UsageMenuItemViews.swift */,
+				B00102000000000000000010 /* MenuBuilder.swift */,
+				B00102000000000000000011 /* StatusItemController.swift */,
+			);
+			path = MenuBar;
+			sourceTree = "<group>";
+		};
+		B00104000000000000000006 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				B00102000000000000000012 /* SettingsWindowController.swift */,
+				B00102000000000000000016 /* SettingsStyle.swift */,
+				B00102000000000000000013 /* GeneralSettingsViewController.swift */,
+				B00102000000000000000014 /* ProviderSettingsViewController.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		B00104000000000000000003 /* Products */ = {
@@ -158,7 +213,20 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B00101000000000000000001 /* BurnApp.swift in Sources */,
+				B00101000000000000000013 /* main.swift in Sources */,
+				B00101000000000000000001 /* AppDelegate.swift in Sources */,
+				B00101000000000000000008 /* AppActions.swift in Sources */,
+				B00101000000000000000009 /* MenuBarViewModel.swift in Sources */,
+				B0010100000000000000000A /* MenuFormat.swift in Sources */,
+				B0010100000000000000000B /* ProviderIcons.swift in Sources */,
+				B0010100000000000000000C /* ReportLabels.swift in Sources */,
+				B0010100000000000000000D /* UsageMenuItemViews.swift in Sources */,
+				B0010100000000000000000E /* MenuBuilder.swift in Sources */,
+				B0010100000000000000000F /* StatusItemController.swift in Sources */,
+				B00101000000000000000010 /* SettingsWindowController.swift in Sources */,
+				B00101000000000000000014 /* SettingsStyle.swift in Sources */,
+				B00101000000000000000011 /* GeneralSettingsViewController.swift in Sources */,
+				B00101000000000000000012 /* ProviderSettingsViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -225,6 +293,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
+				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "burn-app/Info.plist";

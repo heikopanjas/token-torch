@@ -114,7 +114,7 @@ The app imports vendor OAuth into burn-owned Keychain (`com.burn.vendor.*`) once
 |--------|------|
 | **BurnCore** | Domain models, HTTP, credentials, quota and org providers, `UsageOrchestrator`. No terminal output. |
 | **burn-cli** | ArgumentParser CLI; terminal formatting in `Sources/burn-cli/` |
-| **burn-app** | SwiftUI menu bar app (`Sources/burn-app/`); links **BurnCore** |
+| **burn-app** | AppKit menu bar app (`Sources/burn-app/`); `NSMenu` + settings window; links **BurnCore** |
 
 UI targets never call vendor URLs directly — only `UsageOrchestrator` and settings stores.
 

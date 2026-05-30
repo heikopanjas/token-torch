@@ -1,6 +1,6 @@
 # burn — Development Guide
 
-Last updated: 2026-05-26 (menu bar Refresh command row)
+Last updated: 2026-05-26 (burn-app release build.sh)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -27,7 +27,7 @@ Run `/init-session` at the beginning of each new session, OR read this entire fi
 - **Language:** Swift 6
 - **Platforms:** macOS 14+
 - **CLI:** ArgumentParser (`burn-cli`)
-- **App:** SwiftUI menu bar app (Xcode, `burn-app`)
+- **App:** AppKit menu bar app (Xcode, `burn-app`) — `NSStatusItem` + `NSMenu` with custom-view usage items
 - **Package manager:** Swift Package Manager (`Package.swift` at repo root)
 - **Version Control:** Git
 
@@ -48,6 +48,10 @@ swift test
 # Menu bar app
 open Sources/burn-app/burn-app.xcodeproj
 cd Sources/burn-app && xcodebuild -scheme burn-app -configuration Debug build
+
+# Release archive + Developer ID export (from Sources/burn-app/)
+cd Sources/burn-app && ./build.sh
+cd Sources/burn-app && ./build.sh --clean --notarize   # requires ExportOptions.plist + notarytool profile burn-Notarize
 ```
 
 ### Project-specific run examples
@@ -145,9 +149,9 @@ When initializing a session or analyzing the workspace, refer to instruction fil
 |--------|------|
 | **BurnCore** | Domain models, HTTP, credentials, quota + org providers, `UsageOrchestrator`. No terminal output. |
 | **burn-cli** | ArgumentParser CLI; terminal formatting in `Sources/burn-cli/` |
-| **burn-app** | SwiftUI menu bar app (Xcode); links **BurnCore** local package |
+| **burn-app** | AppKit menu bar app (Xcode); links **BurnCore** local package |
 
-UI targets never call vendor URLs directly — only `UsageOrchestrator` and settings stores. All CLI stdout/stderr formatting lives in the **`burn-cli` executable target**, not BurnCore (menu bar uses its own SwiftUI).
+UI targets never call vendor URLs directly — only `UsageOrchestrator` and settings stores. All CLI stdout/stderr formatting lives in the **`burn-cli` executable target**, not BurnCore (menu bar UI is AppKit under `Sources/burn-app/burn-app/`).
 
 ### Directory layout
 
@@ -164,7 +168,7 @@ Sources/
 ├── burn-cli/              # BurnCLI, TerminalDisplay, TableRenderer, PageProgress
 └── burn-app/              # Xcode project + menu bar app sources
     ├── burn-app.xcodeproj
-    └── burn-app/          # BurnApp.swift, assets, entitlements
+    └── burn-app/          # main.swift, AppDelegate.swift, MenuBar/, Settings/, assets
 Tests/BurnCoreTests/
 Pictures/                  # Provider icon PDFs (referenced by Xcode)
 ```
@@ -293,6 +297,28 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`burn-cli`** version in `BurnCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-05-26: burn-app release build script
+
+**What**: `Sources/burn-app/build.sh` archives `burn-app` (Release), exports with `ExportOptions.plist` (Developer ID, `com.panjas.burn`), optional `--notarize` via `burn-Notarize` keychain profile.
+
+**Why**: Port senor-particle direct-distribution workflow; replace senor-particle names in copied scripts.
+
+**How**: `build.sh`, `ExportOptions.plist`. Docs in AGENTS.md build section.
+
+### 2026-05-26: burn-app startup wiring
+
+**What**: `main.swift` top-level entry retains `AppDelegate` strongly (`nonisolated(unsafe)` global), sets `.accessory` activation policy before `run()`, and drops `@MainActor` on `AppDelegate` so `NSApplicationDelegate` callbacks run. Debug builds set `ENABLE_DEBUG_DYLIB = NO` so `_main` lives in the app executable (avoids blank debug stub). Status icon falls back to `flame.fill` SF Symbol like SwiftUI.
+
+**Why**: Weak delegate + debug dylib stub could prevent `applicationDidFinishLaunching` from installing `NSStatusItem`; menu bar showed nothing.
+
+**How**: `main.swift`, `AppDelegate.swift`, `ProviderIcons.swift`, `project.pbxproj`. Version `3.3.2`.
+
+### 2026-05-26: burn-app AppKit NSMenu migration
+
+**What**: Replaced SwiftUI `MenuBarExtra` with `NSApplicationDelegate`, `NSStatusItem.menu`, and custom-view `NSMenuItem`s for usage (`MenuBuilder`, `UsageMenuItemViews`). Settings use `NSTabView` + AppKit view controllers. No SwiftUI in burn-app.
+
+**How**: Split `BurnApp.swift` into `AppDelegate.swift`, `MenuBar/`, `Settings/`. Version `3.3.0`.
 
 ### 2026-05-26: Menu bar Refresh command row
 
