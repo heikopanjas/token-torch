@@ -1,8 +1,8 @@
-# burn
+# Token Torch
 
-macOS-native **burn** helps you see where your LLM usage goes — before the invoice or rate limit does. It unifies **organization billing** (Anthropic and OpenAI Admin APIs) and **personal subscription quotas** (Claude Code, ChatGPT/Codex, Cursor) into one Swift stack: shared **BurnCore**, terminal **burn-cli**, and menu bar **burn-app**.
+macOS-native **Token Torch** helps you see where your LLM usage goes — before the invoice or rate limit does. It unifies **organization billing** (Anthropic and OpenAI Admin APIs) and **personal subscription quotas** (Claude Code, ChatGPT/Codex, Cursor) into one Swift stack: shared **TokenTorchCore**, terminal **token-torch-cli**, and menu bar **Token Torch**.
 
-Credentials stay on your Mac. burn reads vendor OAuth and Admin keys **read-only** and never writes back to Claude Code, Codex, or Cursor.
+Credentials stay on your Mac. Token Torch reads vendor OAuth and Admin keys **read-only** and never writes back to Claude Code, Codex, or Cursor.
 
 ## What it does
 
@@ -22,28 +22,28 @@ Org-wide usage is the default. Scope with `--workspace` (Anthropic) or `--projec
 ## Build
 
 ```bash
-# Swift Package (BurnCore + burn-cli)
+# Swift Package (TokenTorchCore + token-torch-cli)
 swift build
 swift test
 ```
 
 Binaries:
 
-- `.build/debug/burn-cli` — CLI (Swift Package)
-- `Sources/burn-app/.build/Products/Debug/burn-app.app` — menu bar app (Xcode)
+- `.build/debug/token-torch-cli` — CLI (Swift Package)
+- `Sources/token-torch-app/.build/Products/Debug/Token Torch.app` — menu bar app (Xcode)
 
 ## CLI
 
-Command name: `burn-cli`. Top-level flags: `--version` / `-V`.
+Command name: `token-torch-cli`. Top-level flags: `--version` / `-V`.
 
 ### Subscription quotas
 
 Reads local OAuth on macOS (no Admin API key):
 
 ```bash
-.build/debug/burn-cli anthropic --quota   # alias: claude
-.build/debug/burn-cli openai --quota      # alias: codex
-.build/debug/burn-cli cursor --quota
+.build/debug/token-torch-cli anthropic --quota   # alias: claude
+.build/debug/token-torch-cli openai --quota      # alias: codex
+.build/debug/token-torch-cli cursor --quota
 ```
 
 ### Organization billing
@@ -52,31 +52,31 @@ Requires an **Admin API key** (not a regular API key):
 
 - Anthropic: `-a` / `ANTHROPIC_ADMIN_KEY` — create at **Settings → Organization → API Keys** in the Anthropic Console
 - OpenAI: `-a` / `OPENAI_ADMIN_KEY`
-- CLI also reads keys saved by **burn-app** in burn Keychain (`com.burn.keys.<provider>.adminKey`)
+- CLI also reads keys saved by **Token Torch** in Keychain (`com.tokentorch.keys.<provider>.adminKey`)
 
 ```bash
 # Current month (default date range)
-.build/debug/burn-cli anthropic
-.build/debug/burn-cli openai
+.build/debug/token-torch-cli anthropic
+.build/debug/token-torch-cli openai
 
 # Explicit range: YYYY, YYYY-MM, or YYYY-MM-DD
-.build/debug/burn-cli anthropic -s 2026-05
-.build/debug/burn-cli openai -s 2026-05-01 -e 2026-05-15
+.build/debug/token-torch-cli anthropic -s 2026-05
+.build/debug/token-torch-cli openai -s 2026-05-01 -e 2026-05-15
 
 # List workspaces / projects
-.build/debug/burn-cli anthropic --list-workspaces
-.build/debug/burn-cli openai --list-projects
+.build/debug/token-torch-cli anthropic --list-workspaces
+.build/debug/token-torch-cli openai --list-projects
 
 # Scoped usage
-.build/debug/burn-cli anthropic --workspace default
-.build/debug/burn-cli openai --project proj_abc
+.build/debug/token-torch-cli anthropic --workspace default
+.build/debug/token-torch-cli openai --project proj_abc
 ```
 
 `cursor` without `--quota` prints a notice that org billing is not supported.
 
 ### Quota credential sources (macOS)
 
-| Tool | Where burn looks (read-only) |
+| Tool | Where Token Torch looks (read-only) |
 |------|------------------------------|
 | Claude Code | Keychain `Claude Code-credentials`, then `~/.claude/.credentials.json` |
 | Codex | `~/.codex/auth.json`, `CODEX_HOME`, `~/.config/codex`, Keychain `Codex Auth` |
@@ -84,21 +84,21 @@ Requires an **Admin API key** (not a regular API key):
 
 Quota APIs are undocumented and may change. Reference: [OpenUsage provider docs](https://github.com/robinebers/openusage/tree/main/docs/providers).
 
-## burn-app
+## Token Torch (menu bar app)
 
-Menu bar app (Xcode): proper `.app` bundle, code signing, `LSUIElement` for menu-bar-only UI.
+Menu bar app (Xcode): `Token Torch.app`, code signing, `LSUIElement` for menu-bar-only UI.
 
 ```bash
 # Open in Xcode (recommended)
-open Sources/burn-app/burn-app.xcodeproj
+open Sources/token-torch-app/token-torch.xcodeproj
 
 # Command line
-cd Sources/burn-app
-xcodebuild -scheme burn-app -configuration Debug build
-open .build/Products/Debug/burn-app.app
+cd Sources/token-torch-app
+xcodebuild -scheme token-torch -configuration Debug build
+open .build/Products/Debug/Token\ Torch.app
 ```
 
-Set your **Development Team** in the target’s Signing & Capabilities before distributing. Bundle ID: `com.panjas.burn`.
+Set your **Development Team** in the target’s Signing & Capabilities before distributing. Bundle ID: `com.panjas.tokentorch`.
 
 **Settings** (per provider):
 
@@ -106,15 +106,16 @@ Set your **Development Team** in the target’s Signing & Capabilities before di
 - **Claude / Codex** — subscription quota and org billing toggles; API and Admin key fields
 - **Cursor** — subscription quota only (no org billing)
 
-The app imports vendor OAuth into burn-owned Keychain (`com.burn.vendor.*`) once per provider so routine refresh does not re-prompt macOS for vendor Keychain access. **burn-cli** reads vendor stores directly.
+The app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider so routine refresh does not re-prompt macOS for vendor Keychain access. On first launch after upgrading from **burn**, `CredentialStoreMigration` copies legacy `com.burn.*` Keychain entries. **token-torch-cli** reads vendor stores directly (also runs migration on startup).
+
 
 ## Architecture
 
 | Target | Role |
 |--------|------|
-| **BurnCore** | Domain models, HTTP, credentials, quota and org providers, `UsageOrchestrator`. No terminal output. |
-| **burn-cli** | ArgumentParser CLI; terminal formatting in `Sources/burn-cli/` |
-| **burn-app** | AppKit menu bar app (`Sources/burn-app/`); `NSMenu` + settings window; links **BurnCore** |
+| **TokenTorchCore** | Domain models, HTTP, credentials, quota and org providers, `UsageOrchestrator`. No terminal output. |
+| **token-torch-cli** | ArgumentParser CLI; terminal formatting in `Sources/token-torch-cli/` |
+| **Token Torch** | AppKit menu bar app (`Sources/token-torch-app/`); `NSMenu` + settings window; links **TokenTorchCore** |
 
 UI targets never call vendor URLs directly — only `UsageOrchestrator` and settings stores.
 
@@ -123,10 +124,10 @@ UI targets never call vendor URLs directly — only `UsageOrchestrator` and sett
 ```
 Package.swift
 Sources/
-├── BurnCore/          # Library: providers, credentials, orchestration
-├── burn-cli/          # Terminal CLI
-└── burn-app/          # Xcode menu bar project
-Tests/BurnCoreTests/
+├── TokenTorchCore/          # Library: providers, credentials, orchestration
+├── token-torch-cli/          # Terminal CLI
+└── token-torch-app/      # Xcode menu bar project (Token Torch.app)
+Tests/TokenTorchCoreTests/
 Pictures/              # Provider icons (PDF/SVG)
 ```
 
@@ -135,8 +136,8 @@ Pictures/              # Provider icons (PDF/SVG)
 | Store | Purpose |
 |-------|---------|
 | `VendorCredentialsReader` / `VendorCredentialImporter` | Read-only import from vendor Keychain/files for subscription quota |
-| `BurnVendorCredentialStore` | burn-owned OAuth copies (`com.burn.vendor.*`) for silent menu bar refresh |
-| `AppKeychainStore` | User-entered Admin keys (`com.burn.keys.<provider>.adminKey`) |
+| `TokenTorchVendorCredentialStore` | Token Torch-owned OAuth copies (`com.tokentorch.vendor.*`) for silent menu bar refresh |
+| `AppKeychainStore` | User-entered Admin keys (`com.tokentorch.keys.<provider>.adminKey`) |
 
 ## Tests
 
@@ -151,7 +152,7 @@ Mapper, date, redaction, and credential-guard tests run offline. Live quota test
 - Never commit API keys or OAuth tokens
 - User-visible errors are redacted via `Redaction`
 - Quota mode does not refresh or write vendor credentials; on 401/403, re-login in the vendor tool
-- Keychain access uses Security framework APIs in **BurnCore** (no `security` CLI subprocess)
+- Keychain access uses Security framework APIs in **TokenTorchCore** (no `security` CLI subprocess)
 
 ## Development
 

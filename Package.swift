@@ -2,30 +2,30 @@
 import PackageDescription
 
 let package = Package(
-    name: "burn-swift",
+    name: "token-torch-swift",
     platforms: [.macOS(.v14)],
     products: [
-        .library(name: "BurnCore", targets: ["BurnCore"]),
-        .executable(name: "burn-cli", targets: ["burn-cli"])
+        .library(name: "TokenTorchCore", targets: ["TokenTorchCore"]),
+        .executable(name: "token-torch-cli", targets: ["token-torch-cli"])
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0")
     ],
     targets: [
         .target(
-            name: "BurnCore",
+            name: "TokenTorchCore",
             linkerSettings: [.linkedLibrary("sqlite3")]
         ),
         .executableTarget(
-            name: "burn-cli",
+            name: "token-torch-cli",
             dependencies: [
-                "BurnCore",
+                "TokenTorchCore",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
             ]
         ),
         .testTarget(
-            name: "BurnCoreTests",
-            dependencies: ["BurnCore"]
+            name: "TokenTorchCoreTests",
+            dependencies: ["TokenTorchCore"]
         )
     ]
 )
