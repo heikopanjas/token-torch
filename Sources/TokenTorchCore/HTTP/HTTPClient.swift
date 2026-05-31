@@ -29,6 +29,19 @@ public enum QuotaHTTP {
         return msg.contains("429") || msg.contains("rate_limit")
     }
 
+    /// Fails fast for a session whose access token is already expired.
+    ///
+    /// Token Torch is read-only and never refreshes vendor tokens, so calling the usage API with an
+    /// expired token only yields a 401 (and the retry churn can trigger a 429). Surface the precise
+    /// re-login message up front instead.
+    public static func requireUsableSession(_ session: OAuthSession, provider: String, vendorAction: String) throws {
+        guard VendorCredentialsReader.sessionIsUsable(session) else {
+            throw VendorCredentialsReader.quotaSessionExpired(
+                provider: provider, session: session, vendorAction: vendorAction
+            )
+        }
+    }
+
     public static func fetchWithAuthRecovery(
         provider: String,
         session: OAuthSession,

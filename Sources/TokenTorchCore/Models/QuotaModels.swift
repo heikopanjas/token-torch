@@ -18,12 +18,21 @@ public struct CreditsInfo: Codable, Sendable, Equatable {
     public let limitCents: UInt64
     public let currency: String
     public let balanceUSD: Double?
+    /// Server-provided utilization percentage, when available (preferred over a recomputed value).
+    public let utilizationPercent: Double?
 
-    public init(usedCents: UInt64, limitCents: UInt64, currency: String, balanceUSD: Double?) {
+    public init(
+        usedCents: UInt64,
+        limitCents: UInt64,
+        currency: String,
+        balanceUSD: Double?,
+        utilizationPercent: Double? = nil
+    ) {
         self.usedCents = usedCents
         self.limitCents = limitCents
         self.currency = currency
         self.balanceUSD = balanceUSD
+        self.utilizationPercent = utilizationPercent
     }
 }
 

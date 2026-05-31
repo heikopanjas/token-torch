@@ -3,6 +3,7 @@ import Foundation
 public enum ProviderReport: Sendable, Equatable {
     case subscription(SubscriptionQuotaReport)
     case org(OrgUsageReport)
+    case needsAuthorization(provider: ProviderID, mode: String)
     case error(provider: ProviderID, mode: String, message: String)
 }
 

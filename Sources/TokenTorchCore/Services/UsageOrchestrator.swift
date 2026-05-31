@@ -39,14 +39,17 @@ public struct UsageOrchestrator: Sendable {
         self.credentialStrategy = credentialStrategy
     }
 
-    public func fetchAll(preferences: ProviderPreferences? = nil) async -> AllProvidersResult {
+    /// Fetches all enabled providers.
+    /// - Parameter interactive: when `false` (startup/timer refresh) no credential access prompts;
+    ///   providers without a silent source surface a `needsAuthorization` report instead of an error.
+    public func fetchAll(preferences: ProviderPreferences? = nil, interactive: Bool = false) async -> AllProvidersResult {
         let prefs = preferences ?? preferencesStore.load()
         var results: [ProviderFetchResult] = []
 
         await withTaskGroup(of: ProviderFetchResult?.self) { group in
             for provider in ProviderID.allCases {
                 group.addTask {
-                    await self.fetchProvider(provider, preferences: prefs)
+                    await self.fetchProvider(provider, preferences: prefs, interactive: interactive)
                 }
             }
             for await item in group {
@@ -57,26 +60,14 @@ public struct UsageOrchestrator: Sendable {
         return AllProvidersResult(results: results.sorted { $0.provider.rawValue < $1.provider.rawValue })
     }
 
-    private func fetchProvider(_ provider: ProviderID, preferences: ProviderPreferences) async -> ProviderFetchResult? {
+    private func fetchProvider(_ provider: ProviderID, preferences: ProviderPreferences, interactive: Bool) async -> ProviderFetchResult? {
         let flags = preferences.flags(for: provider)
         guard flags.subscriptionQuotaEnabled || flags.orgBillingEnabled else { return nil }
 
         var reports: [ProviderReport] = []
 
         if flags.subscriptionQuotaEnabled {
-            if credentialStrategy == .tokenTorchOwnedCopy {
-                try? VendorCredentialImporter.ensureImported(
-                    provider: provider,
-                    quotaEnabled: flags.subscriptionQuotaEnabled
-                )
-            }
-            do {
-                let quota = try await fetchQuota(provider: provider)
-                reports.append(.subscription(quota))
-            }
-            catch {
-                reports.append(.error(provider: provider, mode: "subscription", message: Redaction.redactSecrets(error.localizedDescription)))
-            }
+            reports.append(await subscriptionReport(provider: provider, interactive: interactive))
         }
 
         if flags.orgBillingEnabled {
@@ -95,11 +86,47 @@ public struct UsageOrchestrator: Sendable {
         return ProviderFetchResult(provider: provider, reports: reports)
     }
 
-    private func fetchQuota(provider: ProviderID) async throws -> SubscriptionQuotaReport {
+    private func subscriptionReport(provider: ProviderID, interactive: Bool) async -> ProviderReport {
+        if credentialStrategy == .tokenTorchOwnedCopy {
+            do {
+                try VendorCredentialImporter.ensureImported(
+                    provider: provider,
+                    quotaEnabled: true,
+                    interactive: interactive
+                )
+            }
+            catch {
+                if !interactive, Self.isNeedsAuthorization(error) {
+                    return .needsAuthorization(provider: provider, mode: "subscription")
+                }
+                // Interactive failures fall through; the fetch below surfaces a precise error.
+            }
+        }
+        do {
+            let quota = try await fetchQuota(provider: provider, interactive: interactive)
+            return .subscription(quota)
+        }
+        catch {
+            if !interactive, Self.isNeedsAuthorization(error) {
+                return .needsAuthorization(provider: provider, mode: "subscription")
+            }
+            return .error(provider: provider, mode: "subscription", message: Redaction.redactSecrets(error.localizedDescription))
+        }
+    }
+
+    private static func isNeedsAuthorization(_ error: Error) -> Bool {
+        guard let error = error as? TokenTorchError else { return false }
+        switch error {
+            case .needsAuthorization, .missingCredentials: return true
+            default: return false
+        }
+    }
+
+    private func fetchQuota(provider: ProviderID, interactive: Bool) async throws -> SubscriptionQuotaReport {
         switch provider {
-            case .claude: try await ClaudeQuotaProvider.fetch(credentialStrategy: credentialStrategy)
-            case .codex: try await CodexQuotaProvider.fetch(credentialStrategy: credentialStrategy)
-            case .cursor: try await CursorQuotaProvider.fetch(credentialStrategy: credentialStrategy)
+            case .claude: try await ClaudeQuotaProvider.fetch(credentialStrategy: credentialStrategy, interactive: interactive)
+            case .codex: try await CodexQuotaProvider.fetch(credentialStrategy: credentialStrategy, interactive: interactive)
+            case .cursor: try await CursorQuotaProvider.fetch(credentialStrategy: credentialStrategy, interactive: interactive)
         }
     }
 

@@ -1,5 +1,5 @@
-import TokenTorchCore
 import Foundation
+import TokenTorchCore
 
 @MainActor
 @Observable
@@ -17,17 +17,17 @@ final class MenuBarViewModel {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.refresh()
+            self?.refresh(interactive: true)
         }
         scheduleRefresh()
     }
 
-    func refresh() {
+    func refresh(interactive: Bool = false) {
         guard !isLoading else { return }
         isLoading = true
         notifyUpdated()
         Task {
-            let fetched = await orchestrator.fetchAll()
+            let fetched = await orchestrator.fetchAll(interactive: interactive)
             await MainActor.run {
                 self.result = fetched
                 self.isLoading = false
@@ -41,11 +41,11 @@ final class MenuBarViewModel {
     }
 
     private func scheduleRefresh() {
-        refresh()
+        refresh(interactive: false)
         let minutes = ProviderPreferencesStore.shared.load().refreshIntervalMinutes
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: TimeInterval(minutes * 60), repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refresh() }
+            Task { @MainActor in self?.refresh(interactive: false) }
         }
     }
 

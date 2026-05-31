@@ -1,4 +1,5 @@
 import AppKit
+import TokenTorchCore
 
 enum MenuFormat {
     static let menuWidth: CGFloat = 360
@@ -25,8 +26,8 @@ enum MenuFormat {
         return .systemGreen
     }
 
-    static func orgCostUSD(_ usd: Double) -> String {
-        String(format: "$%.2f", usd)
+    static func orgCost(_ usd: Double, in currency: DisplayCurrency) -> String {
+        CurrencyConverter.formatConverted(amount: usd, from: "USD", to: currency)
     }
 
     static var captionFont: NSFont { .systemFont(ofSize: NSFont.smallSystemFontSize) }

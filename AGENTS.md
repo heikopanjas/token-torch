@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-05-26 (rebrand burn → Token Torch)
+Last updated: 2026-05-31 (read all Keychain items per vendor service; freshest wins)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -193,6 +193,7 @@ Pictures/                  # Provider icon PDFs (referenced by Xcode)
 - Anthropic: `-a`, `--quota`, `--list-workspaces`, `--workspace`, `-s`, `-e`
 - OpenAI: `-a`, `--quota`, `--list-projects`, `--project`, `-s`, `-e`
 - Cursor: `--quota` only (no org Admin API; default prints unavailability notice)
+- All subcommands: `-c/--currency` (USD/EUR; defaults to system locale) via shared `CurrencyOptions` `@OptionGroup`
 - Modes: org usage (default + Admin key), personal subscription quota (`--quota`)
 
 ### Key TokenTorchCore modules
@@ -216,13 +217,21 @@ Anthropic usage requests pass `group_by[]=model&group_by[]=workspace_id` for per
 
 ### Cost Display
 
-Costs summed per model, sorted descending:
+Costs summed per model, sorted descending. The primary amount is the user's **display currency** (USD/EUR), with the other shown in parentheses:
 
 ```
-€X.XX ($Y.YY USD) → claude-opus-4-6
+€X.XX ($Y.YY) → claude-opus-4-6
 ...
-Grand Total: €Z.ZZ ($W.WW USD)
+Grand Total: €Z.ZZ ($W.WW)
 ```
+
+### Display Currency
+
+- `DisplayCurrency` (USD/EUR) + `CurrencyConverter` in `TokenTorchCore/Utilities/DisplayCurrency.swift` (pure; USD<->EUR via `Pricing.usdToEUR`, native passthrough for other source currencies).
+- Default = `Locale.current.currency` mapped to USD/EUR (`.systemDefault`, USD fallback).
+- Menu bar: General tab popup, persisted in `ProviderPreferences.displayCurrency`; changing it posts `tokenTorchDisplayChanged` to rebuild the menu (no refetch).
+- CLI: `-c/--currency` per subcommand (the CLI can't read the app's `UserDefaults`, so it defaults to system locale).
+- Source currencies fed to the converter: USD for Cursor / Anthropic org / OpenAI org / ChatGPT credits; `extra_usage.currency` for Claude credits.
 
 ### Date Handling
 
@@ -297,6 +306,48 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-05-31: Display currency + expanded Claude usage fields
+
+**What**: New `DisplayCurrency` (USD/EUR) + `CurrencyConverter` (`TokenTorchCore/Utilities/DisplayCurrency.swift`). General-tab popup persists `ProviderPreferences.displayCurrency` (default = locale currency, USD fallback); CLI gains `-c/--currency`. All monetary output in the menu and CLI converts via the built-in USD<->EUR rate (native passthrough otherwise). Claude `mapUsage` now surfaces every window the API returns (`seven_day_sonnet`, `seven_day_cowork`, `seven_day_oauth_apps`, and codenames) plus `extra_usage.utilization`; `extra_usage.disabled_reason` and the standalone `currency` are not displayed (currency is kept internally for conversion). Added a non-Cursor credits row to the menu. `CreditsInfo.utilizationPercent` added.
+
+**Why**: Users in non-USD regions need amounts in their own currency, and the Claude API exposes more meters than were shown. Confirmed source currencies: USD for Cursor/Anthropic org/OpenAI org/ChatGPT credits; EUR (account-dependent) for Claude credits.
+
+**How**: `DisplayCurrency.swift`, `ProviderPreferences.swift` (backward-compatible decode), `QuotaModels.swift`, `ClaudeQuotaProvider.swift`, `GeneralSettingsViewController.swift`, `MenuFormat.swift`, `ReportLabels.swift`, `MenuBuilder.swift`, `StatusItemController.swift`, `AppActions.swift` (`tokenTorchDisplayChanged`), `TerminalDisplay.swift`, `TokenTorchCLI.swift`. Tests for converter/format/legacy-prefs/Claude windows. Version `3.8.0`.
+
+### 2026-05-31: Advanced settings — Reset Keychain
+
+**What**: New **Advanced** tab in Settings with a destructive **Reset Keychain…** button (confirmation alert) that deletes every Token Torch-owned Keychain item. `TokenTorchKeychainMaintenance.resetTokenTorchKeychain()` → `KeychainReader.deleteItems(withServicePrefix:)` enumerates generic passwords attributes-only (no ACL prompt) and deletes only those whose service starts with `AppBrand.keychainServicePrefix` (`com.tokentorch.`) — i.e. admin keys (`com.tokentorch.keys.*`) and imported vendor OAuth copies (`com.tokentorch.vendor.*`).
+
+**Why**: Users need a safe escape hatch to clear stale/broken stored credentials (e.g. an expired imported copy) in one action. Strict service-prefix filtering guarantees vendor-owned logins (Claude Code, Codex, Cursor) are never touched.
+
+**How**: `AppBrand.swift` (`keychainServicePrefix`), `KeychainReader.deleteItems`, `TokenTorchKeychainMaintenance.swift`, `AdvancedSettingsViewController.swift`, `SettingsWindowController.swift` (+`SettingsStyle`), `project.pbxproj`; test `keychainResetTargetsOnlyTokenTorchServices`. Version `3.7.0`.
+
+### 2026-05-31: Read all Keychain items per vendor service (freshest wins)
+
+**What**: `KeychainReader.readAllGenericPasswords(service:allowUI:)` returns every item for a service by first enumerating accounts via an **attributes-only** query (no ACL prompt), then reading each item individually. Claude vendor reads (`importClaudeSessionFromVendor`, `loadClaudeSessionDirect`) gather all candidates across services/accounts and pick the freshest via `VendorCredentialsReader.freshest(_:)`.
+
+**Why**: Claude Code stores its OAuth under account = the macOS username, and a stale leftover item from the old *burn* app sat under the **same** vendor service (`Claude Code-credentials-<hash>` / account `burn`). The old single-item read (`kSecMatchLimitOne`, service only) returned an arbitrary match — the stale one — so even after a fresh `claude /login`, Reset kept importing the expired token into Token Torch's copy. A single `kSecMatchLimitAll` + `kSecReturnData` read fails outright ("Keychain read failed") when the matches have different access ACLs (the live item is owned by Claude Code, the leftover by burn), so the read must enumerate then fetch per item. Choosing the latest expiry fixes it without requiring the user to delete the leftover. (No current code writes to vendor services; the `burn` item is a legacy artifact.)
+
+**How**: `KeychainReader.swift`, `VendorCredentialsReader.swift`; test `freshestPrefersLaterExpiryOverStaleSameServiceItem`. Version `3.6.3`.
+
+### 2026-05-31: Fail fast on expired vendor tokens
+
+**What**: `QuotaHTTP.requireUsableSession(_:provider:vendorAction:)` throws the precise `quotaSessionExpired` ("Re-login…") message when the loaded access token is already expired. Each quota provider (`Claude`/`Codex`/`Cursor`) calls it right after loading the session, before any API request.
+
+**Why**: Token Torch is read-only and never refreshes vendor tokens. With an expired token (e.g. Claude Code's Keychain token left stale because Claude Code hasn't run), the usage call returned 401 and the retry churn then tripped a 429 — surfacing a confusing dual "rate limit / login" error. **Reset** only re-copies the same expired token, so it can't help; the user must refresh the vendor app (run Claude Code / `/login`) first. Short-circuiting avoids the doomed call and shows a single accurate message.
+
+**How**: `HTTPClient.swift` (`QuotaHTTP`), `Claude/Codex/CursorQuotaProvider.swift`; tests in `TokenTorchCoreTests`. Version `3.6.1`.
+
+### 2026-05-31: Non-interactive startup + settings-gated credential access
+
+**What**: Startup and timer refreshes are now non-interactive: vendor Keychain imports only prompt on explicit user action (manual Refresh, Settings → Reset credentials). An `interactive` flag threads through `VendorCredentialsReader.import*FromVendor(allowUI:)`, `VendorCredentialImporter` (`ensureImported`/`importAndSave`/`importFromVendor`/`resetAndReimport`/`reimportAfterAuthFailure`/`ensureImportedForEnabledProviders`), `UsageOrchestrator.fetchAll/fetchProvider`, the three quota providers' `fetch`, and `MenuBarViewModel.refresh(interactive:)`. When a non-interactive import has no silent source, it surfaces `TokenTorchError.needsAuthorization` → new `ProviderReport.needsAuthorization` → a "Click Refresh to authorize Keychain access." notice row (not a red error). `CredentialStoreMigration.migrateFromBurnIfNeeded` now migrates preferences first, then only migrates vendor OAuth for `subscriptionQuotaEnabled` providers and admin keys for `orgBillingEnabled` providers. `ensureImported` dedupes the copy read to a single `load` + usability check.
+
+**Why**: Debug rebuilds change the app signature, invalidating the saved copy's Keychain ACL and triggering a re-import prompt per enabled provider on every launch. Background reads must never prompt, and only credentials for enabled providers should ever be touched.
+
+**Note**: Repeated debug-time prompts stem from ad-hoc signing changing app identity. Use a stable signing identity (consistent Development Team) for Debug builds so the Token Torch copy persists across rebuilds.
+
+**How**: `TokenTorchError.swift`, `VendorCredentialsReader.swift`, `VendorCredentialImporter.swift`, `UsageOrchestrator.swift`, `ProviderReport.swift`, `Claude/Codex/CursorQuotaProvider.swift`, `CredentialStoreMigration.swift`, `MenuBuilder.swift`, `UsageMenuItemViews.swift`, `ReportLabels.swift`, `ProviderIcons.swift`, `MenuBarViewModel.swift`, `ProviderSettingsViewController.swift`; tests in `TokenTorchCoreTests`. Version `3.6.0`.
 
 ### 2026-05-26: Rebrand burn → Token Torch
 

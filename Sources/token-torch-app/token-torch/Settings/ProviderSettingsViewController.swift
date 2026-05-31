@@ -167,7 +167,8 @@ final class ProviderSettingsViewController: NSViewController {
             if flags.subscriptionQuotaEnabled {
                 try VendorCredentialImporter.resetAndReimport(
                     provider: provider,
-                    quotaEnabled: flags.subscriptionQuotaEnabled
+                    quotaEnabled: flags.subscriptionQuotaEnabled,
+                    interactive: true
                 )
                 statusLabel.stringValue = "Credentials reset and re-imported."
             }

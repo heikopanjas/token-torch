@@ -6,6 +6,9 @@ enum TerminalDisplay {
     private static let quotaDisclaimer =
         "Personal subscription quota via local OAuth (undocumented API; may change without notice)."
 
+    /// Display currency for all monetary output; set once per CLI run from `--currency`.
+    nonisolated(unsafe) static var displayCurrency: DisplayCurrency = .systemDefault
+
     static func displayAnthropicUsage(_ usage: AnthropicUsageResponse, pricingMap: [String: Pricing.ModelPricing]) {
         displayAnthropicUsage(usage, pricingMap: pricingMap, emptyHint: nil)
     }
@@ -163,21 +166,21 @@ enum TerminalDisplay {
 
         if isCursor {
             if let allowanceCents = report.includedAllowanceCents {
-                let allowance = QuotaHelpers.centsToDollars(allowanceCents)
+                let allowance = CurrencyConverter.formatMinorUnits(allowanceCents, from: "USD", to: displayCurrency)
                 print(
                     ANSIColor.dimmed(
-                        "Includes $\(String(format: "%.0f", allowance))/mo API agent usage at provider rates, plus a separate Auto + Composer allowance (Cursor docs)."
+                        "Includes \(allowance)/mo API agent usage at provider rates, plus a separate Auto + Composer allowance (Cursor docs)."
                     ))
                 print()
             }
         }
         else if let dollarUsage = report.dollarUsage {
-            let used = QuotaHelpers.centsToDollars(dollarUsage.usedCents)
-            let limit = QuotaHelpers.centsToDollars(dollarUsage.limitCents)
-            let remaining = QuotaHelpers.centsToDollars(dollarUsage.remainingCents)
+            let used = CurrencyConverter.formatMinorUnits(dollarUsage.usedCents, from: "USD", to: displayCurrency)
+            let limit = CurrencyConverter.formatMinorUnits(dollarUsage.limitCents, from: "USD", to: displayCurrency)
+            let remaining = CurrencyConverter.formatMinorUnits(dollarUsage.remainingCents, from: "USD", to: displayCurrency)
             let percent = dollarUsage.usedPercent.map { " (\(String(format: "%.0f", $0))% used)" } ?? ""
             print(
-                "\(ANSIColor.brightWhite(pad("Plan usage", 22))) \(ANSIColor.brightWhiteBold(String(format: "$%.2f / $%.2f", used, limit)))   $\(String(format: "%.2f", remaining)) remaining\(ANSIColor.dimmed(percent))"
+                "\(ANSIColor.brightWhite(pad("Plan usage", 22))) \(ANSIColor.brightWhiteBold("\(used) / \(limit)"))   \(remaining) remaining\(ANSIColor.dimmed(percent))"
             )
             print()
         }
@@ -208,14 +211,14 @@ enum TerminalDisplay {
 
         if isCursor {
             if let api = report.apiAllowance {
-                let used = QuotaHelpers.centsToDollars(api.usedCents)
-                let limit = QuotaHelpers.centsToDollars(api.limitCents)
-                let remaining = QuotaHelpers.centsToDollars(api.remainingCents)
+                let used = CurrencyConverter.formatMinorUnits(api.usedCents, from: "USD", to: displayCurrency)
+                let limit = CurrencyConverter.formatMinorUnits(api.limitCents, from: "USD", to: displayCurrency)
+                let remaining = CurrencyConverter.formatMinorUnits(api.remainingCents, from: "USD", to: displayCurrency)
                 let percent = api.usedPercent.map { " (\(String(format: "%.0f", $0))%)" } ?? ""
                 print(
-                    "\(ANSIColor.brightWhite(pad("API ($400 incl.)", 22))) \(ANSIColor.brightWhiteBold(String(format: "~$%.2f / $%.2f", used, limit)))   ~$\(String(format: "%.2f", remaining)) remaining\(ANSIColor.dimmed(percent))"
+                    "\(ANSIColor.brightWhite(pad("API allowance", 22))) \(ANSIColor.brightWhiteBold("~\(used) / \(limit)"))   ~\(remaining) remaining\(ANSIColor.dimmed(percent))"
                 )
-                print(ANSIColor.dimmed("From apiPercentUsed × $400 API allowance (named models)."))
+                print(ANSIColor.dimmed("From apiPercentUsed × the included API allowance (named models)."))
             }
 
             if report.windows.isEmpty, report.apiAllowance == nil, report.dollarUsage == nil {
@@ -293,16 +296,23 @@ enum TerminalDisplay {
     private static func printSubscriptionCredits(_ report: SubscriptionQuotaReport) {
         guard let credits = report.credits else { return }
         if let balance = credits.balanceUSD {
+            let text = CurrencyConverter.formatConverted(amount: balance, from: credits.currency, to: displayCurrency)
             print(
-                "\(ANSIColor.brightWhite(pad("Credits balance", 22))) \(ANSIColor.brightWhiteBold(String(format: "$%.2f %@", balance, credits.currency)))"
+                "\(ANSIColor.brightWhite(pad("Credits balance", 22))) \(ANSIColor.brightWhiteBold(text))"
             )
         }
         else if credits.limitCents > 0 || credits.usedCents > 0 {
-            let used = QuotaHelpers.centsToDollars(credits.usedCents)
-            let limit = QuotaHelpers.centsToDollars(credits.limitCents)
-            let limitLabel = limit == 0 ? "unlimited" : String(format: "$%.2f", limit)
+            let used = CurrencyConverter.formatMinorUnits(credits.usedCents, from: credits.currency, to: displayCurrency)
+            let limitLabel =
+                credits.limitCents == 0
+                ? "unlimited"
+                : CurrencyConverter.formatMinorUnits(credits.limitCents, from: credits.currency, to: displayCurrency)
+            let pct =
+                credits.utilizationPercent
+                ?? QuotaHelpers.creditUsedPercent(usedCents: credits.usedCents, limitCents: credits.limitCents)
+            let pctText = pct.map { String(format: " (%.0f%% used)", $0) } ?? ""
             print(
-                "\(ANSIColor.brightWhite(pad("On-demand credits", 22))) \(ANSIColor.brightWhiteBold(String(format: "$%.2f / %@ %@", used, limitLabel, credits.currency)))"
+                "\(ANSIColor.brightWhite(pad("On-demand credits", 22))) \(ANSIColor.brightWhiteBold("\(used) / \(limitLabel)"))\(ANSIColor.dimmed(pctText))"
             )
         }
     }
@@ -321,19 +331,25 @@ enum TerminalDisplay {
         return formatter.string(from: value) + " UTC"
     }
 
+    /// Formats an EUR-denominated amount as "<chosen> (<other>)", e.g. "€1.00 ($1.17)".
+    private static func dualCurrency(eur: Double) -> String {
+        let secondary: DisplayCurrency = displayCurrency == .eur ? .usd : .eur
+        let primaryText = CurrencyConverter.formatConverted(amount: eur, from: "EUR", to: displayCurrency)
+        let secondaryText = CurrencyConverter.formatConverted(amount: eur, from: "EUR", to: secondary)
+        return "\(primaryText) (\(secondaryText))"
+    }
+
     private static func printCostLine(costEUR: Double, label: String) {
-        let costUSD = costEUR / Pricing.usdToEUR
         print(
-            "\(ANSIColor.brightWhiteBold(String(format: "€%.2f ($%.2f USD)", costEUR, costUSD))) \(ANSIColor.dimmed("→")) \(ANSIColor.brightCyanLabel(label))"
+            "\(ANSIColor.brightWhiteBold(dualCurrency(eur: costEUR))) \(ANSIColor.dimmed("→")) \(ANSIColor.brightCyanLabel(label))"
         )
     }
 
     private static func printGrandTotal(_ grandTotalEUR: Double) {
         print()
         print(ANSIColor.dimmed(String(repeating: "-", count: sectionWidth)))
-        let grandTotalUSD = grandTotalEUR / Pricing.usdToEUR
         print(
-            "\(ANSIColor.brightWhiteBold("Grand Total:")) \(ANSIColor.brightGreenBold(String(format: "€%.2f ($%.2f USD)", grandTotalEUR, grandTotalUSD)))"
+            "\(ANSIColor.brightWhiteBold("Grand Total:")) \(ANSIColor.brightGreenBold(dualCurrency(eur: grandTotalEUR)))"
         )
         print()
         print(ANSIColor.dimmed("Exchange rate: 1 USD = \(Pricing.usdToEUR) EUR"))

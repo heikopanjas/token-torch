@@ -4,11 +4,14 @@ public enum ClaudeQuotaProvider {
     private static let retryDelays: [UInt64] = [2, 5, 10]
     private static let client = HTTPClient()
 
-    public static func fetch(credentialStrategy: VendorCredentialStrategy = .directVendorRead) async throws -> SubscriptionQuotaReport {
+    public static func fetch(
+        credentialStrategy: VendorCredentialStrategy = .directVendorRead, interactive: Bool = false
+    ) async throws -> SubscriptionQuotaReport {
         let session = try VendorCredentialsReader.loadClaudeSession(strategy: credentialStrategy)
+        try QuotaHTTP.requireUsableSession(session, provider: "Claude Code", vendorAction: "Re-login with Claude Code (/login).")
         let reauth: (() throws -> OAuthSession)? =
             credentialStrategy == .tokenTorchOwnedCopy
-            ? { try VendorCredentialImporter.reimportAfterAuthFailure(provider: .claude) }
+            ? { try VendorCredentialImporter.reimportAfterAuthFailure(provider: .claude, interactive: interactive) }
             : nil
         do {
             return try await QuotaHTTP.fetchWithAuthRecovery(
@@ -66,27 +69,54 @@ public enum ClaudeQuotaProvider {
         public let isEnabled: Bool?
         public let usedCredits: Double?
         public let monthlyLimit: Double?
+        public let utilization: Double?
         public let currency: String?
+
+        enum CodingKeys: String, CodingKey {
+            case isEnabled = "is_enabled"
+            case usedCredits = "used_credits"
+            case monthlyLimit = "monthly_limit"
+            case utilization
+            case currency
+        }
     }
 
     public struct ClaudeUsageResponse: Decodable, Sendable {
         public let fiveHour: ClaudeUsageWindow?
         public let sevenDay: ClaudeUsageWindow?
         public let sevenDayOpus: ClaudeUsageWindow?
+        public let sevenDaySonnet: ClaudeUsageWindow?
+        public let sevenDayCowork: ClaudeUsageWindow?
         public let sevenDayOmelette: ClaudeUsageWindow?
+        public let sevenDayOauthApps: ClaudeUsageWindow?
+        public let tangelo: ClaudeUsageWindow?
+        public let iguanaNecktie: ClaudeUsageWindow?
+        public let omelettePromotional: ClaudeUsageWindow?
         public let extraUsage: ClaudeExtraUsage?
 
         public init(
-            fiveHour: ClaudeUsageWindow?,
-            sevenDay: ClaudeUsageWindow?,
-            sevenDayOpus: ClaudeUsageWindow?,
-            sevenDayOmelette: ClaudeUsageWindow?,
-            extraUsage: ClaudeExtraUsage?
+            fiveHour: ClaudeUsageWindow? = nil,
+            sevenDay: ClaudeUsageWindow? = nil,
+            sevenDayOpus: ClaudeUsageWindow? = nil,
+            sevenDaySonnet: ClaudeUsageWindow? = nil,
+            sevenDayCowork: ClaudeUsageWindow? = nil,
+            sevenDayOmelette: ClaudeUsageWindow? = nil,
+            sevenDayOauthApps: ClaudeUsageWindow? = nil,
+            tangelo: ClaudeUsageWindow? = nil,
+            iguanaNecktie: ClaudeUsageWindow? = nil,
+            omelettePromotional: ClaudeUsageWindow? = nil,
+            extraUsage: ClaudeExtraUsage? = nil
         ) {
             self.fiveHour = fiveHour
             self.sevenDay = sevenDay
             self.sevenDayOpus = sevenDayOpus
+            self.sevenDaySonnet = sevenDaySonnet
+            self.sevenDayCowork = sevenDayCowork
             self.sevenDayOmelette = sevenDayOmelette
+            self.sevenDayOauthApps = sevenDayOauthApps
+            self.tangelo = tangelo
+            self.iguanaNecktie = iguanaNecktie
+            self.omelettePromotional = omelettePromotional
             self.extraUsage = extraUsage
         }
 
@@ -94,7 +124,13 @@ public enum ClaudeQuotaProvider {
             case fiveHour = "five_hour"
             case sevenDay = "seven_day"
             case sevenDayOpus = "seven_day_opus"
+            case sevenDaySonnet = "seven_day_sonnet"
+            case sevenDayCowork = "seven_day_cowork"
             case sevenDayOmelette = "seven_day_omelette"
+            case sevenDayOauthApps = "seven_day_oauth_apps"
+            case tangelo
+            case iguanaNecktie = "iguana_necktie"
+            case omelettePromotional = "omelette_promotional"
             case extraUsage = "extra_usage"
         }
     }
@@ -106,14 +142,21 @@ public enum ClaudeQuotaProvider {
         pushWindow(&windows, label: "5-hour window", window: response.fiveHour)
         pushWindow(&windows, label: "7-day window", window: response.sevenDay)
         pushWindow(&windows, label: "7-day Opus window", window: response.sevenDayOpus)
+        pushWindow(&windows, label: "7-day Sonnet window", window: response.sevenDaySonnet)
+        pushWindow(&windows, label: "7-day Cowork window", window: response.sevenDayCowork)
         pushWindow(&windows, label: "7-day Design window", window: response.sevenDayOmelette)
+        pushWindow(&windows, label: "7-day OAuth apps window", window: response.sevenDayOauthApps)
+        pushWindow(&windows, label: "Tangelo", window: response.tangelo)
+        pushWindow(&windows, label: "Iguana Necktie", window: response.iguanaNecktie)
+        pushWindow(&windows, label: "Omelette (promo)", window: response.omelettePromotional)
         report.windows = windows
         if let extra = response.extraUsage, extra.isEnabled == true {
             report.credits = CreditsInfo(
                 usedCents: UInt64((extra.usedCredits ?? 0).rounded()),
                 limitCents: UInt64((extra.monthlyLimit ?? 0).rounded()),
                 currency: extra.currency ?? "USD",
-                balanceUSD: nil
+                balanceUSD: nil,
+                utilizationPercent: extra.utilization
             )
         }
         return report

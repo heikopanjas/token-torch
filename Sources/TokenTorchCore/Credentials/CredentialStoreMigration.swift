@@ -4,14 +4,19 @@ import Foundation
 public enum CredentialStoreMigration {
     private static let legacyAccount = "burn"
 
-    public static func migrateFromBurnIfNeeded() {
+    public static func migrateFromBurnIfNeeded(preferencesStore: ProviderPreferencesStore = .shared) {
         guard !UserDefaults.standard.bool(forKey: AppBrand.migrationFlagKey) else { return }
 
-        for provider in ProviderID.allCases {
-            _ = migrateVendorOAuth(provider: provider)
-            _ = migrateAdminKeys(provider: provider)
-        }
+        // Carry over preferences first so the per-provider gate below reflects the user's
+        // legacy selection rather than fresh defaults.
         _ = migratePreferences()
+        let preferences = preferencesStore.load()
+
+        for provider in ProviderID.allCases {
+            let flags = preferences.flags(for: provider)
+            if flags.subscriptionQuotaEnabled { _ = migrateVendorOAuth(provider: provider) }
+            if flags.orgBillingEnabled { _ = migrateAdminKeys(provider: provider) }
+        }
 
         UserDefaults.standard.set(true, forKey: AppBrand.migrationFlagKey)
     }

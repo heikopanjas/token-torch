@@ -3,11 +3,14 @@ import Foundation
 public enum CodexQuotaProvider {
     private static let client = HTTPClient()
 
-    public static func fetch(credentialStrategy: VendorCredentialStrategy = .directVendorRead) async throws -> SubscriptionQuotaReport {
+    public static func fetch(
+        credentialStrategy: VendorCredentialStrategy = .directVendorRead, interactive: Bool = false
+    ) async throws -> SubscriptionQuotaReport {
         let session = try VendorCredentialsReader.loadCodexSession(strategy: credentialStrategy)
+        try QuotaHTTP.requireUsableSession(session, provider: "ChatGPT/Codex", vendorAction: "Re-login with the Codex CLI (`codex login`).")
         let reauth: (() throws -> OAuthSession)? =
             credentialStrategy == .tokenTorchOwnedCopy
-            ? { try VendorCredentialImporter.reimportAfterAuthFailure(provider: .codex) }
+            ? { try VendorCredentialImporter.reimportAfterAuthFailure(provider: .codex, interactive: interactive) }
             : nil
         return try await QuotaHTTP.fetchWithAuthRecovery(
             provider: "ChatGPT/Codex",

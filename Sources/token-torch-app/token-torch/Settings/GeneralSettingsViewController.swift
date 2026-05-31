@@ -7,6 +7,9 @@ final class GeneralSettingsViewController: NSViewController {
 
     private var intervalLabel: NSTextField!
     private var intervalPopup: NSPopUpButton!
+    private var currencyLabel: NSTextField!
+    private var currencyPopup: NSPopUpButton!
+    private let currencies = DisplayCurrency.allCases
     private var infoLabel: NSTextField!
 
     override var preferredContentSize: NSSize {
@@ -39,6 +42,22 @@ final class GeneralSettingsViewController: NSViewController {
         intervalPopup.action = #selector(intervalChanged)
         view.addSubview(intervalPopup)
 
+        y -= 16 + 16
+        currencyLabel = NSTextField(labelWithString: "Display currency")
+        currencyLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
+        currencyLabel.autoresizingMask = [.minYMargin, .width]
+        view.addSubview(currencyLabel)
+
+        y -= 4 + 26
+        currencyPopup = NSPopUpButton(frame: NSRect(x: x, y: y, width: controlW, height: 26), pullsDown: false)
+        currencyPopup.autoresizingMask = [.minYMargin, .width]
+        for currency in currencies {
+            currencyPopup.addItem(withTitle: "\(currency.rawValue) (\(currency.symbol))")
+        }
+        currencyPopup.target = self
+        currencyPopup.action = #selector(currencyChanged)
+        view.addSubview(currencyPopup)
+
         y -= 16 + 60
         infoLabel = NSTextField(
             wrappingLabelWithString:
@@ -53,9 +72,12 @@ final class GeneralSettingsViewController: NSViewController {
 
     override func viewWillAppear() {
         super.viewWillAppear()
-        let minutes = ProviderPreferencesStore.shared.load().refreshIntervalMinutes
-        if let index = (0 ..< intervalPopup.numberOfItems).first(where: { intervalPopup.item(at: $0)?.tag == minutes }) {
+        let prefs = ProviderPreferencesStore.shared.load()
+        if let index = (0 ..< intervalPopup.numberOfItems).first(where: { intervalPopup.item(at: $0)?.tag == prefs.refreshIntervalMinutes }) {
             intervalPopup.selectItem(at: index)
+        }
+        if let index = currencies.firstIndex(of: prefs.displayCurrency) {
+            currencyPopup.selectItem(at: index)
         }
     }
 
@@ -65,5 +87,14 @@ final class GeneralSettingsViewController: NSViewController {
         prefs.refreshIntervalMinutes = minutes
         ProviderPreferencesStore.shared.save(prefs)
         onRefreshIntervalChanged?()
+    }
+
+    @objc private func currencyChanged() {
+        let index = currencyPopup.indexOfSelectedItem
+        guard currencies.indices.contains(index) else { return }
+        var prefs = ProviderPreferencesStore.shared.load()
+        prefs.displayCurrency = currencies[index]
+        ProviderPreferencesStore.shared.save(prefs)
+        NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
     }
 }

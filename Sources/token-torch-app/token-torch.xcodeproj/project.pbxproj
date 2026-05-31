@@ -27,6 +27,7 @@
 		B00101000000000000000012 /* ProviderSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000014 /* ProviderSettingsViewController.swift */; };
 		B00101000000000000000013 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000015 /* main.swift */; };
 		B00101000000000000000014 /* SettingsStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000016 /* SettingsStyle.swift */; };
+		B00101000000000000000015 /* AdvancedSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000017 /* AdvancedSettingsViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -52,6 +53,7 @@
 		B00102000000000000000014 /* ProviderSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSettingsViewController.swift; sourceTree = "<group>"; };
 		B00102000000000000000015 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		B00102000000000000000016 /* SettingsStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStyle.swift; sourceTree = "<group>"; };
+		B00102000000000000000017 /* AdvancedSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettingsViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -130,6 +132,7 @@
 				B00102000000000000000016 /* SettingsStyle.swift */,
 				B00102000000000000000013 /* GeneralSettingsViewController.swift */,
 				B00102000000000000000014 /* ProviderSettingsViewController.swift */,
+				B00102000000000000000017 /* AdvancedSettingsViewController.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -227,6 +230,7 @@
 				B00101000000000000000014 /* SettingsStyle.swift in Sources */,
 				B00101000000000000000011 /* GeneralSettingsViewController.swift in Sources */,
 				B00101000000000000000012 /* ProviderSettingsViewController.swift in Sources */,
+				B00101000000000000000015 /* AdvancedSettingsViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

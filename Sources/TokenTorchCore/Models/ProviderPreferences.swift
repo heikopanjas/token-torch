@@ -38,17 +38,31 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
     public var codex: ProviderModeFlags
     public var cursor: ProviderModeFlags
     public var refreshIntervalMinutes: Int
+    public var displayCurrency: DisplayCurrency
 
     public init(
         claude: ProviderModeFlags = .init(),
         codex: ProviderModeFlags = .init(),
         cursor: ProviderModeFlags = .init(subscriptionQuotaEnabled: true, orgBillingEnabled: false),
-        refreshIntervalMinutes: Int = 15
+        refreshIntervalMinutes: Int = 15,
+        displayCurrency: DisplayCurrency = .systemDefault
     ) {
         self.claude = claude
         self.codex = codex
         self.cursor = cursor
         self.refreshIntervalMinutes = refreshIntervalMinutes
+        self.displayCurrency = displayCurrency
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        claude = try container.decodeIfPresent(ProviderModeFlags.self, forKey: .claude) ?? .init()
+        codex = try container.decodeIfPresent(ProviderModeFlags.self, forKey: .codex) ?? .init()
+        cursor =
+            try container.decodeIfPresent(ProviderModeFlags.self, forKey: .cursor)
+            ?? .init(subscriptionQuotaEnabled: true, orgBillingEnabled: false)
+        refreshIntervalMinutes = try container.decodeIfPresent(Int.self, forKey: .refreshIntervalMinutes) ?? 15
+        displayCurrency = try container.decodeIfPresent(DisplayCurrency.self, forKey: .displayCurrency) ?? .systemDefault
     }
 
     public func flags(for provider: ProviderID) -> ProviderModeFlags {

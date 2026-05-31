@@ -10,13 +10,14 @@ final class MenuBuilder {
     func buildMenu(model: MenuBarViewModel) -> NSMenu {
         let menu = NSMenu()
         menu.minimumWidth = MenuFormat.menuWidth
+        let currency = ProviderPreferencesStore.shared.load().displayCurrency
 
         if let result = model.result {
             for (index, providerResult) in result.results.enumerated() {
                 if index > 0 {
                     menu.addItem(.separator())
                 }
-                appendProviderSection(to: menu, result: providerResult)
+                appendProviderSection(to: menu, result: providerResult, currency: currency)
             }
         }
         else {
@@ -31,16 +32,16 @@ final class MenuBuilder {
         return menu
     }
 
-    private func appendProviderSection(to menu: NSMenu, result: ProviderFetchResult) {
+    private func appendProviderSection(to menu: NSMenu, result: ProviderFetchResult, currency: DisplayCurrency) {
         for (index, report) in result.reports.enumerated() {
             if index > 0 {
                 menu.addItem(.separator())
             }
-            appendReport(to: menu, provider: result.provider, report: report)
+            appendReport(to: menu, provider: result.provider, report: report, currency: currency)
         }
     }
 
-    private func appendReport(to menu: NSMenu, provider: ProviderID, report: ProviderReport) {
+    private func appendReport(to menu: NSMenu, provider: ProviderID, report: ProviderReport, currency: DisplayCurrency) {
         let trailing: String? = {
             if case .subscription(let quota) = report, provider == .cursor {
                 return ReportLabels.cursorPlanSummary(quota)
@@ -57,21 +58,26 @@ final class MenuBuilder {
         switch report {
             case .subscription(let quota):
                 if quota.provider == "Cursor" {
-                    appendCursorSubscription(to: menu, quota: quota)
+                    appendCursorSubscription(to: menu, quota: quota, currency: currency)
                 }
                 else {
                     for window in quota.windows {
                         menu.addItem(UsageMenuItemViews.quotaRow(window: window))
                     }
+                    if let credits = quota.credits, let label = ReportLabels.creditsLabel(credits, in: currency) {
+                        menu.addItem(UsageMenuItemViews.costRow(label: "On-demand credits", value: label))
+                    }
                 }
             case .org(let org):
-                appendOrgBilling(to: menu, org: org)
+                appendOrgBilling(to: menu, org: org, currency: currency)
+            case .needsAuthorization:
+                menu.addItem(UsageMenuItemViews.noticeRow("Click Refresh to authorize Keychain access."))
             case .error(_, let mode, let message):
                 menu.addItem(UsageMenuItemViews.errorRow(mode: mode, message: message))
         }
     }
 
-    private func appendCursorSubscription(to menu: NSMenu, quota: SubscriptionQuotaReport) {
+    private func appendCursorSubscription(to menu: NSMenu, quota: SubscriptionQuotaReport, currency: DisplayCurrency) {
         if let start = quota.billingCycleStart, let end = quota.billingCycleEnd {
             menu.addItem(
                 UsageMenuItemViews.caption(
@@ -94,7 +100,7 @@ final class MenuBuilder {
                 menu.addItem(item)
             }
         }
-        if let total = ReportLabels.cursorGrandTotalLabel(quota) {
+        if let total = ReportLabels.cursorGrandTotalLabel(quota, in: currency) {
             if !meterRows.isEmpty || quota.billingCycleStart != nil {
                 menu.addItem(UsageMenuItemViews.menuSpacer())
             }
@@ -102,7 +108,7 @@ final class MenuBuilder {
         }
     }
 
-    private func appendOrgBilling(to menu: NSMenu, org: OrgUsageReport) {
+    private func appendOrgBilling(to menu: NSMenu, org: OrgUsageReport, currency: DisplayCurrency) {
         let cycleLine: String = {
             if let end = org.endDate {
                 return "Billing cycle: \(org.startDate) → \(end)"
@@ -125,11 +131,11 @@ final class MenuBuilder {
                 menu.addItem(
                     UsageMenuItemViews.costRow(
                         label: row.label,
-                        value: MenuFormat.orgCostUSD(row.costUSD)
+                        value: MenuFormat.orgCost(row.costUSD, in: currency)
                     ))
             }
             menu.addItem(UsageMenuItemViews.menuSpacer())
-            menu.addItem(UsageMenuItemViews.grandTotalRow(value: MenuFormat.orgCostUSD(org.grandTotalUSD)))
+            menu.addItem(UsageMenuItemViews.grandTotalRow(value: MenuFormat.orgCost(org.grandTotalUSD, in: currency)))
         }
     }
 

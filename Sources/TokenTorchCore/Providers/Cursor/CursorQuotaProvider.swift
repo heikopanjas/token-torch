@@ -4,11 +4,14 @@ public enum CursorQuotaProvider {
     private static let apiBase = "https://api2.cursor.sh"
     private static let client = HTTPClient()
 
-    public static func fetch(credentialStrategy: VendorCredentialStrategy = .directVendorRead) async throws -> SubscriptionQuotaReport {
+    public static func fetch(
+        credentialStrategy: VendorCredentialStrategy = .directVendorRead, interactive: Bool = false
+    ) async throws -> SubscriptionQuotaReport {
         let session = try VendorCredentialsReader.loadCursorSession(strategy: credentialStrategy)
+        try QuotaHTTP.requireUsableSession(session, provider: "Cursor", vendorAction: "Re-login via the Cursor IDE or `cursor agent login`.")
         let reauth: (() throws -> OAuthSession)? =
             credentialStrategy == .tokenTorchOwnedCopy
-            ? { try VendorCredentialImporter.reimportAfterAuthFailure(provider: .cursor) }
+            ? { try VendorCredentialImporter.reimportAfterAuthFailure(provider: .cursor, interactive: interactive) }
             : nil
         return try await QuotaHTTP.fetchWithAuthRecovery(
             provider: "Cursor",

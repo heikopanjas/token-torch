@@ -50,7 +50,8 @@ enum ProviderIcons {
                 switch report {
                     case .subscription: "claude"
                     case .org: "anthropic"
-                    case .error(_, let mode, _): mode == "subscription" ? "claude" : "anthropic"
+                    case .needsAuthorization(_, let mode), .error(_, let mode, _):
+                        mode == "subscription" ? "claude" : "anthropic"
                 }
             case .codex: "openai"
             case .cursor: "cursor"

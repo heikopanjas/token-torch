@@ -20,7 +20,17 @@ final class StatusItemController: NSObject {
         model.onUpdated = { [weak self] in
             self?.rebuildMenu()
         }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(displayChanged),
+            name: AppActions.tokenTorchDisplayChanged,
+            object: nil
+        )
         configureStatusItemButton()
+        rebuildMenu()
+    }
+
+    @objc private func displayChanged() {
         rebuildMenu()
     }
 

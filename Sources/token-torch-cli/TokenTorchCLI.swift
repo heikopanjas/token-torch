@@ -7,10 +7,23 @@ struct TokenTorchCLI: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "token-torch-cli",
         abstract: "Monitor Anthropic, OpenAI, and Cursor usage (org billing and personal subscription quotas)",
-        version: "3.5.0",
+        version: "3.8.0",
         subcommands: [AnthropicCommand.self, OpenAICommand.self, CursorCommand.self]
     )
 
+}
+
+extension DisplayCurrency: ExpressibleByArgument {
+    public init?(argument: String) {
+        self.init(rawValue: argument.uppercased())
+    }
+
+    public static var allValueStrings: [String] { allCases.map(\.rawValue) }
+}
+
+struct CurrencyOptions: ParsableArguments {
+    @Option(name: [.short, .long], help: "Display currency: USD or EUR (defaults to your system locale).")
+    var currency: DisplayCurrency = .systemDefault
 }
 
 struct AnthropicCommand: AsyncParsableCommand {
@@ -34,6 +47,8 @@ struct AnthropicCommand: AsyncParsableCommand {
     @Option(name: [.short, .long], help: "End date (YYYY-MM-DD; auto-calculated for year/month ranges)")
     var endDate: String?
 
+    @OptionGroup var currencyOptions: CurrencyOptions
+
     mutating func validate() throws {
         if quota, listWorkspaces || workspace != nil || startDate != nil || endDate != nil {
             throw ValidationError("--quota cannot be used with workspace/date/list flags.")
@@ -44,6 +59,7 @@ struct AnthropicCommand: AsyncParsableCommand {
     }
 
     func run() async throws {
+        TerminalDisplay.displayCurrency = currencyOptions.currency
         CredentialStoreMigration.migrateFromBurnIfNeeded()
         if quota {
             try await runQuota(label: "Claude Code") { try await ClaudeQuotaProvider.fetch() }
@@ -105,6 +121,8 @@ struct OpenAICommand: AsyncParsableCommand {
     @Option(name: [.short, .long], help: "End date (YYYY-MM-DD; auto-calculated for year/month ranges)")
     var endDate: String?
 
+    @OptionGroup var currencyOptions: CurrencyOptions
+
     mutating func validate() throws {
         if quota, listProjects || project != nil || startDate != nil || endDate != nil {
             throw ValidationError("--quota cannot be used with project/date/list flags.")
@@ -115,6 +133,7 @@ struct OpenAICommand: AsyncParsableCommand {
     }
 
     func run() async throws {
+        TerminalDisplay.displayCurrency = currencyOptions.currency
         CredentialStoreMigration.migrateFromBurnIfNeeded()
         if quota {
             try await runQuota(label: "ChatGPT/Codex") { try await CodexQuotaProvider.fetch() }
@@ -155,7 +174,10 @@ struct CursorCommand: AsyncParsableCommand {
     @Flag(name: .long, help: "Show Cursor personal subscription plan usage")
     var quota: Bool = false
 
+    @OptionGroup var currencyOptions: CurrencyOptions
+
     func run() async throws {
+        TerminalDisplay.displayCurrency = currencyOptions.currency
         CredentialStoreMigration.migrateFromBurnIfNeeded()
         if quota {
             try await runQuota(label: "Cursor") { try await CursorQuotaProvider.fetch() }

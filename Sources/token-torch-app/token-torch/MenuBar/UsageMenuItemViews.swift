@@ -86,6 +86,15 @@ enum UsageMenuItemViews {
         boldRow(label: "Grand Total:", value: value)
     }
 
+    static func noticeRow(_ text: String) -> NSMenuItem {
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: MenuFormat.menuWidth, height: 28))
+        let label = labelField(text, font: MenuFormat.captionFont, color: .secondaryLabelColor)
+        label.frame = NSRect(x: inset, y: 4, width: MenuFormat.menuWidth - inset * 2, height: 20)
+        label.lineBreakMode = .byTruncatingTail
+        container.addSubview(label)
+        return customItem(view: container, height: 28)
+    }
+
     static func errorRow(mode: String, message: String) -> NSMenuItem {
         let container = NSView(frame: NSRect(x: 0, y: 0, width: MenuFormat.menuWidth, height: 36))
         let label = labelField("\(mode): \(message)", font: MenuFormat.captionFont, color: .systemRed)
