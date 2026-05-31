@@ -3,12 +3,17 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		B00101000000000000000001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000001 /* AppDelegate.swift */; };
-		B00101000000000000000013 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000015 /* main.swift */; };
+		B00101000000000000000002 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000002 /* Assets.xcassets */; };
+		B00101000000000000000003 /* TokenTorchCore in Frameworks */ = {isa = PBXBuildFile; productRef = B0010A000000000000000001 /* TokenTorchCore */; };
+		B00101000000000000000004 /* claude.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000006 /* claude.pdf */; };
+		B00101000000000000000005 /* openai.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000007 /* openai.pdf */; };
+		B00101000000000000000006 /* cursor.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000008 /* cursor.pdf */; };
+		B00101000000000000000007 /* anthropic.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000009 /* anthropic.pdf */; };
 		B00101000000000000000008 /* AppActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000000A /* AppActions.swift */; };
 		B00101000000000000000009 /* MenuBarViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000000B /* MenuBarViewModel.swift */; };
 		B0010100000000000000000A /* MenuFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000000C /* MenuFormat.swift */; };
@@ -20,18 +25,20 @@
 		B00101000000000000000010 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000012 /* SettingsWindowController.swift */; };
 		B00101000000000000000011 /* GeneralSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000013 /* GeneralSettingsViewController.swift */; };
 		B00101000000000000000012 /* ProviderSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000014 /* ProviderSettingsViewController.swift */; };
+		B00101000000000000000013 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000015 /* main.swift */; };
 		B00101000000000000000014 /* SettingsStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000016 /* SettingsStyle.swift */; };
-		B00101000000000000000002 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000002 /* Assets.xcassets */; };
-		B00101000000000000000003 /* TokenTorchCore in Frameworks */ = {isa = PBXBuildFile; productRef = B0010A000000000000000001 /* TokenTorchCore */; };
-		B00101000000000000000004 /* claude.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000006 /* claude.pdf */; };
-		B00101000000000000000005 /* openai.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000007 /* openai.pdf */; };
-		B00101000000000000000006 /* cursor.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000008 /* cursor.pdf */; };
-		B00101000000000000000007 /* anthropic.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000009 /* anthropic.pdf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		B00102000000000000000001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		B00102000000000000000015 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		B00102000000000000000002 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B00102000000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B00102000000000000000004 /* token-torch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "token-torch.entitlements"; sourceTree = "<group>"; };
+		B00102000000000000000005 /* Token Torch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Token Torch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B00102000000000000000006 /* claude.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = claude.pdf; path = ../../Pictures/claude.pdf; sourceTree = SOURCE_ROOT; };
+		B00102000000000000000007 /* openai.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = openai.pdf; path = ../../Pictures/openai.pdf; sourceTree = SOURCE_ROOT; };
+		B00102000000000000000008 /* cursor.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = cursor.pdf; path = ../../Pictures/cursor.pdf; sourceTree = SOURCE_ROOT; };
+		B00102000000000000000009 /* anthropic.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = anthropic.pdf; path = ../../Pictures/anthropic.pdf; sourceTree = SOURCE_ROOT; };
 		B0010200000000000000000A /* AppActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppActions.swift; sourceTree = "<group>"; };
 		B0010200000000000000000B /* MenuBarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarViewModel.swift; sourceTree = "<group>"; };
 		B0010200000000000000000C /* MenuFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuFormat.swift; sourceTree = "<group>"; };
@@ -43,15 +50,8 @@
 		B00102000000000000000012 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
 		B00102000000000000000013 /* GeneralSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsViewController.swift; sourceTree = "<group>"; };
 		B00102000000000000000014 /* ProviderSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSettingsViewController.swift; sourceTree = "<group>"; };
+		B00102000000000000000015 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		B00102000000000000000016 /* SettingsStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStyle.swift; sourceTree = "<group>"; };
-		B00102000000000000000002 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		B00102000000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		B00102000000000000000004 /* token-torch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "token-torch.entitlements"; sourceTree = "<group>"; };
-		B00102000000000000000005 /* Token Torch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Token Torch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		B00102000000000000000006 /* claude.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = claude.pdf; path = ../../Pictures/claude.pdf; sourceTree = SOURCE_ROOT; };
-		B00102000000000000000007 /* openai.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = openai.pdf; path = ../../Pictures/openai.pdf; sourceTree = SOURCE_ROOT; };
-		B00102000000000000000008 /* cursor.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = cursor.pdf; path = ../../Pictures/cursor.pdf; sourceTree = SOURCE_ROOT; };
-		B00102000000000000000009 /* anthropic.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = anthropic.pdf; path = ../../Pictures/anthropic.pdf; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -90,6 +90,25 @@
 			path = "token-torch";
 			sourceTree = "<group>";
 		};
+		B00104000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B00102000000000000000005 /* Token Torch.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B00104000000000000000004 /* Pictures */ = {
+			isa = PBXGroup;
+			children = (
+				B00102000000000000000006 /* claude.pdf */,
+				B00102000000000000000007 /* openai.pdf */,
+				B00102000000000000000008 /* cursor.pdf */,
+				B00102000000000000000009 /* anthropic.pdf */,
+			);
+			name = Pictures;
+			sourceTree = "<group>";
+		};
 		B00104000000000000000005 /* MenuBar */ = {
 			isa = PBXGroup;
 			children = (
@@ -113,25 +132,6 @@
 				B00102000000000000000014 /* ProviderSettingsViewController.swift */,
 			);
 			path = Settings;
-			sourceTree = "<group>";
-		};
-		B00104000000000000000003 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				B00102000000000000000005 /* Token Torch.app */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
-		B00104000000000000000004 /* Pictures */ = {
-			isa = PBXGroup;
-			children = (
-				B00102000000000000000006 /* claude.pdf */,
-				B00102000000000000000007 /* openai.pdf */,
-				B00102000000000000000008 /* cursor.pdf */,
-				B00102000000000000000009 /* anthropic.pdf */,
-			);
-			name = Pictures;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -182,7 +182,7 @@
 			);
 			mainGroup = B00104000000000000000001;
 			packageReferences = (
-				B0010B000000000000000001 /* XCLocalSwiftPackageReference ".." */,
+				B0010B000000000000000001 /* XCLocalSwiftPackageReference "../.." */,
 			);
 			productRefGroup = B00104000000000000000003 /* Products */;
 			projectDirPath = "";
@@ -289,10 +289,12 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "token-torch/token-torch.entitlements";
-				CODE_SIGN_STYLE = Automatic;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = 8J2G689FCZ;
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -303,8 +305,10 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.panjas.tokentorch;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.panjas.token-torch";
 				PRODUCT_NAME = "Token Torch";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
 			};
@@ -315,10 +319,12 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "token-torch/token-torch.entitlements";
-				CODE_SIGN_STYLE = Automatic;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = 8J2G689FCZ;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "token-torch/Info.plist";
@@ -328,8 +334,10 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.panjas.tokentorch;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.panjas.token-torch";
 				PRODUCT_NAME = "Token Torch";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
 			};
@@ -359,7 +367,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		B0010B000000000000000001 /* XCLocalSwiftPackageReference ".." */ = {
+		B0010B000000000000000001 /* XCLocalSwiftPackageReference "../.." */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../..;
 		};
@@ -368,7 +376,7 @@
 /* Begin XCSwiftPackageProductDependency section */
 		B0010A000000000000000001 /* TokenTorchCore */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = B0010B000000000000000001 /* XCLocalSwiftPackageReference ".." */;
+			package = B0010B000000000000000001 /* XCLocalSwiftPackageReference "../.." */;
 			productName = TokenTorchCore;
 		};
 /* End XCSwiftPackageProductDependency section */

@@ -8,8 +8,9 @@ BUILD_DIR="./build"
 ARCHIVE_PATH="${BUILD_DIR}/${APP_NAME}.xcarchive"
 EXPORT_PATH="${BUILD_DIR}/export"
 EXPORT_PLIST="ExportOptions.plist"
-NOTARIZE_PROFILE="TokenTorch-Notarize"
+NOTARIZE_PROFILE="${NOTARIZE_PROFILE:-TokenTorch-Notarize}"
 DESTINATION="generic/platform=macOS"
+TEAM_ID="8J2G689FCZ"
 
 CLEAN=false
 NOTARIZE=false
@@ -33,6 +34,16 @@ Examples:
     $(basename "$0") --clean          # Clean first, then archive and export
     $(basename "$0") --notarize       # Archive, export, notarize, and staple
     $(basename "$0") --clean --notarize
+
+Notarization (--notarize) requires a notarytool Keychain profile (default: ${NOTARIZE_PROFILE}).
+Create it once (app-specific password from appleid.apple.com):
+
+    xcrun notarytool store-credentials "${NOTARIZE_PROFILE}" \\
+      --apple-id "you@example.com" \\
+      --team-id ${TEAM_ID} \\
+      --password "xxxx-xxxx-xxxx-xxxx"
+
+Override profile name: NOTARIZE_PROFILE=my-profile $(basename "$0") --notarize
 EOF
     exit 0
 }
@@ -88,8 +99,27 @@ xcodebuild -exportArchive \
 echo "    App: ${EXPORT_PATH}/${APP_NAME}.app"
 echo ""
 
+check_notary_profile() {
+    if xcrun notarytool history --keychain-profile "$NOTARIZE_PROFILE" &>/dev/null; then
+        return 0
+    fi
+    echo "Error: notarytool Keychain profile not found: ${NOTARIZE_PROFILE}" >&2
+    echo "" >&2
+    echo "Create credentials (one-time):" >&2
+    echo "  xcrun notarytool store-credentials \"${NOTARIZE_PROFILE}\" \\" >&2
+    echo "    --apple-id \"YOUR_APPLE_ID\" \\" >&2
+    echo "    --team-id ${TEAM_ID} \\" >&2
+    echo "    --password \"APP_SPECIFIC_PASSWORD\"" >&2
+    echo "" >&2
+    echo "App-specific password: https://account.apple.com/account/manage (Sign-In and Security)" >&2
+    echo "Or set NOTARIZE_PROFILE to an existing profile name." >&2
+    return 1
+}
+
 # Notarize
 if [ "$NOTARIZE" = true ]; then
+    check_notary_profile
+
     ZIP_PATH="${BUILD_DIR}/TokenTorch.zip"
 
     echo "==> Creating zip for notarization..."
