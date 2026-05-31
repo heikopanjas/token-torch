@@ -7,7 +7,7 @@ struct TokenTorchCLI: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "token-torch-cli",
         abstract: "Monitor Anthropic, OpenAI, and Cursor usage (org billing and personal subscription quotas)",
-        version: "3.15.6",
+        version: "3.15.7",
         subcommands: [AnthropicCommand.self, OpenAICommand.self, CursorCommand.self]
     )
 

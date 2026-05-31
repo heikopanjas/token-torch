@@ -4,7 +4,8 @@ import TokenTorchCore
 @MainActor
 enum UsageMenuItemViews {
     private static let inset: CGFloat = 12
-    /// Extra space added below each row so distinct items read as separate from one another.
+    /// Space added below a row that has an attached caption, so the row+caption group reads as
+    /// separate from the next item. Caption-less rows stay compact.
     private static let rowSpacing: CGFloat = 7
 
     static func customItem(view: NSView, height: CGFloat) -> NSMenuItem {
@@ -153,19 +154,22 @@ enum UsageMenuItemViews {
         height: CGFloat,
         caption: String? = nil
     ) -> NSMenuItem {
-        // Extra padding added at the bottom of every row to widen the gap between separate items,
-        // making each item (and its attached caption) read as a distinct group.
-        let extraBottom: CGFloat = rowSpacing
-        // When a caption is attached, render it within the same item directly beneath the main
-        // row with a tiny gap, so it reads as belonging to this row (not the next one).
+        // Caption-less rows are kept compact (small symmetric padding) so the menu stays short when
+        // many providers are enabled. A row WITH a caption renders it inside the same item with a
+        // tight gap above, then adds `rowSpacing` below so the row+caption group reads as separate
+        // from the next item.
+        let topPad: CGFloat = 3
+        let textHeight = height - 8
+        let captionHeight: CGFloat = 13
+        let intraGap: CGFloat = 2
         let captionField: NSTextField? = caption.map { text in
             let field = labelField(text, font: MenuFormat.captionFont, color: .secondaryLabelColor)
             field.lineBreakMode = .byTruncatingTail
-            field.frame = NSRect(x: inset, y: 2 + extraBottom, width: MenuFormat.menuWidth - inset * 2, height: 13)
+            field.frame = NSRect(x: inset, y: rowSpacing, width: MenuFormat.menuWidth - inset * 2, height: captionHeight)
             return field
         }
-        let mainY: CGFloat = (captionField == nil ? 4 : 17) + extraBottom
-        let totalHeight: CGFloat = captionField == nil ? height + extraBottom : mainY + (height - 8) + 4
+        let mainY: CGFloat = captionField == nil ? topPad : rowSpacing + captionHeight + intraGap
+        let totalHeight: CGFloat = mainY + textHeight + topPad
         let container = NSView(frame: NSRect(x: 0, y: 0, width: MenuFormat.menuWidth, height: totalHeight))
         if let captionField {
             container.addSubview(captionField)

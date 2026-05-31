@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-05-31 (wider gaps between menu items)
+Last updated: 2026-05-31 (compact caption-less rows)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -306,6 +306,12 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-05-31: Compact caption-less rows
+
+**What**: The wider inter-item spacing now applies only to rows that have an attached caption. Rows without a caption are compact again (smaller padding), so the menu stays short for the screen when many providers are enabled, while caption groups still read as distinct.
+
+**How**: `UsageMenuItemViews.twoColumnRow` adds `rowSpacing` below the item only when a caption is present; caption-less rows use a small symmetric `topPad` (3pt). Version `3.15.7`.
 
 ### 2026-05-31: Wider gaps between menu items
 
