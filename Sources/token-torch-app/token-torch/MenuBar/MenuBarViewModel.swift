@@ -28,7 +28,7 @@ final class MenuBarViewModel {
         notifyUpdated()
         Task {
             let fetched = await orchestrator.fetchAll(interactive: interactive)
-            await MainActor.run {
+            MenuTrackingRefresh.perform {
                 self.result = fetched
                 self.isLoading = false
                 self.notifyUpdated()

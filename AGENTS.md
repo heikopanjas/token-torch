@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-05-31 (read all Keychain items per vendor service; freshest wins)
+Last updated: 2026-05-31 (wider gaps between menu items)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -306,6 +306,162 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-05-31: Wider gaps between menu items
+
+**What**: Increased the vertical spacing between distinct menu rows so that each row and its attached caption read as one group, clearly separated from the next item. The row->caption gap stays tight (~2pt); the item->item gap is larger.
+
+**How**: `UsageMenuItemViews` adds a uniform `rowSpacing` (7pt) bottom padding to every `twoColumnRow` (cost rows, captions, bold rows); attached captions are positioned above that padding so they stay glued to their row. Version `3.15.6`.
+
+### 2026-05-31: Captions hug the row they describe
+
+**What**: Sub-row captions (the Cursor "Bonus" caption, and the reset/"resets once the window starts" captions under the Claude/ChatGPT 5-hour and 7-day windows) now visually attach to the row directly above them instead of floating midway between rows. Reduces ambiguity about which row a caption belongs to.
+
+**How**: `UsageMenuItemViews.costRow` / `twoColumnRow` gained an optional `caption:` parameter that renders the caption *inside the same menu item*, directly beneath the main row with a ~2pt gap, so there is no inter-item padding between a row and its caption. Used for the Claude/ChatGPT window reset captions in `MenuBuilder` (non-Cursor branch) and the Cursor Bonus caption. The standalone `caption` style (billing cycle, headers) is unchanged. Menu-only; CLI lines are already adjacent. Iterated `3.15.3` (separate 16pt caption, too dense) -> `3.15.4` (full-height top-aligned) -> `3.15.5` (caption merged into the row item for the tightest attachment).
+
+### 2026-05-31: Clarify Cursor "Total usage value" / "Bonus" / "Credits"
+
+**What**: Renamed the Cursor "Total spend" row to "Total usage value" (it's `includedSpend + bonusSpend` = the total dollar-value of usage at provider rates, which can exceed the included limit). Added a static caption under Bonus: "Free usage beyond what you've purchased". Reordered the rows so the order is now Total usage value -> Bonus (+ caption) -> Credits (the Credits/"API allowance" row moved to the bottom). The three percentage meters are unchanged — they faithfully mirror Cursor's own dashboard, and the API meter is the correct basis for the Credits value.
+
+**How**: `MenuBuilder.appendCursorSubscription` (rename, caption, move Credits block below Bonus); `TerminalDisplay` (rename, caption, move the `apiAllowance`/"API allowance" block below Total/Bonus). Display-only; no model changes. Version `3.15.2`.
+
+### 2026-05-31: Swap Claude "Extra usage" / "On-demand credits" order
+
+**What**: In the Claude subscription view, "Extra usage" (notes) now renders before "On-demand credits" (credits) in both the menu and the CLI. No effect on other providers (ChatGPT has no on-demand credits row).
+
+**How**: Reordered the notes loop ahead of the credits row in `MenuBuilder` (non-Cursor branch); swapped `printSubscriptionNotes`/`printSubscriptionCredits` order in `TerminalDisplay`. Version `3.15.1`.
+
+### 2026-05-31: Cursor "Total spend" + "Bonus" rows
+
+**What**: The Cursor subscription view now shows two new rows below "Credits": **Total spend** (`planUsage.totalSpend`, the real usage including bonus, e.g. `$573.18`) and **Bonus** (`planUsage.bonusSpend`, free provider usage beyond purchased, shown only when > 0, e.g. `$173.18`). Surfaces fields that were already in the `GetCurrentPeriodUsage` response but previously unused. The `bonusTooltip`/`displayMessage` text is intentionally not surfaced in the menu.
+
+**How**: Decoded `totalSpend`/`bonusSpend` in `CursorQuotaProvider.CursorPlanUsage`; added `totalSpendCents`/`bonusSpendCents` to `SubscriptionQuotaReport` and set them in `mapUsage`; rendered rows in `MenuBuilder.appendCursorSubscription` and CLI lines in `TerminalDisplay`. Test fixture updated in `mapCursorIndividualUsage`. Version `3.15.0`.
+
+### 2026-05-31: Shorten Cursor caption to provider name
+
+**What**: Cursor subscription heading changed from "Cursor Plan" to "Cursor" (matching the "Claude"/"ChatGPT" caption style). Org caption unchanged.
+
+**How**: `ReportLabels.heading`. Version `3.14.6`.
+
+### 2026-05-31: Placeholder caption for windows with no reset time
+
+**What**: Windows whose `resets_at` is null (e.g. an idle Claude 5-hour window — the API only sets a reset time once the window is active) now show "resets once the window starts" instead of nothing (menu) / "resets unknown" (CLI). Confirmed against the raw `/api/oauth/usage` response: idle `five_hour` returns `utilization: 0, resets_at: null`.
+
+**How**: `MenuFormat.noResetCaption` + an else branch in `MenuBuilder` window loop; `TerminalDisplay.printQuotaWindow` placeholder text. Version `3.14.5`.
+
+### 2026-05-31: Always show Claude 5-hour and 7-day windows
+
+**What**: The Claude 5-hour window disappeared when it had no recent activity (0% used, no active reset) because `skipIfEmpty` dropped empty windows. The primary 5-hour and 7-day windows now always show; the optional windows (Opus/Sonnet/Cowork/Design/OAuth apps/Tangelo/Iguana/promo) still hide when empty.
+
+**How**: `ClaudeQuotaProvider.pushWindow` gained a `skipIfEmpty` parameter (default true); the 5-hour and 7-day calls pass `false`. Version `3.14.4`.
+
+### 2026-05-31: Menu rows size value column to content
+
+**What**: Long two-column values (e.g. the Cursor "Credits" row `$339.97/$400.00 (85% used)`) were truncated by a fixed 40%-width value column. The value column now sizes to its natural width and the label takes the remainder (reserving a label minimum), so long values fit.
+
+**How**: Rewrote `UsageMenuItemViews.twoColumnRow` layout (measure value/label via `sizeToFit`, cap label at 45% of available width). Version `3.14.3`.
+
+### 2026-05-31: Fix Cursor Credits used amount
+
+**What**: The Cursor "Credits" row was showing `$400.00/$400.00` because it preferred `periodSpendCents` (which equals the included allowance for this plan). It now uses the same source as the old Grand Total — `apiAllowance` (or `dollarUsage` for team) — so the used amount is the real spend, e.g. `$333.51/$400.00 (83% used)`.
+
+**How**: `ReportLabels.cursorCreditsLabel` now reads used/limit/percent from `apiAllowance ?? dollarUsage`. Version `3.14.2`.
+
+### 2026-05-31: Cursor Credits row spacing + "used" suffix
+
+**What**: Removed the blank spacer between "Included API usage" and the Cursor "Credits" row, and the credits percentage now reads "(NN% used)" to match Claude's on-demand credits.
+
+**How**: `MenuBuilder.appendCursorSubscription` (dropped the `menuSpacer`), `ReportLabels.cursorCreditsLabel` (percent suffix). Version `3.14.1`.
+
+### 2026-05-31: Cursor "Credits" row replaces menu Grand Total
+
+**What**: The Cursor menu section no longer shows a "Grand Total" row. Instead a "Credits" row shows spend against the included allowance, styled like Claude's on-demand credits, e.g. `$333.51/$400.00 (83%)`.
+
+**How**: New `ReportLabels.cursorCreditsLabel` (used = `periodSpendCents` ?? `apiAllowance.usedCents` ?? `dollarUsage.usedCents`; limit = `includedAllowanceCents` ?? `dollarUsage.limitCents`; self-consistent percent from those). `MenuBuilder.appendCursorSubscription` renders it via `costRow(label: "Credits", …)`; removed the now-unused `cursorGrandTotalLabel`. `grandTotalRow` is retained for org billing. CLI Cursor output (separate "API allowance" line) is unchanged. Version `3.14.0`.
+
+### 2026-05-31: Empty state only when no provider is enabled
+
+**What**: "No enabled providers. Configure in Settings." now shows only when no provider has subscription quota or org billing enabled (previously it appeared whenever there was no result). When at least one provider is enabled, the menu shows data or the "Fetching data…" spinner instead.
+
+**How**: Added `ProviderPreferences.hasAnyEnabledProvider`; `MenuBuilder.populate` short-circuits to the empty state (plus command items) only when it's false. Reworded the row. Version `3.13.3`.
+
+### 2026-05-31: "Fetching data…" loading state replaces empty state
+
+**What**: While a fetch is running (including the initial load at app start), the menu shows a single spinner row reading "Fetching data…" instead of "No enabled providers. Open Settings." The empty-state row now only appears when not loading and there is no result. The header reads "Fetching data…" whenever `isLoading`, otherwise "Updated <time>".
+
+**How**: `UsageMenuItemViews.header` now picks its text from loading/result state; `MenuBuilder.populate` skips the empty state while loading and omits the leading separator when there are no provider rows. Version `3.13.2`.
+
+### 2026-05-31: Live menu updates while the menu is open
+
+**What**: The menu bar dropdown now updates in place when a refresh finishes while the menu is open (previously the on-screen menu stayed frozen until dismissed and reopened).
+
+**Why**: The status item showed a *cached* `NSMenu` via `popUp`, so `rebuildMenu()` only swapped the cached instance and never touched the visible one; additionally, fetch completions delivered on the default run loop mode are starved while AppKit runs its nested menu-tracking loop. Same root cause/fix as Señor Particle.
+
+**How**: `StatusItemController` now owns a persistent `NSMenu` assigned to `statusItem.menu`, conforms to `NSMenuDelegate` (tracks open state via `menuWillOpen`/`menuDidClose`), and repopulates that live instance in place. `MenuBuilder.populate(_:model:)` rebuilds menu contents in place (`buildMenu` is a thin wrapper). New `MenuTrackingRefresh.perform` schedules updates on `RunLoop.main` `.common` modes (with `MainActor.assumeIsolated`) so they apply during tracking; `MenuBarViewModel.refresh` delivers its completion through it. Version `3.13.1`.
+
+### 2026-05-31: Subscription monthly price next to plan tier
+
+**What**: Claude and ChatGPT subscriptions now show a fixed monthly USD list price next to the plan tier (like Cursor already did), e.g. `Pro · $20/mo`, `Pro Lite · $100/mo`, `Max 20x · $200/mo`. ChatGPT `plan_type`: go=$8, plus=$20, prolite=$100 (Pro 5x), pro=$200 (Pro 20x); Claude: pro=$20, max 5x=$100, max 20x=$200. Free/per-seat/custom/enterprise tiers and Max with unknown multiplier show no price.
+
+**Why**: No provider API returns a price, so this is a hardcoded USD map keyed off the same plan codes as the brand names. These are list prices and do not reflect annual/regional/mobile/tax billing.
+
+**How**: `PlanBranding.chatGPTPrice` / `PlanBranding.claudePrice`; wired into `CodexQuotaProvider.mapUsage` and `ClaudeQuotaProvider.mapUsage` via `report.planPrice`. Display layers (`ReportLabels.planSummary`, `TerminalDisplay.subscriptionTitle`) already render `tier · price`. Version `3.13.0`.
+
+### 2026-05-31: Tighten On-demand credits separator
+
+**What**: Removed the spaces around `/` in the Claude "On-demand credits" menu row (`used / limit` -> `used/limit`).
+
+**How**: `ReportLabels.creditsLabel`. Version `3.12.2`.
+
+### 2026-05-31: Shorten subscription captions to provider name
+
+**What**: Menu subscription headings shortened: "Claude & Claude Code" -> "Claude", "ChatGPT & Codex" -> "ChatGPT". Org captions ("Anthropic API", "OpenAI Platform") unchanged.
+
+**How**: `ReportLabels.heading`. Version `3.12.1`.
+
+### 2026-05-31: Plan brand-name mapping
+
+**What**: Raw plan codes now render as official brand names. ChatGPT `plan_type` -> Go / Plus / Pro / Pro Lite (`prolite`) / Team / Business / Enterprise / Education; Claude `subscriptionType` -> Pro / Max, with the Max usage multiplier (`Max 5x` / `Max 20x`) parsed from `rateLimitTier`. Unknown codes fall back to a capitalized form. No provider API returns brand names directly, so this is a client-side map (same approach as Codex CLI / CodexBar).
+
+**Why**: The menu header and CLI title previously showed internal codes (`prolite`, `pro`, `max`) instead of the user-facing tier names.
+
+**How**: New `PlanBranding` utility (`Sources/TokenTorchCore/Utilities/PlanBranding.swift`); wired in `CodexQuotaProvider.mapUsage` and `ClaudeQuotaProvider.mapUsage`. Added `rateLimitTier` to `OAuthSession`, the Claude credentials parse, `TokenTorchVendorCredentialStore` copy, and `VendorCredentialImporter` (old Token Torch-owned copies decode `rateLimitTier` as nil and show plain "Max" until re-import). Version `3.12.0`.
+
+### 2026-05-31: Show plan tier for all subscriptions in menu header
+
+**What**: The plan/subscription tier (e.g. Claude "pro", ChatGPT "prolite") now appears as the trailing summary next to the provider caption in the menu, like the Cursor plan already did. Generalized `ReportLabels.cursorPlanSummary` -> `planSummary` and applied it to every subscription report (not just Cursor).
+
+**How**: `ReportLabels.swift`, `MenuBuilder.swift`. Version `3.11.2`.
+
+### 2026-05-31: Menu window row restyle + Spark setting moved to OpenAI tab
+
+**What**: Menu subscription window rows now use the `costRow` style (matching "On-demand credits"/"Extra usage") with the percent in `.labelColor` instead of the red/yellow/green meter color. Removed the now-unused `UsageMenuItemViews.quotaRow` and `MenuFormat.percentColor`. Moved the `showAdditionalModelUsage` checkbox from the General tab to the OpenAI (codex) provider tab, since it only affects ChatGPT/Codex.
+
+**How**: `MenuBuilder.swift`, `UsageMenuItemViews.swift`, `MenuFormat.swift`, `GeneralSettingsViewController.swift` (reverted), `ProviderSettingsViewController.swift` (codex-only checkbox). Version `3.11.1`.
+
+### 2026-05-31: Opt-in additional model usage (Codex Spark)
+
+**What**: ChatGPT `additional_rate_limits` (e.g. `GPT-5.3-Codex-Spark`) now populate a separate `SubscriptionQuotaReport.additionalWindows` instead of the main `windows`. New General-tab setting `showAdditionalModelUsage` (`ProviderPreferences`, default off, backward-compatible decode) gates whether the menu lists these windows. The CLI always prints `additionalWindows` after the main windows. Toggling posts `tokenTorchDisplayChanged` (display-only rebuild, no refetch).
+
+**Why**: Per-model extra windows are noise for most users; opt-in keeps the menu clean by default while preserving the data.
+
+**How**: `QuotaModels.swift` (`additionalWindows`), `CodexQuotaProvider.swift`, `ProviderPreferences.swift`, `GeneralSettingsViewController.swift` (checkbox), `MenuBuilder.swift` (threads `showAdditional`), `TerminalDisplay.swift`. Test updated to assert Spark lands in `additionalWindows`. Version `3.11.0`.
+
+### 2026-05-31: Reset dates in menu, Claude User-Agent, provider rename, meaningful-only notes
+
+**What**: (1) Menu bar now shows each subscription window's reset date as a dimmed caption beneath the percent row (styled like org "Billing cycle"), with absolute UTC time + relative countdown (`MenuFormat.resetCaption`/`relativeReset`); previously only the CLI showed resets. (2) `ClaudeQuotaProvider` sends `User-Agent: claude-code/*` (`AppBrand.claudeUsageUserAgent`) — the undocumented `/api/oauth/usage` endpoint 429s non-`claude-code` agents, so this protects reset-date/usage visibility. (3) Renamed the Claude subscription report label `Claude Code` -> `Claude` (the unified limits cover chat, Code, Cowork, design; not just Code). (4) ChatGPT `code_review_rate_limit` re-added as windows when non-null (D1). (5) `rate_limit_reached_type` mapped to friendly labels (`primary`->"5-hour limit", `secondary`->"weekly limit") (D4). (6) ChatGPT boolean status notes (`allowed`/`limit_reached`/`unlimited`/`overage_limit_reached`/`spend_control.reached`) now appear only when meaningful (limited/capped/positive), removing healthy-state noise like "Allowed yes" (D7).
+
+**Why**: Reset dates are a primary user need and were missing from the menu; the missing User-Agent was the likely root cause of earlier Claude 429s; the old label undersold the subscription scope; the always-on boolean rows were noise.
+
+**How**: `AppBrand.swift`, `ClaudeQuotaProvider.swift`, `CodexQuotaProvider.swift`, `MenuFormat.swift`, `MenuBuilder.swift`, `TokenTorchCLI.swift`. Tests: ChatGPT healthy-vs-limited notes, code-review windows. Version `3.10.0`.
+
+### 2026-05-31: Full subscription field display (ChatGPT + Claude)
+
+**What**: New shared `QuotaNote` (label/value) on `SubscriptionQuotaReport` plus a recursive `JSONValue` (`TokenTorchCore/Utilities/JSONValue.swift`) for undocumented nested fields. ChatGPT/Codex now surfaces everything from `/wham/usage` except the user-excluded fields (`user_id`, `account_id`, `email`, `code_review_rate_limit`, `referral_beacon`, `rate_limit_reset_credits`, `approx_local_messages`, `approx_cloud_messages`): `additional_rate_limits[]` become per-model windows (`<limit_name> (5h)/(7d)`), and `rate_limit.allowed`/`limit_reached`, `credits.unlimited`/`overage_limit_reached`, `spend_control.{reached,individual_limit}`, `rate_limit_reached_type`, and `promo` (flattened) become notes. Claude surfaces `extra_usage.is_enabled` as a note (still excluding `disabled_reason`/`currency`). Notes render in both the menu (`costRow`) and CLI.
+
+**Why**: Complete the subscription field display for both providers per the user's keep/exclude lists.
+
+**How**: `QuotaModels.swift` (`QuotaNote`, `notes`), `JSONValue.swift`, `CodexQuotaProvider.swift` (removed `code_review_rate_limit` window per exclusion), `ClaudeQuotaProvider.swift`, `MenuBuilder.swift`, `TerminalDisplay.swift`. Also fixed two Claude reset-time bugs: `ClaudeUsageWindow` lacked a `resets_at` CodingKey (always nil → "resets unknown"), and `QuotaHelpers.parseRFC3339UTC` now handles fractional/microsecond precision (strips sub-second digits as a fallback). Tests added for ChatGPT notes/windows, Claude notes/exclusions, and fractional-seconds parsing. Version `3.9.0`.
 
 ### 2026-05-31: Display currency + expanded Claude usage fields
 

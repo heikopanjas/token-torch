@@ -7,7 +7,7 @@ struct TokenTorchCLI: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "token-torch-cli",
         abstract: "Monitor Anthropic, OpenAI, and Cursor usage (org billing and personal subscription quotas)",
-        version: "3.8.0",
+        version: "3.15.6",
         subcommands: [AnthropicCommand.self, OpenAICommand.self, CursorCommand.self]
     )
 
@@ -62,7 +62,7 @@ struct AnthropicCommand: AsyncParsableCommand {
         TerminalDisplay.displayCurrency = currencyOptions.currency
         CredentialStoreMigration.migrateFromBurnIfNeeded()
         if quota {
-            try await runQuota(label: "Claude Code") { try await ClaudeQuotaProvider.fetch() }
+            try await runQuota(label: "Claude") { try await ClaudeQuotaProvider.fetch() }
             return
         }
 

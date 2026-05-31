@@ -50,10 +50,11 @@ public enum ClaudeQuotaProvider {
                 "Authorization": "Bearer \(session.accessToken)",
                 "Accept": "application/json",
                 "Content-Type": "application/json",
-                "anthropic-beta": "oauth-2025-04-20"
+                "anthropic-beta": "oauth-2025-04-20",
+                "User-Agent": AppBrand.claudeUsageUserAgent
             ]
         )
-        return mapUsage(response, subscriptionType: session.subscriptionType)
+        return mapUsage(response, subscriptionType: session.subscriptionType, rateLimitTier: session.rateLimitTier)
     }
 
     public struct ClaudeUsageWindow: Decodable, Sendable {
@@ -62,6 +63,11 @@ public enum ClaudeQuotaProvider {
         public init(utilization: Double, resetsAt: String?) {
             self.utilization = utilization
             self.resetsAt = resetsAt
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case utilization
+            case resetsAt = "resets_at"
         }
     }
 
@@ -135,12 +141,15 @@ public enum ClaudeQuotaProvider {
         }
     }
 
-    public static func mapUsage(_ response: ClaudeUsageResponse, subscriptionType: String?) -> SubscriptionQuotaReport {
-        var report = SubscriptionQuotaReport.forProvider("Claude Code")
-        report.planTier = subscriptionType
+    public static func mapUsage(
+        _ response: ClaudeUsageResponse, subscriptionType: String?, rateLimitTier: String? = nil
+    ) -> SubscriptionQuotaReport {
+        var report = SubscriptionQuotaReport.forProvider("Claude")
+        report.planTier = PlanBranding.claude(subscriptionType: subscriptionType, rateLimitTier: rateLimitTier)
+        report.planPrice = PlanBranding.claudePrice(subscriptionType: subscriptionType, rateLimitTier: rateLimitTier)
         var windows: [QuotaWindow] = []
-        pushWindow(&windows, label: "5-hour window", window: response.fiveHour)
-        pushWindow(&windows, label: "7-day window", window: response.sevenDay)
+        pushWindow(&windows, label: "5-hour window", window: response.fiveHour, skipIfEmpty: false)
+        pushWindow(&windows, label: "7-day window", window: response.sevenDay, skipIfEmpty: false)
         pushWindow(&windows, label: "7-day Opus window", window: response.sevenDayOpus)
         pushWindow(&windows, label: "7-day Sonnet window", window: response.sevenDaySonnet)
         pushWindow(&windows, label: "7-day Cowork window", window: response.sevenDayCowork)
@@ -150,26 +159,33 @@ public enum ClaudeQuotaProvider {
         pushWindow(&windows, label: "Iguana Necktie", window: response.iguanaNecktie)
         pushWindow(&windows, label: "Omelette (promo)", window: response.omelettePromotional)
         report.windows = windows
-        if let extra = response.extraUsage, extra.isEnabled == true {
-            report.credits = CreditsInfo(
-                usedCents: UInt64((extra.usedCredits ?? 0).rounded()),
-                limitCents: UInt64((extra.monthlyLimit ?? 0).rounded()),
-                currency: extra.currency ?? "USD",
-                balanceUSD: nil,
-                utilizationPercent: extra.utilization
-            )
+        if let extra = response.extraUsage {
+            if let isEnabled = extra.isEnabled {
+                report.notes = [QuotaNote(label: "Extra usage", value: isEnabled ? "enabled" : "disabled")]
+            }
+            if extra.isEnabled == true {
+                report.credits = CreditsInfo(
+                    usedCents: UInt64((extra.usedCredits ?? 0).rounded()),
+                    limitCents: UInt64((extra.monthlyLimit ?? 0).rounded()),
+                    currency: extra.currency ?? "USD",
+                    balanceUSD: nil,
+                    utilizationPercent: extra.utilization
+                )
+            }
         }
         return report
     }
 
-    private static func pushWindow(_ windows: inout [QuotaWindow], label: String, window: ClaudeUsageWindow?) {
+    private static func pushWindow(
+        _ windows: inout [QuotaWindow], label: String, window: ClaudeUsageWindow?, skipIfEmpty: Bool = true
+    ) {
         guard let window else { return }
         QuotaHelpers.pushWindow(
             &windows,
             label: label,
             usedPercent: window.utilization,
             resetsAt: window.resetsAt.flatMap(QuotaHelpers.parseRFC3339UTC),
-            skipIfEmpty: true
+            skipIfEmpty: skipIfEmpty
         )
     }
 }

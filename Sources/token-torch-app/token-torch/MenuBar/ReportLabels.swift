@@ -5,29 +5,31 @@ enum ReportLabels {
         switch provider {
             case .codex:
                 switch report {
-                    case .subscription: "ChatGPT & Codex"
+                    case .subscription: "ChatGPT"
                     case .org: "OpenAI Platform"
                     case .needsAuthorization(_, let mode), .error(_, let mode, _):
-                        mode == "subscription" ? "ChatGPT & Codex" : "OpenAI Platform"
+                        mode == "subscription" ? "ChatGPT" : "OpenAI Platform"
                 }
             case .claude:
                 switch report {
-                    case .subscription: "Claude & Claude Code"
+                    case .subscription: "Claude"
                     case .org: "Anthropic API"
                     case .needsAuthorization(_, let mode), .error(_, let mode, _):
-                        mode == "subscription" ? "Claude & Claude Code" : "Anthropic API"
+                        mode == "subscription" ? "Claude" : "Anthropic API"
                 }
             case .cursor:
                 switch report {
-                    case .subscription: "Cursor Plan"
+                    case .subscription: "Cursor"
                     case .org: provider.displayName
                     case .needsAuthorization(_, let mode), .error(_, let mode, _):
-                        mode == "subscription" ? "Cursor Plan" : provider.displayName
+                        mode == "subscription" ? "Cursor" : provider.displayName
                 }
         }
     }
 
-    static func cursorPlanSummary(_ quota: SubscriptionQuotaReport) -> String? {
+    /// Trailing summary shown next to the provider caption: plan tier and/or price.
+    /// Applies to every subscription (Cursor has a price; Claude/ChatGPT show just the tier).
+    static func planSummary(_ quota: SubscriptionQuotaReport) -> String? {
         switch (quota.planTier, quota.planPrice) {
             case (.some(let tier), .some(let price)): "\(tier) · \(price)"
             case (.some(let tier), .none): tier
@@ -36,14 +38,16 @@ enum ReportLabels {
         }
     }
 
-    static func cursorGrandTotalLabel(_ quota: SubscriptionQuotaReport, in currency: DisplayCurrency) -> String? {
-        if let api = quota.apiAllowance {
-            return CurrencyConverter.formatMinorUnits(api.usedCents, from: "USD", to: currency)
-        }
-        if let usage = quota.dollarUsage {
-            return CurrencyConverter.formatMinorUnits(usage.usedCents, from: "USD", to: currency)
-        }
-        return nil
+    /// Cursor spend counted against the included allowance, e.g. `$333.51/$400.00 (83% used)`.
+    /// Styled like Claude's on-demand credits row. The used amount is the same value the previous
+    /// Grand Total showed (`apiAllowance`, or `dollarUsage` for team), paired with its limit.
+    static func cursorCreditsLabel(_ quota: SubscriptionQuotaReport, in currency: DisplayCurrency) -> String? {
+        guard let usage = quota.apiAllowance ?? quota.dollarUsage, usage.limitCents > 0 else { return nil }
+        let usedText = CurrencyConverter.formatMinorUnits(usage.usedCents, from: "USD", to: currency)
+        let limitText = CurrencyConverter.formatMinorUnits(usage.limitCents, from: "USD", to: currency)
+        let pct = usage.usedPercent ?? QuotaHelpers.creditUsedPercent(usedCents: usage.usedCents, limitCents: usage.limitCents)
+        let pctText = pct.map { String(format: " (%.0f%% used)", $0) } ?? ""
+        return "\(usedText)/\(limitText)\(pctText)"
     }
 
     /// A non-Cursor credits row (e.g. Claude `extra_usage`): "used / limit (NN% used)" or balance.
@@ -59,6 +63,6 @@ enum ReportLabels {
             : CurrencyConverter.formatMinorUnits(credits.limitCents, from: credits.currency, to: currency)
         let pct = credits.utilizationPercent ?? QuotaHelpers.creditUsedPercent(usedCents: credits.usedCents, limitCents: credits.limitCents)
         let pctText = pct.map { String(format: " (%.0f%% used)", $0) } ?? ""
-        return "\(used) / \(limit)\(pctText)"
+        return "\(used)/\(limit)\(pctText)"
     }
 }

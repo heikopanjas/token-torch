@@ -44,6 +44,8 @@ public enum CursorQuotaProvider {
 
     public struct CursorPlanUsage: Decodable, Sendable {
         public let includedSpend: UInt64?
+        public let totalSpend: UInt64?
+        public let bonusSpend: UInt64?
         public let remaining: UInt64?
         public let limit: UInt64?
         public let autoPercentUsed: Double?
@@ -52,6 +54,8 @@ public enum CursorQuotaProvider {
 
         public init(
             includedSpend: UInt64?,
+            totalSpend: UInt64? = nil,
+            bonusSpend: UInt64? = nil,
             remaining: UInt64?,
             limit: UInt64?,
             autoPercentUsed: Double?,
@@ -59,6 +63,8 @@ public enum CursorQuotaProvider {
             totalPercentUsed: Double?
         ) {
             self.includedSpend = includedSpend
+            self.totalSpend = totalSpend
+            self.bonusSpend = bonusSpend
             self.remaining = remaining
             self.limit = limit
             self.autoPercentUsed = autoPercentUsed
@@ -139,6 +145,8 @@ public enum CursorQuotaProvider {
         if let included = planUsage.includedSpend {
             report.periodSpendCents = included
         }
+        report.totalSpendCents = planUsage.totalSpend
+        report.bonusSpendCents = planUsage.bonusSpend
 
         if isTeam {
             if let limit = planUsage.limit, let included = planUsage.includedSpend {

@@ -39,19 +39,23 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
     public var cursor: ProviderModeFlags
     public var refreshIntervalMinutes: Int
     public var displayCurrency: DisplayCurrency
+    /// When true, the menu also lists per-model extra rate limits (e.g. Codex Spark). Default off.
+    public var showAdditionalModelUsage: Bool
 
     public init(
         claude: ProviderModeFlags = .init(),
         codex: ProviderModeFlags = .init(),
         cursor: ProviderModeFlags = .init(subscriptionQuotaEnabled: true, orgBillingEnabled: false),
         refreshIntervalMinutes: Int = 15,
-        displayCurrency: DisplayCurrency = .systemDefault
+        displayCurrency: DisplayCurrency = .systemDefault,
+        showAdditionalModelUsage: Bool = false
     ) {
         self.claude = claude
         self.codex = codex
         self.cursor = cursor
         self.refreshIntervalMinutes = refreshIntervalMinutes
         self.displayCurrency = displayCurrency
+        self.showAdditionalModelUsage = showAdditionalModelUsage
     }
 
     public init(from decoder: Decoder) throws {
@@ -63,6 +67,15 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
             ?? .init(subscriptionQuotaEnabled: true, orgBillingEnabled: false)
         refreshIntervalMinutes = try container.decodeIfPresent(Int.self, forKey: .refreshIntervalMinutes) ?? 15
         displayCurrency = try container.decodeIfPresent(DisplayCurrency.self, forKey: .displayCurrency) ?? .systemDefault
+        showAdditionalModelUsage = try container.decodeIfPresent(Bool.self, forKey: .showAdditionalModelUsage) ?? false
+    }
+
+    /// True when at least one provider has subscription quota or org billing enabled.
+    public var hasAnyEnabledProvider: Bool {
+        ProviderID.allCases.contains { provider in
+            let flags = flags(for: provider)
+            return flags.subscriptionQuotaEnabled || flags.orgBillingEnabled
+        }
     }
 
     public func flags(for provider: ProviderID) -> ProviderModeFlags {

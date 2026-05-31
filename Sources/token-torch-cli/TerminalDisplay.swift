@@ -209,7 +209,21 @@ enum TerminalDisplay {
             if isCursor { print() }
         }
 
+        for window in report.additionalWindows {
+            printQuotaWindow(window)
+        }
+
         if isCursor {
+            if let total = report.totalSpendCents {
+                let value = CurrencyConverter.formatMinorUnits(total, from: "USD", to: displayCurrency)
+                print("\(ANSIColor.brightWhite(pad("Total usage value", 22))) \(ANSIColor.brightWhiteBold(value))")
+            }
+            if let bonus = report.bonusSpendCents, bonus > 0 {
+                let value = CurrencyConverter.formatMinorUnits(bonus, from: "USD", to: displayCurrency)
+                print("\(ANSIColor.brightWhite(pad("Bonus", 22))) \(ANSIColor.brightWhiteBold(value))")
+                print(ANSIColor.dimmed("Free usage beyond what you've purchased"))
+            }
+
             if let api = report.apiAllowance {
                 let used = CurrencyConverter.formatMinorUnits(api.usedCents, from: "USD", to: displayCurrency)
                 let limit = CurrencyConverter.formatMinorUnits(api.limitCents, from: "USD", to: displayCurrency)
@@ -233,8 +247,9 @@ enum TerminalDisplay {
             }
         }
         else {
+            printSubscriptionNotes(report)
             printSubscriptionCredits(report)
-            if report.windows.isEmpty, report.dollarUsage == nil, report.credits == nil {
+            if report.windows.isEmpty, report.additionalWindows.isEmpty, report.notes.isEmpty, report.dollarUsage == nil, report.credits == nil {
                 print(ANSIColor.yellow("No quota data returned."))
             }
         }
@@ -287,7 +302,7 @@ enum TerminalDisplay {
 
     private static func printQuotaWindow(_ window: QuotaWindow) {
         let percentText = String(format: "%.0f%% used", window.usedPercent)
-        let resetText = window.resetsAt.map(formatResetTime) ?? "unknown"
+        let resetText = window.resetsAt.map(formatResetTime) ?? "once the window starts"
         print(
             "\(ANSIColor.brightWhite(pad(window.label, 22))) \(colorizePercent(window.usedPercent, text: percentText))   resets \(ANSIColor.dimmed(resetText))"
         )
@@ -313,6 +328,14 @@ enum TerminalDisplay {
             let pctText = pct.map { String(format: " (%.0f%% used)", $0) } ?? ""
             print(
                 "\(ANSIColor.brightWhite(pad("On-demand credits", 22))) \(ANSIColor.brightWhiteBold("\(used) / \(limitLabel)"))\(ANSIColor.dimmed(pctText))"
+            )
+        }
+    }
+
+    private static func printSubscriptionNotes(_ report: SubscriptionQuotaReport) {
+        for note in report.notes {
+            print(
+                "\(ANSIColor.brightWhite(pad(note.label, 22))) \(ANSIColor.brightWhiteBold(note.value))"
             )
         }
     }

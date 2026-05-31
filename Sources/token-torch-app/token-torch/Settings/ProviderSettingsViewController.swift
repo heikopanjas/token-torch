@@ -12,6 +12,7 @@ final class ProviderSettingsViewController: NSViewController {
     private var subscriptionToggle: NSButton!
     private var hintLabel: NSTextField!
     private var resetButton: NSButton!
+    private var additionalUsageToggle: NSButton?
     private var orgToggle: NSButton!
     private var adminKeyLabel: NSTextField!
     private var adminKeyField: NSSecureTextField!
@@ -73,6 +74,19 @@ final class ProviderSettingsViewController: NSViewController {
         resetButton.autoresizingMask = [.minYMargin]
         view.addSubview(resetButton)
 
+        if provider == .codex {
+            y -= 16 + 22
+            let toggle = NSButton(
+                checkboxWithTitle: "Show additional model usage (e.g. Codex Spark)",
+                target: self,
+                action: #selector(additionalUsageChanged)
+            )
+            toggle.frame = NSRect(x: x, y: y, width: controlW, height: 22)
+            toggle.autoresizingMask = [.minYMargin, .width]
+            view.addSubview(toggle)
+            additionalUsageToggle = toggle
+        }
+
         if provider.supportsOrgBilling {
             y -= 16 + 22
             orgToggle = NSButton(checkboxWithTitle: "Enable API billing", target: self, action: #selector(toggleChanged))
@@ -119,7 +133,15 @@ final class ProviderSettingsViewController: NSViewController {
         super.viewWillAppear()
         subscriptionToggle.state = flags.subscriptionQuotaEnabled ? .on : .off
         orgToggle?.state = flags.orgBillingEnabled ? .on : .off
+        additionalUsageToggle?.state = preferences.load().showAdditionalModelUsage ? .on : .off
         loadKeys()
+    }
+
+    @objc private func additionalUsageChanged() {
+        var prefs = preferences.load()
+        prefs.showAdditionalModelUsage = additionalUsageToggle?.state == .on
+        preferences.save(prefs)
+        NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
     }
 
     @objc private func toggleChanged() {

@@ -18,6 +18,7 @@ public struct OAuthSession: Sendable {
     public let expiresAt: Int64?
     public let accountID: String?
     public let subscriptionType: String?
+    public let rateLimitTier: String?
     public let source: CredentialSource
 
     public func sourceLabel() -> String {
@@ -230,9 +231,10 @@ public enum VendorCredentialsReader {
             let refreshToken: String
             let expiresAt: Int64?
             let subscriptionType: String?
+            let rateLimitTier: String?
 
             enum CodingKeys: String, CodingKey {
-                case accessToken, refreshToken, expiresAt, subscriptionType
+                case accessToken, refreshToken, expiresAt, subscriptionType, rateLimitTier
             }
         }
 
@@ -252,6 +254,7 @@ public enum VendorCredentialsReader {
             expiresAt: parsed.oauth.expiresAt,
             accountID: nil,
             subscriptionType: parsed.oauth.subscriptionType,
+            rateLimitTier: parsed.oauth.rateLimitTier,
             source: source
         )
     }
@@ -299,6 +302,7 @@ public enum VendorCredentialsReader {
             expiresAt: jwtExpMs(parsed.tokens.accessToken),
             accountID: parsed.tokens.accountID,
             subscriptionType: nil,
+            rateLimitTier: nil,
             source: source
         )
     }
@@ -329,6 +333,7 @@ public enum VendorCredentialsReader {
             expiresAt: jwtExpMs(access),
             accountID: nil,
             subscriptionType: membership,
+            rateLimitTier: nil,
             source: .cursorSqlite
         )
     }
@@ -343,6 +348,7 @@ public enum VendorCredentialsReader {
             expiresAt: jwtExpMs(access),
             accountID: nil,
             subscriptionType: nil,
+            rateLimitTier: nil,
             source: .cursorKeychain
         )
     }

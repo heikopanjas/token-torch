@@ -2,11 +2,12 @@ import AppKit
 import TokenTorchCore
 
 @MainActor
-final class StatusItemController: NSObject {
+final class StatusItemController: NSObject, NSMenuDelegate {
     private let model: MenuBarViewModel
     private let menuBuilder = MenuBuilder()
     private let statusItem: NSStatusItem
-    private var cachedMenu: NSMenu?
+    private let menu = NSMenu()
+    private var isMenuOpen = false
     private weak var settingsOpener: SettingsWindowController?
 
     init(model: MenuBarViewModel, settingsOpener: SettingsWindowController) {
@@ -18,7 +19,7 @@ final class StatusItemController: NSObject {
         menuBuilder.refreshAction = #selector(refreshFromMenu)
         menuBuilder.openSettingsAction = #selector(openSettings)
         model.onUpdated = { [weak self] in
-            self?.rebuildMenu()
+            self?.refreshOpenMenu()
         }
         NotificationCenter.default.addObserver(
             self,
@@ -26,12 +27,14 @@ final class StatusItemController: NSObject {
             name: AppActions.tokenTorchDisplayChanged,
             object: nil
         )
+        menu.delegate = self
+        statusItem.menu = menu
         configureStatusItemButton()
-        rebuildMenu()
+        menuBuilder.populate(menu, model: model)
     }
 
     @objc private func displayChanged() {
-        rebuildMenu()
+        refreshOpenMenu()
     }
 
     private func configureStatusItemButton() {
@@ -46,21 +49,33 @@ final class StatusItemController: NSObject {
             button.title = AppBrand.displayName
         }
         button.toolTip = AppBrand.displayName
-        button.target = self
-        button.action = #selector(showMenu)
-        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         statusItem.isVisible = true
     }
 
-    func rebuildMenu() {
-        cachedMenu = menuBuilder.buildMenu(model: model)
+    /// Repopulates the live menu while it is open. Scheduled on the common run loop so the update
+    /// is applied during menu tracking (AppKit runs a nested tracking loop that starves the default
+    /// run loop mode, otherwise leaving the open menu frozen until it is dismissed and reopened).
+    private func refreshOpenMenu() {
+        guard isMenuOpen else { return }
+        MenuTrackingRefresh.perform { [weak self] in
+            guard let self, self.isMenuOpen else { return }
+            self.menuBuilder.populate(self.menu, model: self.model)
+            self.menu.update()
+        }
     }
 
-    @objc private func showMenu() {
-        guard let button = statusItem.button else { return }
-        let menu = cachedMenu ?? menuBuilder.buildMenu(model: model)
-        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height), in: button)
+    // MARK: - NSMenuDelegate
+
+    func menuWillOpen(_ menu: NSMenu) {
+        isMenuOpen = true
+        menuBuilder.populate(menu, model: model)
     }
+
+    func menuDidClose(_ menu: NSMenu) {
+        isMenuOpen = false
+    }
+
+    // MARK: - Actions
 
     @objc private func refreshFromMenu() {
         model.refresh()
@@ -68,5 +83,14 @@ final class StatusItemController: NSObject {
 
     @objc private func openSettings() {
         settingsOpener?.show()
+    }
+}
+
+enum MenuTrackingRefresh {
+    /// Schedules work on the common run loop modes so it runs while an NSMenu is being tracked.
+    static func perform(_ block: @escaping @MainActor () -> Void) {
+        RunLoop.main.perform(inModes: [.common]) {
+            MainActor.assumeIsolated { block() }
+        }
     }
 }

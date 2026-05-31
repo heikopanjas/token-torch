@@ -13,6 +13,19 @@ public struct QuotaWindow: Codable, Sendable, Equatable, Identifiable {
     }
 }
 
+/// A single labeled scalar/flag value surfaced from a provider response that doesn't fit the
+/// window or money layouts (e.g. ChatGPT `allowed`, `spend_control`).
+public struct QuotaNote: Codable, Sendable, Equatable, Identifiable {
+    public var id: String { label }
+    public let label: String
+    public let value: String
+
+    public init(label: String, value: String) {
+        self.label = label
+        self.value = value
+    }
+}
+
 public struct CreditsInfo: Codable, Sendable, Equatable {
     public let usedCents: UInt64
     public let limitCents: UInt64
@@ -54,6 +67,10 @@ public struct SubscriptionQuotaReport: Codable, Sendable, Equatable {
     public let provider: String
     public var planTier: String?
     public var windows: [QuotaWindow]
+    /// Per-model extra rate-limit windows (e.g. ChatGPT `additional_rate_limits` like Codex Spark).
+    /// Kept separate so the UI can hide them behind an opt-in setting.
+    public var additionalWindows: [QuotaWindow]
+    public var notes: [QuotaNote]
     public var credits: CreditsInfo?
     public var dollarUsage: DollarUsage?
     public var billingCycleStart: Date?
@@ -62,12 +79,16 @@ public struct SubscriptionQuotaReport: Codable, Sendable, Equatable {
     public var includedAllowanceCents: UInt64?
     public var apiAllowance: DollarUsage?
     public var periodSpendCents: UInt64?
+    public var totalSpendCents: UInt64?
+    public var bonusSpendCents: UInt64?
     public var rawMessage: String?
 
     public init(provider: String) {
         self.provider = provider
         self.planTier = nil
         self.windows = []
+        self.additionalWindows = []
+        self.notes = []
         self.credits = nil
         self.dollarUsage = nil
         self.billingCycleStart = nil
@@ -76,6 +97,8 @@ public struct SubscriptionQuotaReport: Codable, Sendable, Equatable {
         self.includedAllowanceCents = nil
         self.apiAllowance = nil
         self.periodSpendCents = nil
+        self.totalSpendCents = nil
+        self.bonusSpendCents = nil
         self.rawMessage = nil
     }
 
@@ -97,9 +120,24 @@ public enum QuotaHelpers {
     }
 
     public static func parseRFC3339UTC(_ value: String) -> Date? {
+        // Some providers (e.g. Claude `resets_at`) include fractional seconds; try that first.
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractional.date(from: value) { return date }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
-        return formatter.date(from: value)
+        if let date = formatter.date(from: value) { return date }
+        // Claude emits microsecond precision (6 digits) that ISO8601DateFormatter rejects; strip it.
+        return formatter.date(from: stripFractionalSeconds(value))
+    }
+
+    private static func stripFractionalSeconds(_ value: String) -> String {
+        guard let dot = value.firstIndex(of: ".") else { return value }
+        var end = value.index(after: dot)
+        while end < value.endIndex, value[end].isNumber { end = value.index(after: end) }
+        var result = value
+        result.removeSubrange(dot ..< end)
+        return result
     }
 
     public static func parseUnixSecsUTC(_ secs: Int64) -> Date {

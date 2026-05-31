@@ -64,6 +64,7 @@ public enum VendorCredentialImporter {
             expiresAt: imported.expiresAt,
             accountID: imported.accountID,
             subscriptionType: imported.subscriptionType,
+            rateLimitTier: imported.rateLimitTier,
             source: .tokenTorchCopy
         )
         try TokenTorchVendorCredentialStore.save(provider: provider, session: session)

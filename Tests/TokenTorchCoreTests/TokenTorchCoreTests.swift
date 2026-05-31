@@ -34,7 +34,8 @@ import Testing
     )
     let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "pro")
     #expect(report.windows.count == 2)
-    #expect(report.planTier == "pro")
+    #expect(report.planTier == "Pro")
+    #expect(report.planPrice == "$20/mo")
 }
 
 @Test func mapClaudeUsageSurfacesExtraWindowsAndCredits() {
@@ -104,6 +105,8 @@ import Testing
         billingCycleEnd: "1771077734000",
         planUsage: CursorQuotaProvider.CursorPlanUsage(
             includedSpend: 23_222,
+            totalSpend: 57_318,
+            bonusSpend: 17_318,
             remaining: 16_778,
             limit: 40_000,
             autoPercentUsed: 0,
@@ -125,6 +128,8 @@ import Testing
     #expect(report.planTier == "Ultra")
     #expect(report.apiAllowance?.usedCents == 18_578)
     #expect(report.periodSpendCents == 23_222)
+    #expect(report.totalSpendCents == 57_318)
+    #expect(report.bonusSpendCents == 17_318)
 }
 
 @Test func mapCodexUsageFromSnakeCaseJSON() throws {
@@ -134,7 +139,76 @@ import Testing
     let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
     let report = CodexQuotaProvider.mapUsage(response)
     #expect(report.windows.count == 2)
-    #expect(report.planTier == "prolite")
+    #expect(report.planTier == "Pro Lite")
+    #expect(report.planPrice == "$100/mo")
+}
+
+@Test func mapChatGptSurfacesNotesAndAdditionalWindows() throws {
+    let json = """
+        {"user_id":"user-x","account_id":"acc","email":"a@b.com","plan_type":"prolite",
+        "rate_limit":{"allowed":true,"limit_reached":false,"primary_window":{"used_percent":0,"reset_at":1780254481},"secondary_window":{"used_percent":0,"reset_at":1780841281}},
+        "code_review_rate_limit":null,
+        "additional_rate_limits":[{"limit_name":"GPT-5.3-Codex-Spark","metered_feature":"codex_bengalfox","rate_limit":{"allowed":true,"limit_reached":false,"primary_window":{"used_percent":0,"reset_at":1780254481},"secondary_window":{"used_percent":0,"reset_at":1780841281}}}],
+        "credits":{"has_credits":false,"unlimited":false,"overage_limit_reached":false,"balance":"0","approx_local_messages":[0,0],"approx_cloud_messages":[0,0]},
+        "spend_control":{"reached":false,"individual_limit":null},
+        "rate_limit_reached_type":null,"promo":null,"referral_beacon":null,"rate_limit_reset_credits":{"available_count":0}}
+        """
+    let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
+    let report = CodexQuotaProvider.mapUsage(response)
+    // Additional per-model limits live in additionalWindows (opt-in display), not the main windows.
+    #expect(report.additionalWindows.contains { $0.label == "GPT-5.3-Codex-Spark (5h)" })
+    #expect(report.additionalWindows.contains { $0.label == "GPT-5.3-Codex-Spark (7d)" })
+    #expect(!report.windows.contains { $0.label.contains("Spark") })
+    // D7: healthy state hides the boolean status notes entirely.
+    #expect(report.notes.isEmpty)
+}
+
+@Test func mapChatGptSurfacesStatusNotesOnlyWhenLimited() throws {
+    let json = """
+        {"plan_type":"pro",
+        "rate_limit":{"allowed":false,"limit_reached":true,"primary_window":{"used_percent":100,"reset_at":1780254481},"secondary_window":{"used_percent":50,"reset_at":1780841281}},
+        "code_review_rate_limit":{"primary_window":{"used_percent":10,"reset_at":1780254481},"secondary_window":{"used_percent":5,"reset_at":1780841281}},
+        "credits":{"has_credits":true,"unlimited":true,"overage_limit_reached":true,"balance":"12.5"},
+        "spend_control":{"reached":true,"individual_limit":500},
+        "rate_limit_reached_type":"secondary","promo":null}
+        """
+    let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
+    let report = CodexQuotaProvider.mapUsage(response)
+    #expect(report.notes.contains { $0.label == "Rate limited" })
+    #expect(report.notes.contains { $0.label == "Limit reached" })
+    #expect(report.notes.contains { $0.label == "Rate limit type" && $0.value == "weekly limit" })
+    #expect(report.notes.contains { $0.label == "Unlimited credits" })
+    #expect(report.notes.contains { $0.label == "Overage limit reached" })
+    #expect(report.notes.contains { $0.label == "Spend control reached" })
+    #expect(report.notes.contains { $0.label == "Spend limit" })
+    // D1: code review windows surface when non-null.
+    #expect(report.windows.contains { $0.label == "Code review (5h)" })
+}
+
+@Test func mapClaudeSurfacesExtraUsageNoteAndExcludesSensitive() {
+    let response = ClaudeQuotaProvider.ClaudeUsageResponse(
+        fiveHour: ClaudeQuotaProvider.ClaudeUsageWindow(utilization: 0, resetsAt: "2026-05-31T17:40:00.947309+00:00"),
+        sevenDay: ClaudeQuotaProvider.ClaudeUsageWindow(utilization: 3, resetsAt: "2026-06-05T09:00:00.947345+00:00"),
+        extraUsage: ClaudeQuotaProvider.ClaudeExtraUsage(
+            isEnabled: false,
+            usedCredits: nil,
+            monthlyLimit: nil,
+            utilization: nil,
+            currency: nil
+        )
+    )
+    let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "pro")
+    #expect(report.notes.contains { $0.label == "Extra usage" && $0.value == "disabled" })
+    #expect(report.credits == nil)
+    #expect(!report.notes.contains { $0.label.contains("currency") || $0.label.contains("disabled_reason") })
+    // Microsecond-precision resets_at parses to a real date (no "resets unknown").
+    #expect(report.windows.first { $0.label == "7-day window" }?.resetsAt != nil)
+}
+
+@Test func parseRFC3339ParsesFractionalSeconds() {
+    #expect(QuotaHelpers.parseRFC3339UTC("2026-06-05T09:00:00.947345+00:00") != nil)
+    #expect(QuotaHelpers.parseRFC3339UTC("2026-06-05T09:00:00.123Z") != nil)
+    #expect(QuotaHelpers.parseRFC3339UTC("2026-06-05T09:00:00Z") != nil)
 }
 
 @Test func quotaAuthErrorIgnoresResetAtSubstring() {
@@ -183,6 +257,7 @@ import Testing
         expiresAt: nil,
         accountID: nil,
         subscriptionType: nil,
+        rateLimitTier: nil,
         source: .tokenTorchCopy
     )
     VendorCredentialCache.storeClaude(session)
@@ -222,6 +297,7 @@ import Testing
         expiresAt: 1,
         accountID: nil,
         subscriptionType: nil,
+        rateLimitTier: nil,
         source: .tokenTorchCopy
     )
     #expect(throws: TokenTorchError.self) {
@@ -236,6 +312,7 @@ import Testing
         expiresAt: nil,
         accountID: nil,
         subscriptionType: nil,
+        rateLimitTier: nil,
         source: .tokenTorchCopy
     )
     try QuotaHTTP.requireUsableSession(session, provider: "Claude Code", vendorAction: "Re-login with Claude Code (/login).")
@@ -256,6 +333,7 @@ import Testing
         expiresAt: 1_779_815_162_327,
         accountID: nil,
         subscriptionType: nil,
+        rateLimitTier: nil,
         source: .claudeKeychain(service: "Claude Code-credentials-bde0ee9f")
     )
     let live = OAuthSession(
@@ -264,6 +342,7 @@ import Testing
         expiresAt: 1_780_260_684_949,
         accountID: nil,
         subscriptionType: nil,
+        rateLimitTier: nil,
         source: .claudeKeychain(service: "Claude Code-credentials-bde0ee9f")
     )
     #expect(VendorCredentialsReader.freshest([stale, live])?.accessToken == "live")
@@ -278,7 +357,42 @@ import Testing
         expiresAt: 1,
         accountID: nil,
         subscriptionType: nil,
+        rateLimitTier: nil,
         source: .tokenTorchCopy
     )
     #expect(VendorCredentialsReader.sessionIsUsable(expired) == false)
+}
+
+@Test func planBrandingMapsChatGptCodesToBrandNames() {
+    #expect(PlanBranding.chatGPT("go") == "Go")
+    #expect(PlanBranding.chatGPT("plus") == "Plus")
+    #expect(PlanBranding.chatGPT("pro") == "Pro")
+    #expect(PlanBranding.chatGPT("prolite") == "Pro Lite")
+    #expect(PlanBranding.chatGPT("team") == "Team")
+    #expect(PlanBranding.chatGPT("quorum") == "Quorum")  // unknown -> capitalized fallback
+    #expect(PlanBranding.chatGPT(nil) == nil)
+}
+
+@Test func planBrandingMapsClaudeMaxTierWithMultiplier() {
+    #expect(PlanBranding.claude(subscriptionType: "pro", rateLimitTier: nil) == "Pro")
+    #expect(PlanBranding.claude(subscriptionType: "max", rateLimitTier: nil) == "Max")
+    #expect(PlanBranding.claude(subscriptionType: "max", rateLimitTier: "default_claude_max_5x") == "Max 5x")
+    #expect(PlanBranding.claude(subscriptionType: "max", rateLimitTier: "default_claude_max_20x") == "Max 20x")
+    #expect(PlanBranding.claude(subscriptionType: nil, rateLimitTier: nil) == nil)
+}
+
+@Test func planBrandingMapsMonthlyPrices() {
+    #expect(PlanBranding.chatGPTPrice("go") == "$8/mo")
+    #expect(PlanBranding.chatGPTPrice("plus") == "$20/mo")
+    #expect(PlanBranding.chatGPTPrice("prolite") == "$100/mo")
+    #expect(PlanBranding.chatGPTPrice("pro") == "$200/mo")
+    #expect(PlanBranding.chatGPTPrice("team") == nil)
+    #expect(PlanBranding.chatGPTPrice("free") == nil)
+    #expect(PlanBranding.chatGPTPrice(nil) == nil)
+
+    #expect(PlanBranding.claudePrice(subscriptionType: "pro", rateLimitTier: nil) == "$20/mo")
+    #expect(PlanBranding.claudePrice(subscriptionType: "max", rateLimitTier: "default_claude_max_5x") == "$100/mo")
+    #expect(PlanBranding.claudePrice(subscriptionType: "max", rateLimitTier: "default_claude_max_20x") == "$200/mo")
+    #expect(PlanBranding.claudePrice(subscriptionType: "max", rateLimitTier: nil) == nil)
+    #expect(PlanBranding.claudePrice(subscriptionType: "team", rateLimitTier: nil) == nil)
 }

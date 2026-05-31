@@ -44,6 +44,7 @@ public enum TokenTorchVendorCredentialStore {
         let expiresAt: Int64?
         let accountID: String?
         let subscriptionType: String?
+        let rateLimitTier: String?
         let source: CredentialSource
     }
 
@@ -54,6 +55,7 @@ public enum TokenTorchVendorCredentialStore {
             expiresAt: session.expiresAt,
             accountID: session.accountID,
             subscriptionType: session.subscriptionType,
+            rateLimitTier: session.rateLimitTier,
             source: session.source
         )
         let data = try JSONEncoder().encode(payload)
@@ -72,6 +74,7 @@ public enum TokenTorchVendorCredentialStore {
             expiresAt: payload.expiresAt,
             accountID: payload.accountID,
             subscriptionType: payload.subscriptionType,
+            rateLimitTier: payload.rateLimitTier,
             source: payload.source
         )
     }

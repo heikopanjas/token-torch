@@ -20,10 +20,24 @@ enum MenuFormat {
         return formatter.string(from: value) + " UTC"
     }
 
-    static func percentColor(_ usedPercent: Double) -> NSColor {
-        if usedPercent >= 80 { return .systemRed }
-        if usedPercent >= 50 { return .systemYellow }
-        return .systemGreen
+    /// Caption styled like the org-billing "Billing cycle" line: "resets 2026-06-07 14:11 UTC · in 5d 3h".
+    static func resetCaption(_ value: Date) -> String {
+        "resets \(resetTime(value)) · \(relativeReset(value))"
+    }
+
+    /// Placeholder for a window with no `resets_at` yet (e.g. an idle Claude 5-hour window):
+    /// the API only sets a reset time once the window becomes active.
+    static let noResetCaption = "resets once the window starts"
+
+    static func relativeReset(_ value: Date) -> String {
+        let seconds = Int(value.timeIntervalSinceNow)
+        if seconds <= 0 { return "due now" }
+        let days = seconds / 86_400
+        let hours = (seconds % 86_400) / 3_600
+        let minutes = (seconds % 3_600) / 60
+        if days > 0 { return "in \(days)d \(hours)h" }
+        if hours > 0 { return "in \(hours)h \(minutes)m" }
+        return "in \(minutes)m"
     }
 
     static func orgCost(_ usd: Double, in currency: DisplayCurrency) -> String {

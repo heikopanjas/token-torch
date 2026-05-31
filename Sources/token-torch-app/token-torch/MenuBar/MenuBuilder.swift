@@ -9,42 +9,57 @@ final class MenuBuilder {
 
     func buildMenu(model: MenuBarViewModel) -> NSMenu {
         let menu = NSMenu()
-        menu.minimumWidth = MenuFormat.menuWidth
-        let currency = ProviderPreferencesStore.shared.load().displayCurrency
+        populate(menu, model: model)
+        return menu
+    }
 
+    /// Rebuilds `menu` contents in place. Safe to call while the menu is being tracked (open) so
+    /// usage that finishes loading mid-session is reflected without dismissing the menu.
+    func populate(_ menu: NSMenu, model: MenuBarViewModel) {
+        menu.removeAllItems()
+        menu.minimumWidth = MenuFormat.menuWidth
+        let prefs = ProviderPreferencesStore.shared.load()
+        let currency = prefs.displayCurrency
+        let showAdditional = prefs.showAdditionalModelUsage
+
+        guard prefs.hasAnyEnabledProvider else {
+            menu.addItem(UsageMenuItemViews.emptyState())
+            appendCommandItems(to: menu, model: model)
+            return
+        }
+
+        let hasResult = model.result != nil
         if let result = model.result {
             for (index, providerResult) in result.results.enumerated() {
                 if index > 0 {
                     menu.addItem(.separator())
                 }
-                appendProviderSection(to: menu, result: providerResult, currency: currency)
+                appendProviderSection(to: menu, result: providerResult, currency: currency, showAdditional: showAdditional)
             }
         }
-        else {
-            menu.addItem(UsageMenuItemViews.emptyState())
-        }
 
-        if model.result != nil || model.isLoading {
-            menu.addItem(.separator())
+        if hasResult || model.isLoading {
+            if hasResult {
+                menu.addItem(.separator())
+            }
             menu.addItem(UsageMenuItemViews.header(result: model.result, isLoading: model.isLoading))
         }
         appendCommandItems(to: menu, model: model)
-        return menu
     }
 
-    private func appendProviderSection(to menu: NSMenu, result: ProviderFetchResult, currency: DisplayCurrency) {
+    private func appendProviderSection(to menu: NSMenu, result: ProviderFetchResult, currency: DisplayCurrency, showAdditional: Bool) {
         for (index, report) in result.reports.enumerated() {
             if index > 0 {
                 menu.addItem(.separator())
             }
-            appendReport(to: menu, provider: result.provider, report: report, currency: currency)
+            appendReport(to: menu, provider: result.provider, report: report, currency: currency, showAdditional: showAdditional)
         }
     }
 
-    private func appendReport(to menu: NSMenu, provider: ProviderID, report: ProviderReport, currency: DisplayCurrency) {
+    private func appendReport(to menu: NSMenu, provider: ProviderID, report: ProviderReport, currency: DisplayCurrency, showAdditional: Bool) {
         let trailing: String? = {
-            if case .subscription(let quota) = report, provider == .cursor {
-                return ReportLabels.cursorPlanSummary(quota)
+            if case .subscription(let quota) = report {
+                return ReportLabels.planSummary(quota)
             }
             return nil
         }()
@@ -61,8 +76,18 @@ final class MenuBuilder {
                     appendCursorSubscription(to: menu, quota: quota, currency: currency)
                 }
                 else {
-                    for window in quota.windows {
-                        menu.addItem(UsageMenuItemViews.quotaRow(window: window))
+                    let windows = showAdditional ? quota.windows + quota.additionalWindows : quota.windows
+                    for window in windows {
+                        let resetCaption = window.resetsAt.map(MenuFormat.resetCaption) ?? MenuFormat.noResetCaption
+                        menu.addItem(
+                            UsageMenuItemViews.costRow(
+                                label: window.label,
+                                value: String(format: "%.0f%% used", window.usedPercent),
+                                caption: resetCaption
+                            ))
+                    }
+                    for note in quota.notes {
+                        menu.addItem(UsageMenuItemViews.costRow(label: note.label, value: note.value))
                     }
                     if let credits = quota.credits, let label = ReportLabels.creditsLabel(credits, in: currency) {
                         menu.addItem(UsageMenuItemViews.costRow(label: "On-demand credits", value: label))
@@ -100,11 +125,21 @@ final class MenuBuilder {
                 menu.addItem(item)
             }
         }
-        if let total = ReportLabels.cursorGrandTotalLabel(quota, in: currency) {
-            if !meterRows.isEmpty || quota.billingCycleStart != nil {
-                menu.addItem(UsageMenuItemViews.menuSpacer())
-            }
-            menu.addItem(UsageMenuItemViews.grandTotalRow(value: total))
+        if let total = quota.totalSpendCents {
+            menu.addItem(
+                UsageMenuItemViews.costRow(
+                    label: "Total usage value",
+                    value: CurrencyConverter.formatMinorUnits(total, from: "USD", to: currency)))
+        }
+        if let bonus = quota.bonusSpendCents, bonus > 0 {
+            menu.addItem(
+                UsageMenuItemViews.costRow(
+                    label: "Bonus",
+                    value: CurrencyConverter.formatMinorUnits(bonus, from: "USD", to: currency),
+                    caption: "Free usage beyond what you've purchased"))
+        }
+        if let credits = ReportLabels.cursorCreditsLabel(quota, in: currency) {
+            menu.addItem(UsageMenuItemViews.costRow(label: "Credits", value: credits))
         }
     }
 
