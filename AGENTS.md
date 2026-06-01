@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-05-31 (compact caption-less rows)
+Last updated: 2026-06-01 (new app icon)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -306,6 +306,12 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-06-01: New app icon
+
+**What**: Replaced the `AppIcon.appiconset` artwork with a new torch/dollar-flame icon. Generated all ten macOS sizes (16-512 @1x/@2x) from `Pictures/Icon-macOS-Default-1024x1024@1x.png` via `sips`.
+
+**How**: Resized into the existing filenames referenced by `Contents.json`; no `Contents.json` change needed. Version `3.15.8`.
 
 ### 2026-05-31: Compact caption-less rows
 
