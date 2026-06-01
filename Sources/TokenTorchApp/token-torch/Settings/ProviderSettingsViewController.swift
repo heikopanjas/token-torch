@@ -8,12 +8,9 @@ final class ProviderSettingsViewController: NSViewController {
     private let keychain = AppKeychainStore.shared
     private let preferences = ProviderPreferencesStore.shared
 
-    private var flags: ProviderModeFlags
-    private var subscriptionToggle: NSButton!
     private var hintLabel: NSTextField!
     private var resetButton: NSButton!
     private var additionalUsageToggle: NSButton?
-    private var orgToggle: NSButton!
     private var adminKeyLabel: NSTextField!
     private var adminKeyField: NSSecureTextField!
     private var saveKeyButton: NSButton!
@@ -33,7 +30,6 @@ final class ProviderSettingsViewController: NSViewController {
 
     init(provider: ProviderID) {
         self.provider = provider
-        self.flags = ProviderPreferencesStore.shared.load().flags(for: provider)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -47,16 +43,10 @@ final class ProviderSettingsViewController: NSViewController {
         let h = preferredHeight
         let x = SettingsStyle.contentPadding
         let controlW = w - 2 * x
-        var y = h - x - 22
+        var y = h - x - 44
 
         view = NSView(frame: NSRect(x: 0, y: 0, width: w, height: h))
 
-        subscriptionToggle = NSButton(checkboxWithTitle: "Enable subscription quota", target: self, action: #selector(toggleChanged))
-        subscriptionToggle.frame = NSRect(x: x, y: y, width: controlW, height: 22)
-        subscriptionToggle.autoresizingMask = [.minYMargin, .width]
-        view.addSubview(subscriptionToggle)
-
-        y -= 8 + 44
         hintLabel = NSTextField(
             wrappingLabelWithString:
                 "Clears \(AppBrand.displayName)'s copied subscription credentials only. Vendor app logins are not changed. Use after re-login in Claude Code, Codex CLI, or Cursor IDE."
@@ -88,12 +78,6 @@ final class ProviderSettingsViewController: NSViewController {
         }
 
         if provider.supportsOrgBilling {
-            y -= 16 + 22
-            orgToggle = NSButton(checkboxWithTitle: "Enable API billing", target: self, action: #selector(toggleChanged))
-            orgToggle.frame = NSRect(x: x, y: y, width: controlW, height: 22)
-            orgToggle.autoresizingMask = [.minYMargin, .width]
-            view.addSubview(orgToggle)
-
             y -= 16 + 16
             adminKeyLabel = NSTextField(labelWithString: "Admin API key")
             adminKeyLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
@@ -131,8 +115,6 @@ final class ProviderSettingsViewController: NSViewController {
 
     override func viewWillAppear() {
         super.viewWillAppear()
-        subscriptionToggle.state = flags.subscriptionQuotaEnabled ? .on : .off
-        orgToggle?.state = flags.orgBillingEnabled ? .on : .off
         additionalUsageToggle?.state = preferences.load().showAdditionalModelUsage ? .on : .off
         loadKeys()
     }
@@ -142,20 +124,6 @@ final class ProviderSettingsViewController: NSViewController {
         prefs.showAdditionalModelUsage = additionalUsageToggle?.state == .on
         preferences.save(prefs)
         NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
-    }
-
-    @objc private func toggleChanged() {
-        flags.subscriptionQuotaEnabled = subscriptionToggle.state == .on
-        if let orgToggle {
-            flags.orgBillingEnabled = orgToggle.state == .on
-        }
-        saveFlags()
-    }
-
-    private func saveFlags() {
-        var prefs = preferences.load()
-        prefs.setFlags(flags, for: provider)
-        preferences.save(prefs)
     }
 
     private func loadKeys() {
@@ -185,11 +153,12 @@ final class ProviderSettingsViewController: NSViewController {
     }
 
     @objc private func resetCredentials() {
+        let subscriptionEnabled = preferences.load().flags(for: provider).subscriptionQuotaEnabled
         do {
-            if flags.subscriptionQuotaEnabled {
+            if subscriptionEnabled {
                 try VendorCredentialImporter.resetAndReimport(
                     provider: provider,
-                    quotaEnabled: flags.subscriptionQuotaEnabled,
+                    quotaEnabled: subscriptionEnabled,
                     interactive: true
                 )
                 statusLabel.stringValue = "Credentials reset and re-imported."

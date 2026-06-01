@@ -57,7 +57,8 @@ public struct UsageOrchestrator: Sendable {
             }
         }
 
-        return AllProvidersResult(results: results.sorted { $0.provider.rawValue < $1.provider.rawValue })
+        return AllProvidersResult(
+            results: results.sorted { prefs.providerOrderIndex(of: $0.provider) < prefs.providerOrderIndex(of: $1.provider) })
     }
 
     private func fetchProvider(_ provider: ProviderID, preferences: ProviderPreferences, interactive: Bool) async -> ProviderFetchResult? {

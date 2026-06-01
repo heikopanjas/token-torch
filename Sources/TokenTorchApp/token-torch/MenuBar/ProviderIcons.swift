@@ -44,22 +44,24 @@ enum ProviderIcons {
         return pdfImage(named: name, side: SettingsStyle.toolbarIconPointSize)
     }
 
-    static func resourceName(for provider: ProviderID, report: ProviderReport) -> String {
+    static func resourceName(for provider: ProviderID, kind: ProviderSectionKind) -> String {
         switch provider {
-            case .claude:
-                switch report {
-                    case .subscription: "claude"
-                    case .org: "anthropic"
-                    case .needsAuthorization(_, let mode), .error(_, let mode, _):
-                        mode == "subscription" ? "claude" : "anthropic"
-                }
+            case .claude: kind == .subscription ? "claude" : "anthropic"
             case .codex: "openai"
             case .cursor: "cursor"
         }
     }
 
+    static func resourceName(for provider: ProviderID, report: ProviderReport) -> String {
+        resourceName(for: provider, kind: report.sectionKind)
+    }
+
     static func image(for provider: ProviderID, report: ProviderReport) -> NSImage? {
         pdfImage(named: resourceName(for: provider, report: report), side: 18)
+    }
+
+    static func image(for section: ProviderSection, side: CGFloat = 18) -> NSImage? {
+        pdfImage(named: resourceName(for: section.provider, kind: section.kind), side: side)
     }
 
     private static func pdfImage(named name: String, side: CGFloat) -> NSImage? {

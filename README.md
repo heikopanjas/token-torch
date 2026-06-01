@@ -102,9 +102,9 @@ Set your **Development Team** in the target’s Signing & Capabilities before di
 
 **Settings** (per provider):
 
-- **General** — refresh interval
-- **Claude / Codex** — subscription quota and org billing toggles; API and Admin key fields
-- **Cursor** — subscription quota only (no org billing)
+- **General** — refresh interval, display currency, and a **Providers** table listing the five menu views (Claude, Anthropic API, ChatGPT, OpenAI Platform, Cursor): drag rows to set their order in the menu, and use the **Enabled** checkbox to turn each view on or off (toggling refreshes immediately)
+- **Claude / Codex** — reset subscription credentials and the Admin API key field (enable/disable moved to the General **Providers** table)
+- **Cursor** — reset subscription credentials only (no org billing)
 
 The app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider so routine refresh does not re-prompt macOS for vendor Keychain access. On first launch after upgrading from **burn**, `CredentialStoreMigration` copies legacy `com.burn.*` Keychain entries. **token-torch-cli** reads vendor stores directly (also runs migration on startup).
 

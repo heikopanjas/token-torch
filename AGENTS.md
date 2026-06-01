@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-01 (rename CLI folder to TokenTorchCli)
+Last updated: 2026-06-01 (enable refetches, disable is display-only)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -306,6 +306,50 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-06-01: Enable refetches, disable is display-only
+
+**What**: Toggling a provider's Enabled checkbox now behaves asymmetrically: enabling (off->on) posts `tokenTorchRefreshRequested` (interactive refetch, since the last fetch omitted that view), while disabling (on->off) posts `tokenTorchDisplayChanged` (no network call). To make the display-only path drop a disabled view, `MenuBuilder.populate` now filters the flattened sections by `prefs.isSectionEnabled(...)` so a still-cached but now-disabled report is not rendered.
+
+**Why**: Disabling should be instant and free; only enabling needs data.
+
+**How**: `GeneralSettingsViewController.enabledToggled(_:)` branches on the new state; `MenuBuilder.populate` adds the `isSectionEnabled` filter. Version `3.19.2`.
+
+### 2026-06-01: Rename Providers table "Menu View" column to "Provider"
+
+**What**: Renamed the first column header of the General-tab Providers table from "Menu View" to "Provider". Display-only; `viewColumn.title` in `GeneralSettingsViewController`. Version `3.19.1`.
+
+### 2026-06-01: Providers table in Settings (enable + order in one place)
+
+**What**: The General-tab provider list is now a proper headered `NSTableView` titled "Providers" with three columns — **Provider** (icon + caption), **Type** (Subscription / API billing), and **Enabled** (checkbox) — over the five menu-view rows. The per-provider enable toggles ("Enable subscription quota" / "Enable API billing") were removed from the provider tabs and replaced by the table's Enabled checkboxes; rows stay drag-reorderable. Toggling a checkbox saves and posts `tokenTorchRefreshRequested` so the menu updates immediately (enabling a subscription view may show a one-time Keychain prompt). Provider tabs now hold only reset-credentials, the Codex "Show additional model usage" checkbox, and the Admin API key field; their pane heights shrank accordingly (`providerPaneHeight` 700->380, `providerQuotaOnlyPaneHeight` 520->240).
+
+**Why**: Centralizing enable/disable next to ordering makes turning views on and off far more convenient than hunting through provider tabs.
+
+**How**: Core `ProviderPreferences.isSectionEnabled(_:)`/`setSection(_:enabled:)` map a `ProviderSection` to the correct `ProviderModeFlags` bit (subscription vs org). `GeneralSettingsViewController` builds the three columns with per-column cell factories (`makeViewCell`/`makeTypeCell`/`makeEnabledCell`) and an `enabledToggled(_:)` handler that resolves the live row via `tableView.row(for:)`. `ReportLabels.typeLabel(_:)` provides the Type strings (display stays out of Core). `ProviderSettingsViewController` dropped `subscriptionToggle`/`orgToggle`/`toggleChanged`/`saveFlags`; `resetCredentials` reads the flag locally. Added a Core test for the enable mapping. Version `3.19.0`.
+
+### 2026-06-01: Reorder all five menu views (per section, not per provider)
+
+**What**: The Settings -> General order list now arranges the **five** menu views independently — Claude, Anthropic API, ChatGPT, OpenAI Platform, Cursor — instead of the three providers. Each row uses the exact caption shown in the menu, and the menu renders the sections in that order (subscription and org-billing views of the same provider can now be separated and interleaved with others).
+
+**Why**: A provider can contribute two distinct menu sections (subscription + org billing); users want to arrange those five sections freely.
+
+**How**: New Core model `ProviderSection` (`provider` + `ProviderSectionKind` {`subscription`, `orgBilling`}) with `ProviderSection.allSections` (the five valid combos; Cursor has no org). `ProviderPreferences.providerOrder: [ProviderID]` was replaced by `sectionOrder: [ProviderSection]` (default `allSections`, backward-compatible `decodeIfPresent`) with `orderedSections()` (drops invalid, appends missing), `setSectionOrder(_:)`, `sectionOrderIndex(of:)`, and `providerOrderIndex(of:)` (earliest section index, for ordering orchestrator fetch results). `ProviderReport.sectionKind` maps a report to its view. `MenuBuilder.populate` now flattens every present `(provider, report)` into sections and sorts by `sectionOrderIndex` (dropping the old per-provider grouping); `appendProviderSection` was removed. Caption is a single source of truth: `ReportLabels.heading(provider:kind:)` (the `report` overload delegates to it) is used by both the menu header and the Settings list, with matching icons via `ProviderIcons.image(for:section:)`. Settings list (`GeneralSettingsViewController`) now lists `[ProviderSection]`. Tests updated/added for `allSections`, legacy decode default, normalization, and coding round-trip. Version `3.18.0`.
+
+### 2026-06-01: Provider order reorder lives in Settings only
+
+**What**: Kept the Settings -> General drag-reorderable provider list and removed the in-menu up/down reorder chevrons. The menu still renders providers in the saved order; it just no longer offers reordering controls inline.
+
+**Why**: After comparing the two reorder UIs, the Settings list is the keeper; the in-menu chevrons (a workaround for NSMenu not supporting reliable drag) were redundant.
+
+**How**: Reverted `UsageMenuItemViews.providerHeader` to its plain (no-chevron) form and deleted `ProviderHeaderView`; reverted `MenuBuilder.appendProviderSection`/`appendReport` signatures and removed `moveProvider(_:by:among:)`. The order-based sort in `MenuBuilder.populate` and `UsageOrchestrator.fetchAll`, plus all `ProviderPreferences.providerOrder` plumbing and tests, are unchanged. Version `3.17.1`.
+
+### 2026-06-01: User-configurable provider order
+
+**What**: Users can arrange the order of provider sections in the menu bar. Two reorder UIs were added (to be compared, then one kept): a drag-reorderable provider list in Settings -> General, and per-section move up/down chevrons on each provider header in the menu. The Settings provider tabs (Claude/Codex/Cursor toolbar) stay in fixed order.
+
+**Why**: Let users prioritize the providers they care about most at the top of the menu.
+
+**How**: New `ProviderPreferences.providerOrder: [ProviderID]` (default `ProviderID.allCases`, backward-compatible `decodeIfPresent`), normalized via `orderedProviders()` (drops unknown ids, appends any missing case) with `setProviderOrder(_:)`/`orderIndex(of:)` helpers. `UsageOrchestrator.fetchAll` now sorts results by `orderIndex`; `MenuBuilder.populate` also sorts the cached `result.results` by the current order so a display-only rebuild reorders instantly. Settings list is an `NSTableView` with row drag-reordering in `GeneralSettingsViewController`; on drop it saves and posts `tokenTorchDisplayChanged`. In-menu reorder: `UsageMenuItemViews.providerHeader` gained optional up/down chevrons backed by `ProviderHeaderView` (a custom `NSView` that hit-tests `mouseUp` itself, because `NSMenu`'s tracking loop makes native drag unreliable and a mid-drag rebuild would destroy the dragged view); `MenuBuilder.moveProvider(_:by:among:)` swaps adjacent displayed providers in the persisted order (hidden providers keep their slots) and posts `tokenTorchDisplayChanged`. CLI is single-provider per invocation, so no CLI change. Tests added for legacy decode default, `orderedProviders()` normalization, and coding round-trip. Version `3.17.0`.
 
 ### 2026-06-01: Rename CLI folder/target to TokenTorchCli
 

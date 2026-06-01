@@ -5,7 +5,7 @@ enum SettingsStyle {
     static let toolbarIconPointSize: CGFloat = 16
     static let contentPadding: CGFloat = 20
     static let generalPaneHeight: CGFloat = 500
-    static let providerPaneHeight: CGFloat = 700
-    static let providerQuotaOnlyPaneHeight: CGFloat = 520
+    static let providerPaneHeight: CGFloat = 380
+    static let providerQuotaOnlyPaneHeight: CGFloat = 240
     static let advancedPaneHeight: CGFloat = 360
 }

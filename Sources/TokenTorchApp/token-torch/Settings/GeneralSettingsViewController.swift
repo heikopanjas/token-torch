@@ -15,6 +15,16 @@ final class GeneralSettingsViewController: NSViewController {
         ("Every day", 1440)
     ]
 
+    private static let orderRowType = NSPasteboard.PasteboardType("private.tokentorch.providerOrderRow")
+    private static let orderRowHeight: CGFloat = 26
+    private static let orderHeaderHeight: CGFloat = 24
+
+    private enum Column {
+        static let view = NSUserInterfaceItemIdentifier("view")
+        static let type = NSUserInterfaceItemIdentifier("type")
+        static let enabled = NSUserInterfaceItemIdentifier("enabled")
+    }
+
     var onRefreshIntervalChanged: (() -> Void)?
 
     private var intervalLabel: NSTextField!
@@ -22,6 +32,9 @@ final class GeneralSettingsViewController: NSViewController {
     private var currencyLabel: NSTextField!
     private var currencyPopup: NSPopUpButton!
     private let currencies = DisplayCurrency.allCases
+    private var orderLabel: NSTextField!
+    private var orderTable: NSTableView!
+    private var orderItems: [ProviderSection] = ProviderSection.allSections
     private var infoLabel: NSTextField!
 
     override var preferredContentSize: NSSize {
@@ -70,6 +83,54 @@ final class GeneralSettingsViewController: NSViewController {
         currencyPopup.action = #selector(currencyChanged)
         view.addSubview(currencyPopup)
 
+        y -= 16 + 16
+        orderLabel = NSTextField(labelWithString: "Providers")
+        orderLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
+        orderLabel.autoresizingMask = [.minYMargin, .width]
+        view.addSubview(orderLabel)
+
+        let tableHeight = Self.orderRowHeight * CGFloat(ProviderSection.allSections.count) + Self.orderHeaderHeight + 8
+        y -= 4 + tableHeight
+        let scroll = NSScrollView(frame: NSRect(x: x, y: y, width: controlW, height: tableHeight))
+        scroll.autoresizingMask = [.minYMargin, .width]
+        scroll.hasVerticalScroller = false
+        scroll.borderType = .bezelBorder
+        scroll.drawsBackground = false
+
+        orderTable = NSTableView(frame: scroll.bounds)
+        orderTable.headerView = NSTableHeaderView()
+        orderTable.rowHeight = Self.orderRowHeight
+        orderTable.gridStyleMask = []
+        orderTable.usesAlternatingRowBackgroundColors = true
+        orderTable.selectionHighlightStyle = .none
+        orderTable.allowsMultipleSelection = false
+        orderTable.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
+
+        let viewColumn = NSTableColumn(identifier: Column.view)
+        viewColumn.title = "Provider"
+        viewColumn.width = 360
+        viewColumn.minWidth = 200
+        orderTable.addTableColumn(viewColumn)
+
+        let typeColumn = NSTableColumn(identifier: Column.type)
+        typeColumn.title = "Type"
+        typeColumn.width = 150
+        typeColumn.minWidth = 100
+        orderTable.addTableColumn(typeColumn)
+
+        let enabledColumn = NSTableColumn(identifier: Column.enabled)
+        enabledColumn.title = "Enabled"
+        enabledColumn.width = controlW - 360 - 150
+        enabledColumn.minWidth = 70
+        orderTable.addTableColumn(enabledColumn)
+
+        orderTable.dataSource = self
+        orderTable.delegate = self
+        orderTable.registerForDraggedTypes([Self.orderRowType])
+        orderTable.draggingDestinationFeedbackStyle = .gap
+        scroll.documentView = orderTable
+        view.addSubview(scroll)
+
         y -= 16 + 60
         infoLabel = NSTextField(
             wrappingLabelWithString:
@@ -100,6 +161,8 @@ final class GeneralSettingsViewController: NSViewController {
         if let index = currencies.firstIndex(of: prefs.displayCurrency) {
             currencyPopup.selectItem(at: index)
         }
+        orderItems = prefs.orderedSections()
+        orderTable.reloadData()
     }
 
     @objc private func intervalChanged() {
@@ -117,5 +180,138 @@ final class GeneralSettingsViewController: NSViewController {
         prefs.displayCurrency = currencies[index]
         ProviderPreferencesStore.shared.save(prefs)
         NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
+    }
+
+    private func saveOrder() {
+        var prefs = ProviderPreferencesStore.shared.load()
+        prefs.setSectionOrder(orderItems)
+        ProviderPreferencesStore.shared.save(prefs)
+        NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
+    }
+
+    @objc private func enabledToggled(_ sender: NSButton) {
+        let row = orderTable.row(for: sender)
+        guard orderItems.indices.contains(row) else { return }
+        let enabled = sender.state == .on
+        var prefs = ProviderPreferencesStore.shared.load()
+        prefs.setSection(orderItems[row], enabled: enabled)
+        ProviderPreferencesStore.shared.save(prefs)
+        if enabled {
+            // Enabling needs fresh data (the last fetch omitted this view), so refetch.
+            NotificationCenter.default.post(name: AppActions.tokenTorchRefreshRequested, object: nil)
+        }
+        else {
+            // Disabling just drops the view from the menu; no network call needed.
+            NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
+        }
+    }
+}
+
+extension GeneralSettingsViewController: NSTableViewDataSource, NSTableViewDelegate {
+    func numberOfRows(in tableView: NSTableView) -> Int {
+        orderItems.count
+    }
+
+    func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+        guard orderItems.indices.contains(row) else { return nil }
+        let section = orderItems[row]
+        switch tableColumn?.identifier {
+            case Column.view: return makeViewCell(section)
+            case Column.type: return makeTypeCell(section)
+            case Column.enabled: return makeEnabledCell(section)
+            default: return nil
+        }
+    }
+
+    private func makeViewCell(_ section: ProviderSection) -> NSView {
+        let cell = NSTableCellView()
+        let imageView = NSImageView()
+        imageView.image = ProviderIcons.image(for: section, side: 16)
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        cell.addSubview(imageView)
+        cell.imageView = imageView
+        let textField = NSTextField(labelWithString: ReportLabels.heading(provider: section.provider, kind: section.kind))
+        textField.translatesAutoresizingMaskIntoConstraints = false
+        cell.addSubview(textField)
+        cell.textField = textField
+        NSLayoutConstraint.activate([
+            imageView.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 6),
+            imageView.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+            imageView.widthAnchor.constraint(equalToConstant: 16),
+            imageView.heightAnchor.constraint(equalToConstant: 16),
+            textField.leadingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: 8),
+            textField.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6),
+            textField.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
+        ])
+        return cell
+    }
+
+    private func makeTypeCell(_ section: ProviderSection) -> NSView {
+        let cell = NSTableCellView()
+        let textField = NSTextField(labelWithString: ReportLabels.typeLabel(section.kind))
+        textField.textColor = .secondaryLabelColor
+        textField.translatesAutoresizingMaskIntoConstraints = false
+        cell.addSubview(textField)
+        cell.textField = textField
+        NSLayoutConstraint.activate([
+            textField.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 6),
+            textField.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6),
+            textField.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
+        ])
+        return cell
+    }
+
+    private func makeEnabledCell(_ section: ProviderSection) -> NSView {
+        let cell = NSTableCellView()
+        let button = NSButton(checkboxWithTitle: "", target: self, action: #selector(enabledToggled(_:)))
+        button.state = ProviderPreferencesStore.shared.load().isSectionEnabled(section) ? .on : .off
+        button.translatesAutoresizingMaskIntoConstraints = false
+        cell.addSubview(button)
+        NSLayoutConstraint.activate([
+            button.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 8),
+            button.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
+        ])
+        return cell
+    }
+
+    func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> NSPasteboardWriting? {
+        let item = NSPasteboardItem()
+        item.setString(String(row), forType: Self.orderRowType)
+        return item
+    }
+
+    func tableView(
+        _ tableView: NSTableView,
+        validateDrop info: NSDraggingInfo,
+        proposedRow row: Int,
+        proposedDropOperation dropOperation: NSTableView.DropOperation
+    ) -> NSDragOperation {
+        guard dropOperation == .above else {
+            tableView.setDropRow(row, dropOperation: .above)
+            return .move
+        }
+        return .move
+    }
+
+    func tableView(
+        _ tableView: NSTableView,
+        acceptDrop info: NSDraggingInfo,
+        row: Int,
+        dropOperation: NSTableView.DropOperation
+    ) -> Bool {
+        guard
+            let item = info.draggingPasteboard.pasteboardItems?.first,
+            let string = item.string(forType: Self.orderRowType),
+            let sourceRow = Int(string),
+            orderItems.indices.contains(sourceRow)
+        else {
+            return false
+        }
+        let moved = orderItems.remove(at: sourceRow)
+        let target = sourceRow < row ? row - 1 : row
+        orderItems.insert(moved, at: min(max(target, 0), orderItems.count))
+        tableView.reloadData()
+        saveOrder()
+        return true
     }
 }

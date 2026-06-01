@@ -107,6 +107,75 @@ import Testing
     #expect(prefs.displayCurrency == DisplayCurrency.systemDefault)
 }
 
+@Test func providerSectionAllSectionsCoversFiveMenuViews() {
+    #expect(
+        ProviderSection.allSections == [
+            ProviderSection(provider: .claude, kind: .subscription),
+            ProviderSection(provider: .claude, kind: .orgBilling),
+            ProviderSection(provider: .codex, kind: .subscription),
+            ProviderSection(provider: .codex, kind: .orgBilling),
+            ProviderSection(provider: .cursor, kind: .subscription)
+        ])
+}
+
+@Test func providerPreferencesDecodesLegacyWithoutSectionOrder() throws {
+    let legacy = """
+        {"claude":{"subscriptionQuotaEnabled":true,"orgBillingEnabled":false},"codex":{"subscriptionQuotaEnabled":true,"orgBillingEnabled":false},"cursor":{"subscriptionQuotaEnabled":true,"orgBillingEnabled":false},"refreshIntervalMinutes":15}
+        """
+    let prefs = try JSONDecoder().decode(ProviderPreferences.self, from: Data(legacy.utf8))
+    #expect(prefs.sectionOrder == ProviderSection.allSections)
+    #expect(prefs.orderedSections() == ProviderSection.allSections)
+}
+
+@Test func orderedSectionsDropsUnknownAndAppendsMissing() {
+    var prefs = ProviderPreferences()
+    let cursorSub = ProviderSection(provider: .cursor, kind: .subscription)
+    let codexOrg = ProviderSection(provider: .codex, kind: .orgBilling)
+    // Stored order omits three valid sections; they should be appended in allSections order.
+    prefs.setSectionOrder([cursorSub, codexOrg])
+    let expected =
+        [cursorSub, codexOrg]
+        + ProviderSection.allSections.filter { $0 != cursorSub && $0 != codexOrg }
+    #expect(prefs.orderedSections() == expected)
+    #expect(prefs.sectionOrderIndex(of: cursorSub) == 0)
+    #expect(prefs.providerOrderIndex(of: .cursor) == 0)
+}
+
+@Test func sectionEnabledMapsToCorrectModeFlag() {
+    var prefs = ProviderPreferences(
+        claude: .init(subscriptionQuotaEnabled: false, orgBillingEnabled: false),
+        codex: .init(subscriptionQuotaEnabled: false, orgBillingEnabled: false),
+        cursor: .init(subscriptionQuotaEnabled: false, orgBillingEnabled: false)
+    )
+    let claudeSub = ProviderSection(provider: .claude, kind: .subscription)
+    let claudeOrg = ProviderSection(provider: .claude, kind: .orgBilling)
+
+    prefs.setSection(claudeSub, enabled: true)
+    #expect(prefs.isSectionEnabled(claudeSub))
+    #expect(prefs.claude.subscriptionQuotaEnabled)
+    // Enabling the subscription view must not flip the org-billing flag.
+    #expect(!prefs.isSectionEnabled(claudeOrg))
+    #expect(!prefs.claude.orgBillingEnabled)
+
+    prefs.setSection(claudeOrg, enabled: true)
+    #expect(prefs.isSectionEnabled(claudeOrg))
+    #expect(prefs.claude.orgBillingEnabled)
+
+    prefs.setSection(claudeSub, enabled: false)
+    #expect(!prefs.isSectionEnabled(claudeSub))
+    #expect(prefs.isSectionEnabled(claudeOrg))
+}
+
+@Test func sectionOrderRoundTripsThroughCoding() throws {
+    var prefs = ProviderPreferences()
+    let custom = ProviderSection.allSections.reversed().map { $0 }
+    prefs.setSectionOrder(custom)
+    let data = try JSONEncoder().encode(prefs)
+    let decoded = try JSONDecoder().decode(ProviderPreferences.self, from: data)
+    #expect(decoded.sectionOrder == custom)
+    #expect(decoded.orderedSections() == custom)
+}
+
 @Test func mapCursorIndividualUsage() {
     let usage = CursorQuotaProvider.CursorUsageResponse(
         billingCycleStart: "1768399334000",

@@ -30,11 +30,25 @@ final class MenuBuilder {
 
         let hasResult = model.result != nil
         if let result = model.result {
-            for (index, providerResult) in result.results.enumerated() {
+            // Flatten every present report into its menu view (provider + subscription/org) and sort
+            // by the current user order, so each of the five views can be arranged independently and
+            // a display-only rebuild (no refetch) reorders them immediately.
+            let sections = result.results
+                .flatMap { providerResult in
+                    providerResult.reports.map { (provider: providerResult.provider, report: $0) }
+                }
+                // Honor the current enabled state so disabling a view removes it on a display-only
+                // rebuild (no refetch needed), even though the cached result still holds its data.
+                .filter { prefs.isSectionEnabled(ProviderSection(provider: $0.provider, kind: $0.report.sectionKind)) }
+            let ordered = sections.sorted {
+                prefs.sectionOrderIndex(of: ProviderSection(provider: $0.provider, kind: $0.report.sectionKind))
+                    < prefs.sectionOrderIndex(of: ProviderSection(provider: $1.provider, kind: $1.report.sectionKind))
+            }
+            for (index, section) in ordered.enumerated() {
                 if index > 0 {
                     menu.addItem(.separator())
                 }
-                appendProviderSection(to: menu, result: providerResult, currency: currency, showAdditional: showAdditional)
+                appendReport(to: menu, provider: section.provider, report: section.report, currency: currency, showAdditional: showAdditional)
             }
         }
 
@@ -45,15 +59,6 @@ final class MenuBuilder {
             menu.addItem(UsageMenuItemViews.header(result: model.result, isLoading: model.isLoading))
         }
         appendCommandItems(to: menu, model: model)
-    }
-
-    private func appendProviderSection(to menu: NSMenu, result: ProviderFetchResult, currency: DisplayCurrency, showAdditional: Bool) {
-        for (index, report) in result.reports.enumerated() {
-            if index > 0 {
-                menu.addItem(.separator())
-            }
-            appendReport(to: menu, provider: result.provider, report: report, currency: currency, showAdditional: showAdditional)
-        }
     }
 
     private func appendReport(to menu: NSMenu, provider: ProviderID, report: ProviderReport, currency: DisplayCurrency, showAdditional: Bool) {

@@ -2,28 +2,21 @@ import TokenTorchCore
 
 enum ReportLabels {
     static func heading(provider: ProviderID, report: ProviderReport) -> String {
+        heading(provider: provider, kind: report.sectionKind)
+    }
+
+    /// Human label for a menu view's kind, used in the Settings providers table "Type" column.
+    static func typeLabel(_ kind: ProviderSectionKind) -> String {
+        kind == .subscription ? "Subscription" : "API billing"
+    }
+
+    /// The exact caption shown for a menu view (provider + subscription/org). Single source of truth
+    /// shared by the menu headers and the Settings provider-order list.
+    static func heading(provider: ProviderID, kind: ProviderSectionKind) -> String {
         switch provider {
-            case .codex:
-                switch report {
-                    case .subscription: "ChatGPT"
-                    case .org: "OpenAI Platform"
-                    case .needsAuthorization(_, let mode), .error(_, let mode, _):
-                        mode == "subscription" ? "ChatGPT" : "OpenAI Platform"
-                }
-            case .claude:
-                switch report {
-                    case .subscription: "Claude"
-                    case .org: "Anthropic API"
-                    case .needsAuthorization(_, let mode), .error(_, let mode, _):
-                        mode == "subscription" ? "Claude" : "Anthropic API"
-                }
-            case .cursor:
-                switch report {
-                    case .subscription: "Cursor"
-                    case .org: provider.displayName
-                    case .needsAuthorization(_, let mode), .error(_, let mode, _):
-                        mode == "subscription" ? "Cursor" : provider.displayName
-                }
+            case .codex: kind == .subscription ? "ChatGPT" : "OpenAI Platform"
+            case .claude: kind == .subscription ? "Claude" : "Anthropic API"
+            case .cursor: kind == .subscription ? "Cursor" : provider.displayName
         }
     }
 
