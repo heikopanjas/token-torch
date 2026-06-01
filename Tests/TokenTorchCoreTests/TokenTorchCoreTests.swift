@@ -13,6 +13,14 @@ import Testing
     #expect(value == "2026-05-01T00:00:00Z")
 }
 
+@Test func parseDateRangeMonthIsNotOffByOne() throws {
+    // Month boundaries must be computed in UTC, not the local time zone, otherwise a
+    // positive-offset machine shifts both ends back a day (e.g. 2026-05-31 -> 2026-06-29).
+    let (start, end) = try DateRange.parseDateRange(startInput: "2026-06", endInput: nil)
+    #expect(start == "2026-06-01")
+    #expect(end == "2026-06-30")
+}
+
 @Test func rfc3339DatePart() {
     #expect(DateRange.rfc3339DatePart("2026-05-01T12:00:00Z") == "2026-05-01")
 }

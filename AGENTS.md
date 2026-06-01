@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-01 (new app icon)
+Last updated: 2026-06-01 (rename CLI folder to TokenTorchCli)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -37,7 +37,7 @@ When starting a new session, read this entire file and confirm you have understo
 
 ## Build and Development Commands
 
-Binary output: `.build/debug/token-torch-cli` (SPM) and `Sources/token-torch-app/.build/Products/Debug/Token Torch.app` (Xcode).
+Binary output: `.build/debug/token-torch-cli` (SPM) and `Sources/TokenTorchApp/.build/Products/Debug/Token Torch.app` (Xcode).
 
 ```bash
 # Swift Package (TokenTorchCore + token-torch-cli)
@@ -46,12 +46,12 @@ swift test
 .build/debug/token-torch-cli anthropic --quota
 
 # Menu bar app
-open Sources/token-torch-app/token-torch.xcodeproj
-cd Sources/token-torch-app && xcodebuild -scheme token-torch -configuration Debug build
+open Sources/TokenTorchApp/token-torch.xcodeproj
+cd Sources/TokenTorchApp && xcodebuild -scheme token-torch -configuration Debug build
 
-# Release archive + Developer ID export (from Sources/token-torch-app/)
-cd Sources/token-torch-app && ./build.sh
-cd Sources/token-torch-app && ./build.sh --clean --notarize   # requires ExportOptions.plist + notarytool profile TokenTorch-Notarize
+# Release archive + Developer ID export (from Sources/TokenTorchApp/)
+cd Sources/TokenTorchApp && ./build.sh
+cd Sources/TokenTorchApp && ./build.sh --clean --notarize   # requires ExportOptions.plist + notarytool profile TokenTorch-Notarize
 ```
 
 ### Project-specific run examples
@@ -148,10 +148,10 @@ When initializing a session or analyzing the workspace, refer to instruction fil
 | Target | Role |
 |--------|------|
 | **TokenTorchCore** | Domain models, HTTP, credentials, quota + org providers, `UsageOrchestrator`. No terminal output. |
-| **token-torch-cli** | ArgumentParser CLI; terminal formatting in `Sources/token-torch-cli/` |
-| **Token Torch** | AppKit menu bar app (Xcode, `Sources/token-torch-app/`); links **TokenTorchCore** local package |
+| **token-torch-cli** | ArgumentParser CLI (target `TokenTorchCli`); terminal formatting in `Sources/TokenTorchCli/` |
+| **Token Torch** | AppKit menu bar app (Xcode, `Sources/TokenTorchApp/`); links **TokenTorchCore** local package |
 
-UI targets never call vendor URLs directly — only `UsageOrchestrator` and settings stores. All CLI stdout/stderr formatting lives in the **`token-torch-cli` executable target**, not TokenTorchCore (menu bar UI is AppKit under `Sources/token-torch-app/token-torch/`).
+UI targets never call vendor URLs directly — only `UsageOrchestrator` and settings stores. All CLI stdout/stderr formatting lives in the **`token-torch-cli` executable target**, not TokenTorchCore (menu bar UI is AppKit under `Sources/TokenTorchApp/token-torch/`).
 
 ### Directory layout
 
@@ -165,8 +165,8 @@ Sources/
 │   ├── Providers/         # Anthropic, OpenAI, Claude, Codex, Cursor
 │   ├── Services/          # UsageOrchestrator
 │   └── Utilities/         # AppBrand, DateRange, Redaction, TokenTorchError, CredentialStoreMigration
-├── token-torch-cli/       # TokenTorchCLI, TerminalDisplay, TableRenderer, PageProgress
-└── token-torch-app/       # Xcode project + menu bar app sources
+├── TokenTorchCli/         # TokenTorchCLI, TerminalDisplay, TableRenderer, PageProgress
+└── TokenTorchApp/         # Xcode project + menu bar app sources
     ├── token-torch.xcodeproj
     └── token-torch/       # main.swift, AppDelegate.swift, MenuBar/, Settings/, assets
 Tests/TokenTorchCoreTests/
@@ -306,6 +306,36 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-06-01: Rename CLI folder/target to TokenTorchCli
+
+**What**: Renamed `Sources/token-torch-cli/` to `Sources/TokenTorchCli/` and the SPM target `token-torch-cli` -> `TokenTorchCli`. The executable **product** name stays `token-torch-cli`, so the CLI command and binary path (`.build/debug/token-torch-cli`) are unchanged.
+
+**Why**: Consistent PascalCase target/folder naming alongside `TokenTorchCore` / `TokenTorchApp`.
+
+**How**: Moved the folder; in `Package.swift` the `.executable(name: "token-torch-cli", targets: ["TokenTorchCli"])` product keeps the command name while the target/folder match by convention (no `path:` override). Updated doc references. Verified `swift build` (binary still `token-torch-cli`) and `swift test` (35 pass). Version `3.16.2`.
+
+### 2026-06-01: Rename app folder to TokenTorchApp
+
+**What**: Renamed `Sources/token-torch-app/` to `Sources/TokenTorchApp/`. The Xcode project (`token-torch.xcodeproj`) and scheme (`token-torch`) names are unchanged.
+
+**Why**: Consistent PascalCase naming alongside `TokenTorchCore`.
+
+**How**: Moved the folder (same depth, so the project's relative paths `../..` package ref and `../../Pictures/*` icons stay valid); updated the absolute paths in local `buildServer.json` and all doc references (README, AGENTS, build.sh comment). Verified clean Xcode build and `swift build`. Version `3.16.1`.
+
+### 2026-06-01: Refresh interval options up to 1 day
+
+**What**: The Settings refresh-interval picker now offers 5, 10, 15, 30, 60 minutes and 3, 6, 12 hours, 1 day (instead of every 5 minutes from 5-120). A saved interval that is no longer offered snaps to the nearest available option on open.
+
+**How**: `GeneralSettingsViewController.intervalOptions` (title + minutes; hours stored as minutes, 1 day = 1440); `viewWillAppear` migrates legacy values via nearest-minutes match. Version `3.16.0`.
+
+### 2026-06-01: Fix off-by-one org billing cycle dates
+
+**What**: The Anthropic/OpenAI org billing cycle showed dates one day early (e.g. `2026-05-31 -> 2026-06-29` instead of `2026-06-01 -> 2026-06-30`) on machines with a positive UTC offset.
+
+**Why**: `DateRange.firstDay` / `lastDayOfMonth` (and the parse calendar) constructed month-boundary `Date`s with a calendar in the local time zone, but formatted them with a UTC `DateFormatter`. At UTC+2, `2026-06-01 00:00` local is `2026-05-31 22:00` UTC, so it printed as the previous day.
+
+**How**: Set `TimeZone(secondsFromGMT: 0)` on every calendar used to build month-boundary dates in `DateRange`. Added `parseDateRangeMonthIsNotOffByOne` test. Version `3.15.9`.
 
 ### 2026-06-01: New app icon
 

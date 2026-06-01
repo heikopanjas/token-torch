@@ -3,6 +3,18 @@ import TokenTorchCore
 
 @MainActor
 final class GeneralSettingsViewController: NSViewController {
+    private static let intervalOptions: [(title: String, minutes: Int)] = [
+        ("Every 5 minutes", 5),
+        ("Every 10 minutes", 10),
+        ("Every 15 minutes", 15),
+        ("Every 30 minutes", 30),
+        ("Every 60 minutes", 60),
+        ("Every 3 hours", 180),
+        ("Every 6 hours", 360),
+        ("Every 12 hours", 720),
+        ("Every day", 1440)
+    ]
+
     var onRefreshIntervalChanged: (() -> Void)?
 
     private var intervalLabel: NSTextField!
@@ -34,9 +46,9 @@ final class GeneralSettingsViewController: NSViewController {
         y -= 4 + 26
         intervalPopup = NSPopUpButton(frame: NSRect(x: x, y: y, width: controlW, height: 26), pullsDown: false)
         intervalPopup.autoresizingMask = [.minYMargin, .width]
-        for minutes in stride(from: 5, through: 120, by: 5) {
-            intervalPopup.addItem(withTitle: "Every \(minutes) minutes")
-            intervalPopup.lastItem?.tag = minutes
+        for option in Self.intervalOptions {
+            intervalPopup.addItem(withTitle: option.title)
+            intervalPopup.lastItem?.tag = option.minutes
         }
         intervalPopup.target = self
         intervalPopup.action = #selector(intervalChanged)
@@ -73,8 +85,17 @@ final class GeneralSettingsViewController: NSViewController {
     override func viewWillAppear() {
         super.viewWillAppear()
         let prefs = ProviderPreferencesStore.shared.load()
-        if let index = (0 ..< intervalPopup.numberOfItems).first(where: { intervalPopup.item(at: $0)?.tag == prefs.refreshIntervalMinutes }) {
+        let saved = prefs.refreshIntervalMinutes
+        if let index = (0 ..< intervalPopup.numberOfItems).first(where: { intervalPopup.item(at: $0)?.tag == saved }) {
             intervalPopup.selectItem(at: index)
+        }
+        else if let nearest = Self.intervalOptions.min(by: { abs($0.minutes - saved) < abs($1.minutes - saved) }) {
+            // Migrate a value that is no longer offered (e.g. an old 20/25-minute setting).
+            intervalPopup.selectItem(withTag: nearest.minutes)
+            var updated = prefs
+            updated.refreshIntervalMinutes = nearest.minutes
+            ProviderPreferencesStore.shared.save(updated)
+            onRefreshIntervalChanged?()
         }
         if let index = currencies.firstIndex(of: prefs.displayCurrency) {
             currencyPopup.selectItem(at: index)

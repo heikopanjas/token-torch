@@ -30,7 +30,7 @@ swift test
 Binaries:
 
 - `.build/debug/token-torch-cli` — CLI (Swift Package)
-- `Sources/token-torch-app/.build/Products/Debug/Token Torch.app` — menu bar app (Xcode)
+- `Sources/TokenTorchApp/.build/Products/Debug/Token Torch.app` — menu bar app (Xcode)
 
 ## CLI
 
@@ -90,10 +90,10 @@ Menu bar app (Xcode): `Token Torch.app`, code signing, `LSUIElement` for menu-ba
 
 ```bash
 # Open in Xcode (recommended)
-open Sources/token-torch-app/token-torch.xcodeproj
+open Sources/TokenTorchApp/token-torch.xcodeproj
 
 # Command line
-cd Sources/token-torch-app
+cd Sources/TokenTorchApp
 xcodebuild -scheme token-torch -configuration Debug build
 open .build/Products/Debug/Token\ Torch.app
 ```
@@ -114,8 +114,8 @@ The app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.ve
 | Target | Role |
 |--------|------|
 | **TokenTorchCore** | Domain models, HTTP, credentials, quota and org providers, `UsageOrchestrator`. No terminal output. |
-| **token-torch-cli** | ArgumentParser CLI; terminal formatting in `Sources/token-torch-cli/` |
-| **Token Torch** | AppKit menu bar app (`Sources/token-torch-app/`); `NSMenu` + settings window; links **TokenTorchCore** |
+| **token-torch-cli** | ArgumentParser CLI (target `TokenTorchCli`); terminal formatting in `Sources/TokenTorchCli/` |
+| **Token Torch** | AppKit menu bar app (`Sources/TokenTorchApp/`); `NSMenu` + settings window; links **TokenTorchCore** |
 
 UI targets never call vendor URLs directly — only `UsageOrchestrator` and settings stores.
 
@@ -125,8 +125,8 @@ UI targets never call vendor URLs directly — only `UsageOrchestrator` and sett
 Package.swift
 Sources/
 ├── TokenTorchCore/          # Library: providers, credentials, orchestration
-├── token-torch-cli/          # Terminal CLI
-└── token-torch-app/      # Xcode menu bar project (Token Torch.app)
+├── TokenTorchCli/          # Terminal CLI
+└── TokenTorchApp/      # Xcode menu bar project (Token Torch.app)
 Tests/TokenTorchCoreTests/
 Pictures/              # Provider icons (PDF/SVG)
 ```

@@ -6,7 +6,7 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .library(name: "TokenTorchCore", targets: ["TokenTorchCore"]),
-        .executable(name: "token-torch-cli", targets: ["token-torch-cli"])
+        .executable(name: "token-torch-cli", targets: ["TokenTorchCli"])
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0")
@@ -17,7 +17,7 @@ let package = Package(
             linkerSettings: [.linkedLibrary("sqlite3")]
         ),
         .executableTarget(
-            name: "token-torch-cli",
+            name: "TokenTorchCli",
             dependencies: [
                 "TokenTorchCore",
                 .product(name: "ArgumentParser", package: "swift-argument-parser")

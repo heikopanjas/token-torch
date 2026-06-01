@@ -2,7 +2,8 @@ import Foundation
 
 public enum DateRange {
     public static func parseDateRange(startInput: String?, endInput: String?) throws -> (start: String, end: String?) {
-        let calendar = Calendar(identifier: .gregorian)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
         let formatter = DateFormatter()
         formatter.calendar = calendar
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
@@ -57,7 +58,8 @@ public enum DateRange {
     }
 
     public static func lastDayOfMonth(year: Int, month: Int) throws -> Date {
-        let calendar = Calendar(identifier: .gregorian)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
         var comps = DateComponents()
         comps.year = month == 12 ? year + 1 : year
         comps.month = month == 12 ? 1 : month + 1
@@ -133,11 +135,13 @@ public enum DateRange {
     }
 
     private static func firstDay(year: Int, month: Int) throws -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
         var comps = DateComponents()
         comps.year = year
         comps.month = month
         comps.day = 1
-        guard let date = Calendar(identifier: .gregorian).date(from: comps) else {
+        guard let date = calendar.date(from: comps) else {
             throw TokenTorchError.message("Invalid year-month combination")
         }
         return date

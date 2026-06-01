@@ -21,7 +21,7 @@ Usage: $(basename "$0") [OPTIONS]
 
 Build, export, and optionally notarize Token Torch for direct distribution (Developer ID).
 
-Run from Sources/token-torch-app/. Requires ExportOptions.plist with a valid Developer ID
+Run from Sources/TokenTorchApp/. Requires ExportOptions.plist with a valid Developer ID
 provisioning profile for com.panjas.tokentorch.
 
 Options:
