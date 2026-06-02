@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-02 (GitHub Copilot subscription quota provider)
+Last updated: 2026-06-02 (Match Settings toolbar provider icons to SF Symbol size)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -309,6 +309,14 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-06-02: Match Settings toolbar provider icons to SF Symbol size
+
+**What**: The provider PDF toolbar icons (Anthropic/OpenAI/Cursor/Copilot) in the Settings window rendered much larger (~25-35pt ink) and inconsistently versus the neighboring SF Symbol items (General `gearshape`, Advanced `wrench.and.screwdriver`, ~17-19pt). They now render at the SF Symbol size.
+
+**Why**: Visual consistency across the toolbar; the provider bitmaps should match the symbols' displayed size.
+
+**How**: A `.preference`-style `NSToolbar` **upscales** non-symbol (PDF/bitmap) item images to fill its icon slot (~35pt) while leaving SF Symbols at their configured point size — so setting `NSImage.size` on the PDFs has no effect (confirmed: PDFs created at 16pt still rendered 25-35pt; measured from app screenshots since `screencapture`/`cacheDisplay` readback was unavailable). Fix: `ProviderIcons.paddedToolbarImage(named:)` composites each logo into a transparent square canvas (`SettingsStyle.toolbarProviderCanvasSide` = 40, wider than the slot so the toolbar stops upscaling) with the logo aspect-fitted into a centered `toolbarProviderLogoBox` (23) box; the toolbar then downscales the canvas to its slot, landing logos at ~20pt to match the symbols. Verified composited boxes offscreen (anthropic 23x17, openai 23x23, cursor 21x23, copilot 23x20). Version `3.20.7`.
 
 ### 2026-06-02: GitHub Copilot subscription quota provider
 

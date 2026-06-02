@@ -42,7 +42,44 @@ enum ProviderIcons {
                 case .cursor: "cursor"
                 case .copilot: "githubcopilot"
             }
-        return pdfImage(named: name, side: SettingsStyle.toolbarIconPointSize)
+        return paddedToolbarImage(named: name)
+    }
+
+    /// Composites a provider logo PDF into a transparent square canvas wider
+    /// than the toolbar's icon slot, with the logo aspect-fitted into a smaller
+    /// centered box. The oversized canvas prevents the `.preference` toolbar
+    /// from upscaling the image, so the logo displays at the SF Symbol size.
+    private static func paddedToolbarImage(named name: String) -> NSImage? {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "pdf"),
+            let logo = NSImage(contentsOf: url)
+        else {
+            return nil
+        }
+        let canvas = SettingsStyle.toolbarProviderCanvasSide
+        let box = SettingsStyle.toolbarProviderLogoBox
+        let natural = logo.size
+        let scale =
+            natural.width > 0 && natural.height > 0
+            ? min(box / natural.width, box / natural.height)
+            : 1
+        let drawn = NSSize(width: natural.width * scale, height: natural.height * scale)
+        let image = NSImage(size: NSSize(width: canvas, height: canvas))
+        image.lockFocus()
+        NSGraphicsContext.current?.imageInterpolation = .high
+        logo.draw(
+            in: NSRect(
+                x: (canvas - drawn.width) / 2,
+                y: (canvas - drawn.height) / 2,
+                width: drawn.width,
+                height: drawn.height
+            ),
+            from: .zero,
+            operation: .sourceOver,
+            fraction: 1
+        )
+        image.unlockFocus()
+        image.isTemplate = false
+        return image
     }
 
     static func resourceName(for provider: ProviderID, kind: ProviderSectionKind) -> String {
