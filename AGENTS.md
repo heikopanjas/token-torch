@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-02 (rename subscription captions: Claude Code, Codex)
+Last updated: 2026-06-02 (GitHub Copilot subscription quota provider)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -12,15 +12,15 @@ Run `/init-session` at the beginning of each new session, OR read this entire fi
 
 ## Project Overview
 
-**Token Torch** is a macOS Swift application for monitoring **Anthropic** and **OpenAI** organization usage, plus **personal subscription quotas** for Claude Code, ChatGPT/Codex, and Cursor. Anthropic uses `--list-workspaces` / `--workspace`; OpenAI uses `--list-projects` / `--project` (or `default` for null scope). Org-wide usage is the default when no scope flag is set.
+**Token Torch** is a macOS Swift application for monitoring **Anthropic** and **OpenAI** organization usage, plus **personal subscription quotas** for Claude Code, ChatGPT/Codex, Cursor, and GitHub Copilot. Anthropic uses `--list-workspaces` / `--workspace`; OpenAI uses `--list-projects` / `--project` (or `default` for null scope). Org-wide usage is the default when no scope flag is set.
 
 - **Anthropic**: token usage from Admin API; costs calculated from pricing docs.
 - **OpenAI**: completions token usage + native billed costs from `/organization/costs`.
-- **Personal subscriptions** (`--quota` on `claude`, `codex`, or `cursor`): rate limits and plan usage from reverse-engineered OAuth APIs; reads local Keychain / auth files / Cursor SQLite on macOS (no Admin API key).
+- **Personal subscriptions** (`--quota` on `claude`, `codex`, `cursor`, or `copilot`): rate limits and plan usage from reverse-engineered OAuth APIs (Claude/Codex/Cursor read local Keychain / auth files / Cursor SQLite on macOS) or GitHub Copilot via user-pasted PAT (`read:user`).
 
 ## Mission Statement
 
-**Token Torch** helps you see where your LLM usage goes — before the invoice or rate limit does. It unifies org billing (Anthropic and OpenAI Admin APIs) and personal plan quotas (Claude Code, Codex, Cursor) into one native macOS experience: query from the terminal with **token-torch-cli**, or glance from the menu bar with **Token Torch**. Credentials stay on your Mac; Token Torch reads them read-only and never writes back to vendor tools.
+**Token Torch** helps you see where your LLM usage goes — before the invoice or rate limit does. It unifies org billing (Anthropic and OpenAI Admin APIs) and personal plan quotas (Claude Code, Codex, Cursor, Copilot) into one native macOS experience: query from the terminal with **token-torch-cli**, or glance from the menu bar with **Token Torch**. Credentials stay on your Mac; Token Torch reads them read-only and never writes back to vendor tools.
 
 ## Technology Stack
 
@@ -78,6 +78,7 @@ cd Sources/TokenTorchApp && ./build.sh --clean --notarize   # requires ExportOpt
 .build/debug/token-torch-cli claude --quota
 .build/debug/token-torch-cli codex --quota
 .build/debug/token-torch-cli cursor --quota
+.build/debug/token-torch-cli copilot --quota
 ```
 
 ## Configuration
@@ -97,8 +98,9 @@ cd Sources/TokenTorchApp && ./build.sh --clean --notarize   # requires ExportOpt
 - Claude Code: Keychain `Claude Code-credentials` → `~/.claude/.credentials.json`
 - ChatGPT/Codex: `~/.codex/auth.json` (or `CODEX_HOME`, `~/.config/codex`, Keychain `Codex Auth`)
 - Cursor: `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb` → Keychain `cursor-access-token`
+- GitHub Copilot: classic PAT with **`read:user`** scope, pasted in Settings → `AppKeychainStore` (`com.tokentorch.keys.copilot.personalAccessToken`); CLI `-t` / `GITHUB_TOKEN` / `COPILOT_TOKEN`
 
-These APIs are undocumented and may change; reference: [OpenUsage provider docs](https://github.com/robinebers/openusage/tree/main/docs/providers). GitHub Copilot subscription quota is deferred until after the June 2026 billing migration.
+These APIs are undocumented and may change; reference: [OpenUsage provider docs](https://github.com/robinebers/openusage/tree/main/docs/providers).
 
 ## Primary Instructions
 
@@ -189,17 +191,18 @@ Pictures/                  # Provider icon PDFs (referenced by Xcode)
 ### CLI structure (`TokenTorchCLI.swift`)
 
 - Top-level `--version` / `-V` (version in `CommandConfiguration`)
-- Subcommands: `anthropic` (alias `claude`), `openai` (alias `codex`), `cursor`
+- Subcommands: `anthropic` (alias `claude`), `openai` (alias `codex`), `cursor`, `copilot`
 - Anthropic: `-a`, `--quota`, `--list-workspaces`, `--workspace`, `-s`, `-e`
 - OpenAI: `-a`, `--quota`, `--list-projects`, `--project`, `-s`, `-e`
 - Cursor: `--quota` only (no org Admin API; default prints unavailability notice)
+- Copilot: `-t`, `--quota` only (GitHub PAT with `read:user`; default prints unavailability notice)
 - All subcommands: `-c/--currency` (USD/EUR; defaults to system locale) via shared `CurrencyOptions` `@OptionGroup`
 - Modes: org usage (default + Admin key), personal subscription quota (`--quota`)
 
 ### Key TokenTorchCore modules
 
 - `AnthropicOrgProvider` / `OpenAIOrgProvider` — Admin API usage, workspaces/projects, pagination
-- `ClaudeQuotaProvider` / `CodexQuotaProvider` / `CursorQuotaProvider` — subscription quota APIs
+- `ClaudeQuotaProvider` / `CodexQuotaProvider` / `CursorQuotaProvider` / `CopilotQuotaProvider` — subscription quota APIs
 - `UsageOrchestrator` — parallel fetch across enabled providers (menu bar)
 - `DateRange` — flexible date parsing, RFC 3339, inclusive end boundaries
 - `Redaction` — secret redaction for user-visible output
@@ -306,6 +309,14 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-06-02: GitHub Copilot subscription quota provider
+
+**What**: Added GitHub Copilot as the sixth menu view (subscription-only). Users paste a classic GitHub PAT with `read:user` scope in Settings (Admin-key UX via `AppKeychainStore.personalAccessToken`); CLI adds `copilot --quota` with `-t` / `GITHUB_TOKEN` / `COPILOT_TOKEN`. Maps `GET /copilot_internal/user` into `SubscriptionQuotaReport`: **AI Credits** row from `premium_interactions`, free-tier Chat/Completions from `monthly_quotas`/`limited_user_quotas`, plan header via `PlanBranding.copilot`/`copilotPrice`, billing cycle from `assigned_date`/`quota_reset_date_utc`. Skips `unlimited: true` snapshots (not 0% used). Icon: `Pictures/githubcopilot.pdf`.
+
+**Why**: Post–June 2026 AI Credits migration; spike validated `read:user` PAT on Copilot Max.
+
+**How**: `CopilotQuotaProvider`, `ProviderID.copilot`, `UsageOrchestrator` PAT path (no `VendorCredentialImporter`), Copilot Settings tab, `ReportLabels`/`MenuBuilder`/`TerminalDisplay` AI Credits label, tests with `individual_max` fixture. Version `3.20.0`.
 
 ### 2026-06-02: Rename subscription captions to Claude Code / Codex
 

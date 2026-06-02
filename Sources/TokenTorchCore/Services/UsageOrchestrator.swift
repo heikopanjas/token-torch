@@ -88,7 +88,7 @@ public struct UsageOrchestrator: Sendable {
     }
 
     private func subscriptionReport(provider: ProviderID, interactive: Bool) async -> ProviderReport {
-        if credentialStrategy == .tokenTorchOwnedCopy {
+        if credentialStrategy == .tokenTorchOwnedCopy, provider != .copilot {
             do {
                 try VendorCredentialImporter.ensureImported(
                     provider: provider,
@@ -125,10 +125,26 @@ public struct UsageOrchestrator: Sendable {
 
     private func fetchQuota(provider: ProviderID, interactive: Bool) async throws -> SubscriptionQuotaReport {
         switch provider {
-            case .claude: try await ClaudeQuotaProvider.fetch(credentialStrategy: credentialStrategy, interactive: interactive)
-            case .codex: try await CodexQuotaProvider.fetch(credentialStrategy: credentialStrategy, interactive: interactive)
-            case .cursor: try await CursorQuotaProvider.fetch(credentialStrategy: credentialStrategy, interactive: interactive)
+            case .claude:
+                return try await ClaudeQuotaProvider.fetch(credentialStrategy: credentialStrategy, interactive: interactive)
+            case .codex:
+                return try await CodexQuotaProvider.fetch(credentialStrategy: credentialStrategy, interactive: interactive)
+            case .cursor:
+                return try await CursorQuotaProvider.fetch(credentialStrategy: credentialStrategy, interactive: interactive)
+            case .copilot:
+                let token = try requirePersonalAccessToken()
+                return try await CopilotQuotaProvider.fetch(personalAccessToken: token)
         }
+    }
+
+    private func requirePersonalAccessToken() throws -> String {
+        guard
+            let token = try keychain.load(provider: .copilot, kind: .personalAccessToken),
+            !token.isEmpty
+        else {
+            throw TokenTorchError.missingPersonalAccessToken(provider: .copilot)
+        }
+        return token
     }
 
     private func requireAdminKey(provider: ProviderID) throws -> String {
@@ -150,6 +166,8 @@ public struct UsageOrchestrator: Sendable {
                 )
             case .cursor:
                 throw TokenTorchError.unsupported("Cursor organization billing is not available.")
+            case .copilot:
+                throw TokenTorchError.unsupported("Copilot organization billing is not available.")
         }
     }
 }

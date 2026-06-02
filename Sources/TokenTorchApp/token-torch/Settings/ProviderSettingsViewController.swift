@@ -11,11 +11,18 @@ final class ProviderSettingsViewController: NSViewController {
     private var hintLabel: NSTextField!
     private var resetButton: NSButton!
     private var additionalUsageToggle: NSButton?
+    private var tokenLabel: NSTextField!
+    private var tokenField: NSSecureTextField!
+    private var saveTokenButton: NSButton!
+    private var clearTokenButton: NSButton!
     private var adminKeyLabel: NSTextField!
     private var adminKeyField: NSSecureTextField!
     private var saveKeyButton: NSButton!
     private var clearKeyButton: NSButton!
     private var statusLabel: NSTextField!
+
+    private var usesVendorOAuth: Bool { provider != .copilot }
+    private var usesPersonalAccessToken: Bool { provider == .copilot }
 
     override var preferredContentSize: NSSize {
         get { isViewLoaded ? view.bounds.size : NSSize(width: SettingsStyle.paneWidth, height: preferredHeight) }
@@ -47,22 +54,61 @@ final class ProviderSettingsViewController: NSViewController {
 
         view = NSView(frame: NSRect(x: 0, y: 0, width: w, height: h))
 
-        hintLabel = NSTextField(
-            wrappingLabelWithString:
-                "Clears \(AppBrand.displayName)'s copied subscription credentials only. Vendor app logins are not changed. Use after re-login in Claude Code, Codex CLI, or Cursor IDE."
-        )
-        hintLabel.frame = NSRect(x: x, y: y, width: controlW, height: 44)
-        hintLabel.autoresizingMask = [.minYMargin, .width]
-        hintLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-        hintLabel.textColor = .secondaryLabelColor
-        view.addSubview(hintLabel)
+        if usesVendorOAuth {
+            hintLabel = NSTextField(
+                wrappingLabelWithString:
+                    "Clears \(AppBrand.displayName)'s copied subscription credentials only. Vendor app logins are not changed. Use after re-login in Claude Code, Codex CLI, or Cursor IDE."
+            )
+            hintLabel.frame = NSRect(x: x, y: y, width: controlW, height: 44)
+            hintLabel.autoresizingMask = [.minYMargin, .width]
+            hintLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+            hintLabel.textColor = .secondaryLabelColor
+            view.addSubview(hintLabel)
 
-        y -= 16 + 22
-        resetButton = NSButton(title: "Reset subscription credentials", target: self, action: #selector(resetCredentials))
-        resetButton.bezelStyle = .rounded
-        resetButton.frame = NSRect(x: x, y: y, width: 220, height: 22)
-        resetButton.autoresizingMask = [.minYMargin]
-        view.addSubview(resetButton)
+            y -= 16 + 22
+            resetButton = NSButton(title: "Reset subscription credentials", target: self, action: #selector(resetCredentials))
+            resetButton.bezelStyle = .rounded
+            resetButton.frame = NSRect(x: x, y: y, width: 220, height: 22)
+            resetButton.autoresizingMask = [.minYMargin]
+            view.addSubview(resetButton)
+        }
+
+        if usesPersonalAccessToken {
+            hintLabel = NSTextField(
+                wrappingLabelWithString:
+                    "Create a classic GitHub Personal Access Token with the read:user scope at github.com/settings/tokens, then paste it below. Token Torch only reads Copilot usage; it never writes back to GitHub."
+            )
+            hintLabel.frame = NSRect(x: x, y: y, width: controlW, height: 44)
+            hintLabel.autoresizingMask = [.minYMargin, .width]
+            hintLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+            hintLabel.textColor = .secondaryLabelColor
+            view.addSubview(hintLabel)
+
+            y -= 16 + 16
+            tokenLabel = NSTextField(labelWithString: "GitHub Personal Access Token")
+            tokenLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
+            tokenLabel.autoresizingMask = [.minYMargin, .width]
+            view.addSubview(tokenLabel)
+
+            y -= 4 + 22
+            tokenField = NSSecureTextField(frame: NSRect(x: x, y: y, width: controlW, height: 22))
+            tokenField.placeholderString = "ghp_…"
+            tokenField.autoresizingMask = [.minYMargin, .width]
+            view.addSubview(tokenField)
+
+            y -= 16 + 22
+            saveTokenButton = NSButton(title: "Save token", target: self, action: #selector(saveToken))
+            saveTokenButton.bezelStyle = .rounded
+            saveTokenButton.frame = NSRect(x: x, y: y, width: 100, height: 22)
+            saveTokenButton.autoresizingMask = [.minYMargin]
+            view.addSubview(saveTokenButton)
+
+            clearTokenButton = NSButton(title: "Clear token", target: self, action: #selector(clearToken))
+            clearTokenButton.bezelStyle = .rounded
+            clearTokenButton.frame = NSRect(x: x + 108, y: y, width: 100, height: 22)
+            clearTokenButton.autoresizingMask = [.minYMargin]
+            view.addSubview(clearTokenButton)
+        }
 
         if provider == .codex {
             y -= 16 + 22
@@ -128,6 +174,7 @@ final class ProviderSettingsViewController: NSViewController {
 
     private func loadKeys() {
         adminKeyField?.stringValue = (try? keychain.load(provider: provider, kind: .adminKey)) ?? ""
+        tokenField?.stringValue = (try? keychain.load(provider: provider, kind: .personalAccessToken)) ?? ""
     }
 
     @objc private func saveKey() {
@@ -150,6 +197,28 @@ final class ProviderSettingsViewController: NSViewController {
         try? keychain.delete(provider: provider, kind: .adminKey)
         adminKeyField?.stringValue = ""
         statusLabel.stringValue = "Key cleared."
+    }
+
+    @objc private func saveToken() {
+        guard let tokenField else { return }
+        do {
+            if tokenField.stringValue.isEmpty {
+                try keychain.delete(provider: provider, kind: .personalAccessToken)
+            }
+            else {
+                try keychain.save(provider: provider, kind: .personalAccessToken, value: tokenField.stringValue)
+            }
+            statusLabel.stringValue = "Saved."
+        }
+        catch {
+            statusLabel.stringValue = Redaction.redactSecrets(error.localizedDescription)
+        }
+    }
+
+    @objc private func clearToken() {
+        try? keychain.delete(provider: provider, kind: .personalAccessToken)
+        tokenField?.stringValue = ""
+        statusLabel.stringValue = "Token cleared."
     }
 
     @objc private func resetCredentials() {

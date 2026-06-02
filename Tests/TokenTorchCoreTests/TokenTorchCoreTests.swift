@@ -107,14 +107,15 @@ import Testing
     #expect(prefs.displayCurrency == DisplayCurrency.systemDefault)
 }
 
-@Test func providerSectionAllSectionsCoversFiveMenuViews() {
+@Test func providerSectionAllSectionsCoversSixMenuViews() {
     #expect(
         ProviderSection.allSections == [
             ProviderSection(provider: .claude, kind: .subscription),
             ProviderSection(provider: .claude, kind: .orgBilling),
             ProviderSection(provider: .codex, kind: .subscription),
             ProviderSection(provider: .codex, kind: .orgBilling),
-            ProviderSection(provider: .cursor, kind: .subscription)
+            ProviderSection(provider: .cursor, kind: .subscription),
+            ProviderSection(provider: .copilot, kind: .subscription)
         ])
 }
 
@@ -145,7 +146,8 @@ import Testing
     var prefs = ProviderPreferences(
         claude: .init(subscriptionQuotaEnabled: false, orgBillingEnabled: false),
         codex: .init(subscriptionQuotaEnabled: false, orgBillingEnabled: false),
-        cursor: .init(subscriptionQuotaEnabled: false, orgBillingEnabled: false)
+        cursor: .init(subscriptionQuotaEnabled: false, orgBillingEnabled: false),
+        copilot: .init(subscriptionQuotaEnabled: false, orgBillingEnabled: false)
     )
     let claudeSub = ProviderSection(provider: .claude, kind: .subscription)
     let claudeOrg = ProviderSection(provider: .claude, kind: .orgBilling)
@@ -472,4 +474,125 @@ import Testing
     #expect(PlanBranding.claudePrice(subscriptionType: "max", rateLimitTier: "default_claude_max_20x") == "$200/mo")
     #expect(PlanBranding.claudePrice(subscriptionType: "max", rateLimitTier: nil) == nil)
     #expect(PlanBranding.claudePrice(subscriptionType: "team", rateLimitTier: nil) == nil)
+}
+
+@Test func planBrandingCopilotNamesAndPrices() {
+    #expect(PlanBranding.copilot(copilotPlan: "individual_max", accessTypeSKU: "max_monthly_subscriber_quota") == "Max")
+    #expect(PlanBranding.copilotPrice(copilotPlan: "individual_max", accessTypeSKU: "max_monthly_subscriber_quota") == "$100/mo")
+    #expect(PlanBranding.copilot(copilotPlan: "pro", accessTypeSKU: nil) == "Pro")
+    #expect(PlanBranding.copilotPrice(copilotPlan: "pro", accessTypeSKU: nil) == "$10/mo")
+    #expect(PlanBranding.copilot(copilotPlan: "individual", accessTypeSKU: "free_limited_copilot") == "Free")
+    #expect(PlanBranding.copilotPrice(copilotPlan: "individual", accessTypeSKU: "free_limited_copilot") == nil)
+    #expect(PlanBranding.copilot(copilotPlan: "unknown_tier", accessTypeSKU: nil) == "Unknown_Tier")
+}
+
+@Test func copilotSnapshotSkipsUnlimitedGroups() {
+    let unlimited = CopilotQuotaProvider.CopilotQuotaSnapshot(unlimited: true, entitlement: 0, remaining: 0, percentRemaining: 100)
+    #expect(CopilotQuotaProvider.snapshotUsedPercent(unlimited) == nil)
+
+    let placeholder = CopilotQuotaProvider.CopilotQuotaSnapshot(unlimited: false, entitlement: 0, remaining: 0)
+    #expect(CopilotQuotaProvider.snapshotUsedPercent(placeholder) == nil)
+
+    let premium = CopilotQuotaProvider.CopilotQuotaSnapshot(
+        unlimited: false, entitlement: 20000, remaining: 19333, percentRemaining: 96.6
+    )
+    #expect(CopilotQuotaProvider.snapshotUsedPercent(premium) == 3.4)
+}
+
+@Test func mapCopilotIncludesAllFiniteQuotaGroups() {
+    let response = CopilotQuotaProvider.CopilotUserResponse(
+        quotaSnapshots: [
+            "chat": CopilotQuotaProvider.CopilotQuotaSnapshot(
+                unlimited: false, entitlement: 1000, remaining: 950, quotaRemaining: 950, percentRemaining: 95
+            ),
+            "completions": CopilotQuotaProvider.CopilotQuotaSnapshot(
+                unlimited: false, entitlement: 5000, remaining: 4000, quotaRemaining: 4000, percentRemaining: 80
+            ),
+            "premium_interactions": CopilotQuotaProvider.CopilotQuotaSnapshot(
+                unlimited: true, entitlement: 0, remaining: 0
+            )
+        ]
+    )
+    let report = CopilotQuotaProvider.mapUsage(response)
+    #expect(report.windows.map(\.label) == ["Chat", "Completions"])
+}
+
+@Test func mapCopilotIndividualMaxUsage() {
+    let response = CopilotQuotaProvider.CopilotUserResponse(
+        copilotPlan: "individual_max",
+        accessTypeSKU: "max_monthly_subscriber_quota",
+        assignedDate: "2026-06-01T15:12:42+02:00",
+        quotaResetDateUTC: "2026-07-01T00:00:00.000Z",
+        quotaSnapshots: [
+            "chat": CopilotQuotaProvider.CopilotQuotaSnapshot(
+                unlimited: true, entitlement: 0, remaining: 0, percentRemaining: 100
+            ),
+            "completions": CopilotQuotaProvider.CopilotQuotaSnapshot(
+                unlimited: true, entitlement: 0, remaining: 0, percentRemaining: 100
+            ),
+            "premium_interactions": CopilotQuotaProvider.CopilotQuotaSnapshot(
+                unlimited: false,
+                entitlement: 20000,
+                remaining: 19333,
+                quotaRemaining: 19333.4,
+                percentRemaining: 96.6,
+                overageCount: 0,
+                overagePermitted: true
+            )
+        ]
+    )
+    let report = CopilotQuotaProvider.mapUsage(response)
+    #expect(report.provider == "Copilot")
+    #expect(report.planTier == "Max")
+    #expect(report.planPrice == "$100/mo")
+    #expect(report.windows.count == 1)
+    let aiCredits = report.windows.first { $0.label == "AI Credits" }
+    #expect(aiCredits?.entitlement == 20000)
+    #expect(aiCredits?.remaining == 19333)
+    #expect(aiCredits?.quotaRemaining == 19333.4)
+    #expect(aiCredits?.percentRemaining == 96.6)
+    #expect(aiCredits?.overagePermitted == true)
+    #expect(aiCredits?.overageCount == 0)
+    #expect(report.credits == nil)
+    #expect(report.billingCycleEnd != nil)
+    let items = CopilotQuotaLabels.displayItems(aiCredits!)
+    #expect(
+        items.map(\.label) == [
+            "Entitlement credits", "Remaining credits", "Percent remaining", "Overage"
+        ])
+    #expect(items.first(where: { $0.label == "Entitlement credits" })?.value == "20000")
+    #expect(items.first(where: { $0.label == "Overage" })?.value == "enabled")
+    #expect(CopilotQuotaLabels.groupCaption(aiCredits!) == nil)
+}
+
+@Test func copilotQuotaLabelsIncludesOverageFieldsWhenCountPositive() {
+    let window = QuotaWindow(
+        label: "AI Credits",
+        usedPercent: 105,
+        resetsAt: nil,
+        entitlement: 20000,
+        remaining: 0,
+        quotaRemaining: 0,
+        percentRemaining: 0,
+        overageCount: 500,
+        overagePermitted: true
+    )
+    let items = CopilotQuotaLabels.displayItems(window)
+    #expect(items.contains(where: { $0.label == "Overage count" && $0.value == "500" }))
+    #expect(items.contains(where: { $0.label == "Overage" && $0.value == "enabled" }))
+}
+
+@Test func mapCopilotFreeTierUsage() {
+    let response = CopilotQuotaProvider.CopilotUserResponse(
+        copilotPlan: "individual",
+        accessTypeSKU: "free_limited_copilot",
+        limitedUserResetDate: "2026-02-11",
+        monthlyQuotas: CopilotQuotaProvider.CopilotQuotaBuckets(chat: 500, completions: 4000),
+        limitedUserQuotas: CopilotQuotaProvider.CopilotQuotaBuckets(chat: 410, completions: 3600)
+    )
+    let report = CopilotQuotaProvider.mapUsage(response)
+    #expect(report.planTier == "Free")
+    #expect(report.windows.count == 2)
+    #expect(report.windows.first(where: { $0.label == "Chat" })?.usedPercent == 18)
+    #expect(report.windows.first(where: { $0.label == "Completions" })?.usedPercent == 10)
 }

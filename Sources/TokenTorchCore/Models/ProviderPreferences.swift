@@ -4,6 +4,7 @@ public enum ProviderID: String, Codable, CaseIterable, Sendable, Identifiable {
     case claude
     case codex
     case cursor
+    case copilot
 
     public var id: String { rawValue }
 
@@ -12,13 +13,14 @@ public enum ProviderID: String, Codable, CaseIterable, Sendable, Identifiable {
             case .claude: "Claude"
             case .codex: "Codex"
             case .cursor: "Cursor"
+            case .copilot: "Copilot"
         }
     }
 
     public var supportsOrgBilling: Bool {
         switch self {
             case .claude, .codex: true
-            case .cursor: false
+            case .cursor, .copilot: false
         }
     }
 }
@@ -29,8 +31,8 @@ public enum ProviderSectionKind: String, Codable, CaseIterable, Sendable {
 }
 
 /// One reorderable menu "view": a provider paired with the kind of report it shows
-/// (subscription quota or org billing). Five are valid: Claude, Anthropic API, ChatGPT,
-/// OpenAI Platform, Cursor (Cursor has no org billing).
+/// (subscription quota or org billing). Six are valid: Claude, Anthropic API, Codex,
+/// OpenAI Platform, Cursor, Copilot (Cursor and Copilot have no org billing).
 public struct ProviderSection: Codable, Hashable, Sendable, Identifiable {
     public let provider: ProviderID
     public let kind: ProviderSectionKind
@@ -68,17 +70,19 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
     public var claude: ProviderModeFlags
     public var codex: ProviderModeFlags
     public var cursor: ProviderModeFlags
+    public var copilot: ProviderModeFlags
     public var refreshIntervalMinutes: Int
     public var displayCurrency: DisplayCurrency
     /// When true, the menu also lists per-model extra rate limits (e.g. Codex Spark). Default off.
     public var showAdditionalModelUsage: Bool
-    /// User-chosen order of the five menu views (provider + subscription/org). Normalize via `orderedSections()`.
+    /// User-chosen order of the six menu views (provider + subscription/org). Normalize via `orderedSections()`.
     public var sectionOrder: [ProviderSection]
 
     public init(
         claude: ProviderModeFlags = .init(),
         codex: ProviderModeFlags = .init(),
         cursor: ProviderModeFlags = .init(subscriptionQuotaEnabled: true, orgBillingEnabled: false),
+        copilot: ProviderModeFlags = .init(subscriptionQuotaEnabled: true, orgBillingEnabled: false),
         refreshIntervalMinutes: Int = 15,
         displayCurrency: DisplayCurrency = .systemDefault,
         showAdditionalModelUsage: Bool = false,
@@ -87,6 +91,7 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         self.claude = claude
         self.codex = codex
         self.cursor = cursor
+        self.copilot = copilot
         self.refreshIntervalMinutes = refreshIntervalMinutes
         self.displayCurrency = displayCurrency
         self.showAdditionalModelUsage = showAdditionalModelUsage
@@ -99,6 +104,9 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         codex = try container.decodeIfPresent(ProviderModeFlags.self, forKey: .codex) ?? .init()
         cursor =
             try container.decodeIfPresent(ProviderModeFlags.self, forKey: .cursor)
+            ?? .init(subscriptionQuotaEnabled: true, orgBillingEnabled: false)
+        copilot =
+            try container.decodeIfPresent(ProviderModeFlags.self, forKey: .copilot)
             ?? .init(subscriptionQuotaEnabled: true, orgBillingEnabled: false)
         refreshIntervalMinutes = try container.decodeIfPresent(Int.self, forKey: .refreshIntervalMinutes) ?? 15
         displayCurrency = try container.decodeIfPresent(DisplayCurrency.self, forKey: .displayCurrency) ?? .systemDefault
@@ -119,6 +127,7 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
             case .claude: claude
             case .codex: codex
             case .cursor: cursor
+            case .copilot: copilot
         }
     }
 
@@ -127,6 +136,7 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
             case .claude: claude = flags
             case .codex: codex = flags
             case .cursor: cursor = flags
+            case .copilot: copilot = flags
         }
     }
 
@@ -175,6 +185,7 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
 public enum AppKeyKind: String, Sendable {
     case apiKey
     case adminKey
+    case personalAccessToken
 
     public func service(for provider: ProviderID) -> String {
         "com.tokentorch.keys.\(provider.rawValue).\(rawValue)"

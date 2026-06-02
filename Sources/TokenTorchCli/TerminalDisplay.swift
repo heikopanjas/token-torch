@@ -197,7 +197,12 @@ enum TerminalDisplay {
                 print(ANSIColor.dimmed("Auto + Composer = automatic model routing and Composer; API = named models (OpenAI, Claude, …)."))
             }
             for window in report.windows {
-                printQuotaWindow(window)
+                if report.provider == "Copilot" {
+                    printCopilotWindow(window)
+                }
+                else {
+                    printQuotaWindow(window, provider: report.provider)
+                }
                 if isCursor, window.label == "Included total usage" {
                     let auto = report.windows.first { $0.label == "Auto + Composer" }?.usedPercent.rounded()
                     let api = report.windows.first { $0.label == "Included API usage" }?.usedPercent.rounded()
@@ -210,7 +215,7 @@ enum TerminalDisplay {
         }
 
         for window in report.additionalWindows {
-            printQuotaWindow(window)
+            printQuotaWindow(window, provider: report.provider)
         }
 
         if isCursor {
@@ -265,6 +270,13 @@ enum TerminalDisplay {
         print()
     }
 
+    static func displayCopilotOrgUnavailable() {
+        print()
+        print(ANSIColor.yellow("Copilot organization billing is not available in \(AppBrand.displayName)."))
+        print(ANSIColor.dimmed("Use `token-torch-cli copilot --quota` for personal subscription quota (GitHub PAT with read:user scope)."))
+        print()
+    }
+
     static func printPricingFetchBanner() {
         print(ANSIColor.brightCyan("Fetching current pricing from Anthropic documentation..."))
     }
@@ -300,7 +312,7 @@ enum TerminalDisplay {
         print()
     }
 
-    private static func printQuotaWindow(_ window: QuotaWindow) {
+    private static func printQuotaWindow(_ window: QuotaWindow, provider: String) {
         let percentText = String(format: "%.0f%% used", window.usedPercent)
         let resetText = window.resetsAt.map(formatResetTime) ?? "once the window starts"
         print(
@@ -308,8 +320,30 @@ enum TerminalDisplay {
         )
     }
 
+    private static func printCopilotWindow(_ window: QuotaWindow) {
+        if let caption = CopilotQuotaLabels.groupCaption(window) {
+            print(ANSIColor.brightWhite(caption))
+        }
+        for item in CopilotQuotaLabels.displayItems(window) {
+            print("\(ANSIColor.brightWhite(pad(item.label, 22))) \(ANSIColor.brightWhiteBold(item.value))")
+        }
+        print()
+    }
+
     private static func printSubscriptionCredits(_ report: SubscriptionQuotaReport) {
         guard let credits = report.credits else { return }
+        let rowLabel = report.provider == "Copilot" ? "AI Credits" : "On-demand credits"
+        if credits.currency == CreditsInfo.creditUnitsCurrency {
+            guard credits.limitCents > 0 || credits.usedCents > 0 else { return }
+            let pct =
+                credits.utilizationPercent
+                ?? QuotaHelpers.creditUsedPercent(usedCents: credits.usedCents, limitCents: credits.limitCents)
+            let pctText = pct.map { String(format: " (%.0f%% used)", $0) } ?? ""
+            print(
+                "\(ANSIColor.brightWhite(pad(rowLabel, 22))) \(ANSIColor.brightWhiteBold("\(credits.usedCents) / \(credits.limitCents)"))\(ANSIColor.dimmed(pctText))"
+            )
+            return
+        }
         if let balance = credits.balanceUSD {
             let text = CurrencyConverter.formatConverted(amount: balance, from: credits.currency, to: displayCurrency)
             print(
@@ -327,7 +361,7 @@ enum TerminalDisplay {
                 ?? QuotaHelpers.creditUsedPercent(usedCents: credits.usedCents, limitCents: credits.limitCents)
             let pctText = pct.map { String(format: " (%.0f%% used)", $0) } ?? ""
             print(
-                "\(ANSIColor.brightWhite(pad("On-demand credits", 22))) \(ANSIColor.brightWhiteBold("\(used) / \(limitLabel)"))\(ANSIColor.dimmed(pctText))"
+                "\(ANSIColor.brightWhite(pad(rowLabel, 22))) \(ANSIColor.brightWhiteBold("\(used) / \(limitLabel)"))\(ANSIColor.dimmed(pctText))"
             )
         }
     }

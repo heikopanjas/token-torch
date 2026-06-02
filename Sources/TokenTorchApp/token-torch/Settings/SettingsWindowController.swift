@@ -6,6 +6,7 @@ extension NSToolbarItem.Identifier {
     fileprivate static let tokenTorchClaude = NSToolbarItem.Identifier("tokentorch.settings.claude")
     fileprivate static let tokenTorchCodex = NSToolbarItem.Identifier("tokentorch.settings.codex")
     fileprivate static let tokenTorchCursor = NSToolbarItem.Identifier("tokentorch.settings.cursor")
+    fileprivate static let tokenTorchCopilot = NSToolbarItem.Identifier("tokentorch.settings.copilot")
     fileprivate static let tokenTorchAdvanced = NSToolbarItem.Identifier("tokentorch.settings.advanced")
 }
 
@@ -16,6 +17,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private let claudeController: ProviderSettingsViewController
     private let codexController: ProviderSettingsViewController
     private let cursorController: ProviderSettingsViewController
+    private let copilotController: ProviderSettingsViewController
     private let advancedController: AdvancedSettingsViewController
     private var selectedIdentifier = NSToolbarItem.Identifier.tokenTorchGeneral
 
@@ -25,6 +27,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         claudeController = ProviderSettingsViewController(provider: .claude)
         codexController = ProviderSettingsViewController(provider: .codex)
         cursorController = ProviderSettingsViewController(provider: .cursor)
+        copilotController = ProviderSettingsViewController(provider: .copilot)
         advancedController = AdvancedSettingsViewController()
 
         super.init(
@@ -89,6 +92,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     @objc private func showClaude() { switchToTab(.tokenTorchClaude) }
     @objc private func showCodex() { switchToTab(.tokenTorchCodex) }
     @objc private func showCursor() { switchToTab(.tokenTorchCursor) }
+    @objc private func showCopilot() { switchToTab(.tokenTorchCopilot) }
     @objc private func showAdvanced() { switchToTab(.tokenTorchAdvanced) }
 
     private func switchToTab(_ identifier: NSToolbarItem.Identifier) {
@@ -135,6 +139,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             case .tokenTorchClaude: claudeController
             case .tokenTorchCodex: codexController
             case .tokenTorchCursor: cursorController
+            case .tokenTorchCopilot: copilotController
             case .tokenTorchAdvanced: advancedController
             default: generalController
         }
@@ -162,6 +167,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             case .tokenTorchClaude: "Claude"
             case .tokenTorchCodex: "Codex"
             case .tokenTorchCursor: "Cursor"
+            case .tokenTorchCopilot: "Copilot"
             case .tokenTorchAdvanced: "Advanced"
             default: "\(AppBrand.displayName) Settings"
         }
@@ -170,7 +176,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
 extension SettingsWindowController: NSToolbarDelegate {
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.tokenTorchGeneral, .tokenTorchClaude, .tokenTorchCodex, .tokenTorchCursor, .tokenTorchAdvanced]
+        [.tokenTorchGeneral, .tokenTorchClaude, .tokenTorchCodex, .tokenTorchCursor, .tokenTorchCopilot, .tokenTorchAdvanced]
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -211,6 +217,12 @@ extension SettingsWindowController: NSToolbarDelegate {
                 item.paletteLabel = "Cursor"
                 item.image = ProviderIcons.settingsToolbarImage(for: .cursor)
                 item.action = #selector(showCursor)
+                item.target = self
+            case .tokenTorchCopilot:
+                item.toolTip = "Copilot"
+                item.paletteLabel = "Copilot"
+                item.image = ProviderIcons.settingsToolbarImage(for: .copilot)
+                item.action = #selector(showCopilot)
                 item.target = self
             case .tokenTorchAdvanced:
                 item.toolTip = "Advanced"

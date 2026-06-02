@@ -7,6 +7,7 @@ public enum VendorCredentialImporter {
     ///   if no silent source is available the call throws `TokenTorchError.needsAuthorization`.
     public static func ensureImported(provider: ProviderID, quotaEnabled: Bool, interactive: Bool = false) throws {
         guard quotaEnabled else { return }
+        guard provider != .copilot else { return }
 
         if let cached = VendorCredentialCache.session(for: provider),
             sessionIsUsable(cached)
@@ -77,6 +78,8 @@ public enum VendorCredentialImporter {
             case .claude: try VendorCredentialsReader.importClaudeSessionFromVendor(allowUI: interactive)
             case .codex: try VendorCredentialsReader.importCodexSessionFromVendor(allowUI: interactive)
             case .cursor: try VendorCredentialsReader.importCursorSessionFromVendor(allowUI: interactive)
+            case .copilot:
+                throw TokenTorchError.unsupported("Copilot uses a GitHub Personal Access Token, not vendor OAuth.")
         }
     }
 

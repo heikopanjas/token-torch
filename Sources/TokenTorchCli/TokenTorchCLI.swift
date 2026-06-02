@@ -6,9 +6,9 @@ import TokenTorchCore
 struct TokenTorchCLI: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "token-torch-cli",
-        abstract: "Monitor Anthropic, OpenAI, and Cursor usage (org billing and personal subscription quotas)",
-        version: "3.19.3",
-        subcommands: [AnthropicCommand.self, OpenAICommand.self, CursorCommand.self]
+        abstract: "Monitor Anthropic, OpenAI, Cursor, and Copilot usage (org billing and personal subscription quotas)",
+        version: "3.20.6",
+        subcommands: [AnthropicCommand.self, OpenAICommand.self, CursorCommand.self, CopilotCommand.self]
     )
 
 }
@@ -188,6 +188,32 @@ struct CursorCommand: AsyncParsableCommand {
     }
 }
 
+struct CopilotCommand: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(commandName: "copilot")
+
+    @Option(name: .shortAndLong, help: "GitHub Personal Access Token (read:user scope)")
+    var token: String?
+
+    @Flag(name: .long, help: "Show GitHub Copilot personal subscription quota")
+    var quota: Bool = false
+
+    @OptionGroup var currencyOptions: CurrencyOptions
+
+    func run() async throws {
+        TerminalDisplay.displayCurrency = currencyOptions.currency
+        CredentialStoreMigration.migrateFromBurnIfNeeded()
+        if quota {
+            let pat = try resolvePersonalAccessToken(flag: token)
+            try await runQuota(label: "Copilot") {
+                try await CopilotQuotaProvider.fetch(personalAccessToken: pat)
+            }
+        }
+        else {
+            TerminalDisplay.displayCopilotOrgUnavailable()
+        }
+    }
+}
+
 private func runQuota(label: String, fetch: () async throws -> SubscriptionQuotaReport) async throws {
     print(ANSIColor.brightCyan("Fetching \(label) subscription quota..."))
     let report = try await fetch()
@@ -215,4 +241,15 @@ private func resolveAdminKey(flag: String?, provider: ProviderID) throws -> Stri
     }
     let providerName = provider == .claude ? "Anthropic" : "OpenAI"
     throw TokenTorchError.message("\(providerName) Admin API key required for org billing (use --quota for personal subscription limits)")
+}
+
+private func resolvePersonalAccessToken(flag: String?) throws -> String {
+    if let flag, !flag.isEmpty { return flag }
+    let env = ProcessInfo.processInfo.environment
+    if let github = env["GITHUB_TOKEN"], !github.isEmpty { return github }
+    if let copilot = env["COPILOT_TOKEN"], !copilot.isEmpty { return copilot }
+    if let stored = try? AppKeychainStore.shared.load(provider: .copilot, kind: .personalAccessToken), !stored.isEmpty {
+        return stored
+    }
+    throw TokenTorchError.missingPersonalAccessToken(provider: .copilot)
 }

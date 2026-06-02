@@ -40,6 +40,7 @@ enum ProviderIcons {
                 case .claude: "anthropic"
                 case .codex: "openai"
                 case .cursor: "cursor"
+                case .copilot: "githubcopilot"
             }
         return pdfImage(named: name, side: SettingsStyle.toolbarIconPointSize)
     }
@@ -49,6 +50,7 @@ enum ProviderIcons {
             case .claude: kind == .subscription ? "claude" : "anthropic"
             case .codex: "openai"
             case .cursor: "cursor"
+            case .copilot: "githubcopilot"
         }
     }
 

@@ -14,6 +14,7 @@
 		B00101000000000000000005 /* openai.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000007 /* openai.pdf */; };
 		B00101000000000000000006 /* cursor.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000008 /* cursor.pdf */; };
 		B00101000000000000000007 /* anthropic.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000009 /* anthropic.pdf */; };
+		B00101000000000000000016 /* githubcopilot.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000018 /* githubcopilot.pdf */; };
 		B00101000000000000000008 /* AppActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000000A /* AppActions.swift */; };
 		B00101000000000000000009 /* MenuBarViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000000B /* MenuBarViewModel.swift */; };
 		B0010100000000000000000A /* MenuFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000000C /* MenuFormat.swift */; };
@@ -40,6 +41,7 @@
 		B00102000000000000000007 /* openai.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = openai.pdf; path = ../../Pictures/openai.pdf; sourceTree = SOURCE_ROOT; };
 		B00102000000000000000008 /* cursor.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = cursor.pdf; path = ../../Pictures/cursor.pdf; sourceTree = SOURCE_ROOT; };
 		B00102000000000000000009 /* anthropic.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = anthropic.pdf; path = ../../Pictures/anthropic.pdf; sourceTree = SOURCE_ROOT; };
+		B00102000000000000000018 /* githubcopilot.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = githubcopilot.pdf; path = ../../Pictures/githubcopilot.pdf; sourceTree = SOURCE_ROOT; };
 		B0010200000000000000000A /* AppActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppActions.swift; sourceTree = "<group>"; };
 		B0010200000000000000000B /* MenuBarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarViewModel.swift; sourceTree = "<group>"; };
 		B0010200000000000000000C /* MenuFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuFormat.swift; sourceTree = "<group>"; };
@@ -107,6 +109,7 @@
 				B00102000000000000000007 /* openai.pdf */,
 				B00102000000000000000008 /* cursor.pdf */,
 				B00102000000000000000009 /* anthropic.pdf */,
+				B00102000000000000000018 /* githubcopilot.pdf */,
 			);
 			name = Pictures;
 			sourceTree = "<group>";
@@ -206,6 +209,7 @@
 				B00101000000000000000005 /* openai.pdf in Resources */,
 				B00101000000000000000006 /* cursor.pdf in Resources */,
 				B00101000000000000000007 /* anthropic.pdf in Resources */,
+				B00101000000000000000016 /* githubcopilot.pdf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

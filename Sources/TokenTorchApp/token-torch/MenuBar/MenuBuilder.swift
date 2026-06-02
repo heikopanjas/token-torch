@@ -31,7 +31,7 @@ final class MenuBuilder {
         let hasResult = model.result != nil
         if let result = model.result {
             // Flatten every present report into its menu view (provider + subscription/org) and sort
-            // by the current user order, so each of the five views can be arranged independently and
+            // by the current user order, so each of the six views can be arranged independently and
             // a display-only rebuild (no refetch) reorders them immediately.
             let sections = result.results
                 .flatMap { providerResult in
@@ -81,21 +81,39 @@ final class MenuBuilder {
                     appendCursorSubscription(to: menu, quota: quota, currency: currency)
                 }
                 else {
+                    if quota.provider == "Copilot",
+                        let start = quota.billingCycleStart,
+                        let end = quota.billingCycleEnd
+                    {
+                        menu.addItem(
+                            UsageMenuItemViews.caption(
+                                "Billing cycle: \(MenuFormat.billingCycleDate(start)) → \(MenuFormat.billingCycleDate(end))"
+                            ))
+                        if !quota.windows.isEmpty {
+                            menu.addItem(UsageMenuItemViews.menuSpacer())
+                        }
+                    }
                     let windows = showAdditional ? quota.windows + quota.additionalWindows : quota.windows
                     for window in windows {
-                        let resetCaption = window.resetsAt.map(MenuFormat.resetCaption) ?? MenuFormat.noResetCaption
-                        menu.addItem(
-                            UsageMenuItemViews.costRow(
-                                label: window.label,
-                                value: String(format: "%.0f%% used", window.usedPercent),
-                                caption: resetCaption
-                            ))
+                        if quota.provider == "Copilot" {
+                            appendCopilotWindow(to: menu, window: window)
+                        }
+                        else {
+                            let resetCaption = window.resetsAt.map(MenuFormat.resetCaption) ?? MenuFormat.noResetCaption
+                            menu.addItem(
+                                UsageMenuItemViews.costRow(
+                                    label: window.label,
+                                    value: String(format: "%.0f%% used", window.usedPercent),
+                                    caption: resetCaption
+                                ))
+                        }
                     }
                     for note in quota.notes {
                         menu.addItem(UsageMenuItemViews.costRow(label: note.label, value: note.value))
                     }
                     if let credits = quota.credits, let label = ReportLabels.creditsLabel(credits, in: currency) {
-                        menu.addItem(UsageMenuItemViews.costRow(label: "On-demand credits", value: label))
+                        let creditsTitle = quota.provider == "Copilot" ? "AI Credits" : "On-demand credits"
+                        menu.addItem(UsageMenuItemViews.costRow(label: creditsTitle, value: label))
                     }
                 }
             case .org(let org):
@@ -104,6 +122,15 @@ final class MenuBuilder {
                 menu.addItem(UsageMenuItemViews.noticeRow("Click Refresh to authorize Keychain access."))
             case .error(_, let mode, let message):
                 menu.addItem(UsageMenuItemViews.errorRow(mode: mode, message: message))
+        }
+    }
+
+    private func appendCopilotWindow(to menu: NSMenu, window: QuotaWindow) {
+        if let caption = CopilotQuotaLabels.groupCaption(window) {
+            menu.addItem(UsageMenuItemViews.caption(caption))
+        }
+        for item in ReportLabels.copilotItems(window) {
+            menu.addItem(UsageMenuItemViews.costRow(label: item.label, value: item.value))
         }
     }
 

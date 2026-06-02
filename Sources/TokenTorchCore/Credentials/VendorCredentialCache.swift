@@ -6,6 +6,7 @@ enum VendorCredentialCache: @unchecked Sendable {
     private nonisolated(unsafe) static var claude: OAuthSession?
     private nonisolated(unsafe) static var codex: OAuthSession?
     private nonisolated(unsafe) static var cursor: OAuthSession?
+    private nonisolated(unsafe) static var copilot: OAuthSession?
 
     static func session(for provider: ProviderID) -> OAuthSession? {
         lock.lock()
@@ -14,6 +15,7 @@ enum VendorCredentialCache: @unchecked Sendable {
             case .claude: return claude
             case .codex: return codex
             case .cursor: return cursor
+            case .copilot: return copilot
         }
     }
 
@@ -36,6 +38,7 @@ enum VendorCredentialCache: @unchecked Sendable {
             case .claude: claude = session
             case .codex: codex = session
             case .cursor: cursor = session
+            case .copilot: copilot = session
         }
     }
 
@@ -58,6 +61,7 @@ enum VendorCredentialCache: @unchecked Sendable {
             case .claude: claude = nil
             case .codex: codex = nil
             case .cursor: cursor = nil
+            case .copilot: copilot = nil
         }
     }
 
@@ -67,5 +71,6 @@ enum VendorCredentialCache: @unchecked Sendable {
         claude = nil
         codex = nil
         cursor = nil
+        copilot = nil
     }
 }

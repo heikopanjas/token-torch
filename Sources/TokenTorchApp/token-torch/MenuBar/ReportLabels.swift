@@ -17,7 +17,13 @@ enum ReportLabels {
             case .codex: kind == .subscription ? "Codex" : "OpenAI Platform"
             case .claude: kind == .subscription ? "Claude Code" : "Anthropic API"
             case .cursor: kind == .subscription ? "Cursor" : provider.displayName
+            case .copilot: "Copilot"
         }
+    }
+
+    /// Copilot quota snapshot rows (one label/value pair per API field).
+    static func copilotItems(_ window: QuotaWindow) -> [QuotaNote] {
+        CopilotQuotaLabels.displayItems(window)
     }
 
     /// Trailing summary shown next to the provider caption: plan tier and/or price.
@@ -43,8 +49,14 @@ enum ReportLabels {
         return "\(usedText)/\(limitText)\(pctText)"
     }
 
-    /// A non-Cursor credits row (e.g. Claude `extra_usage`): "used / limit (NN% used)" or balance.
+    /// A non-Cursor credits row (e.g. Claude `extra_usage`, Copilot AI Credits).
     static func creditsLabel(_ credits: CreditsInfo, in currency: DisplayCurrency) -> String? {
+        if credits.currency == CreditsInfo.creditUnitsCurrency {
+            guard credits.limitCents > 0 || credits.usedCents > 0 else { return nil }
+            let pct = credits.utilizationPercent ?? QuotaHelpers.creditUsedPercent(usedCents: credits.usedCents, limitCents: credits.limitCents)
+            let pctText = pct.map { String(format: " (%.0f%% used)", $0) } ?? ""
+            return "\(credits.usedCents)/\(credits.limitCents)\(pctText)"
+        }
         if let balance = credits.balanceUSD {
             return CurrencyConverter.formatConverted(amount: balance, from: credits.currency, to: currency)
         }

@@ -63,6 +63,40 @@ public enum PlanBranding {
         }
     }
 
+    /// GitHub `copilot_plan` (+ optional `access_type_sku`) -> brand name (Free / Pro / Max / ...).
+    public static func copilot(copilotPlan: String?, accessTypeSKU: String?) -> String? {
+        let plan = copilotPlan?.lowercased()
+        let sku = accessTypeSKU?.lowercased()
+        if sku == "free_limited_copilot" { return "Free" }
+        guard let plan, !plan.isEmpty else { return copilotPlan }
+        switch plan {
+            case "individual", "free": return "Free"
+            case "student": return "Student"
+            case "pro", "individual_pro": return "Pro"
+            case "pro_plus", "individual_pro_plus", "pro+": return "Pro+"
+            case "individual_max": return "Max"
+            case "business": return "Business"
+            case "enterprise": return "Enterprise"
+            default: return plan.capitalized
+        }
+    }
+
+    /// GitHub Copilot -> fixed monthly USD list price (or nil for Free / Student / unknown).
+    public static func copilotPrice(copilotPlan: String?, accessTypeSKU: String?) -> String? {
+        let plan = copilotPlan?.lowercased()
+        let sku = accessTypeSKU?.lowercased()
+        if sku == "free_limited_copilot" { return nil }
+        switch plan {
+            case "individual", "free", "student": return nil
+            case "pro", "individual_pro": return "$10/mo"
+            case "pro_plus", "individual_pro_plus", "pro+": return "$39/mo"
+            case "individual_max": return "$100/mo"
+            case "business": return "$19/mo"
+            case "enterprise": return "$39/mo"
+            default: return nil
+        }
+    }
+
     /// Extracts the Max usage multiplier (e.g. `5x` / `20x`) from a `rateLimitTier` like `default_claude_max_20x`.
     private static func maxMultiplier(from rateLimitTier: String?) -> String? {
         guard let tier = rateLimitTier?.lowercased() else { return nil }

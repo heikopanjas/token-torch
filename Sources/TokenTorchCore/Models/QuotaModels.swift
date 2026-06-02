@@ -5,11 +5,34 @@ public struct QuotaWindow: Codable, Sendable, Equatable, Identifiable {
     public let label: String
     public let usedPercent: Double
     public let resetsAt: Date?
+    /// Copilot `/copilot_internal/user` quota snapshot fields (nil for other providers).
+    public let entitlement: Int?
+    public let remaining: Int?
+    public let quotaRemaining: Double?
+    public let percentRemaining: Double?
+    public let overageCount: Int?
+    public let overagePermitted: Bool?
 
-    public init(label: String, usedPercent: Double, resetsAt: Date?) {
+    public init(
+        label: String,
+        usedPercent: Double,
+        resetsAt: Date?,
+        entitlement: Int? = nil,
+        remaining: Int? = nil,
+        quotaRemaining: Double? = nil,
+        percentRemaining: Double? = nil,
+        overageCount: Int? = nil,
+        overagePermitted: Bool? = nil
+    ) {
         self.label = label
         self.usedPercent = usedPercent
         self.resetsAt = resetsAt
+        self.entitlement = entitlement
+        self.remaining = remaining
+        self.quotaRemaining = quotaRemaining
+        self.percentRemaining = percentRemaining
+        self.overageCount = overageCount
+        self.overagePermitted = overagePermitted
     }
 }
 
@@ -27,6 +50,9 @@ public struct QuotaNote: Codable, Sendable, Equatable, Identifiable {
 }
 
 public struct CreditsInfo: Codable, Sendable, Equatable {
+    /// Sentinel `currency` for non-monetary AI credit counts (GitHub Copilot).
+    public static let creditUnitsCurrency = "CREDITS"
+
     public let usedCents: UInt64
     public let limitCents: UInt64
     public let currency: String
