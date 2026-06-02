@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-01 (enable refetches, disable is display-only)
+Last updated: 2026-06-02 (rename subscription captions: Claude Code, Codex)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -306,6 +306,12 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-06-02: Rename subscription captions to Claude Code / Codex
+
+**What**: The two subscription menu/CLI captions were renamed: Claude `Claude` -> `Claude Code`, and Codex/ChatGPT `ChatGPT` -> `Codex`. The org-billing captions (`Anthropic API`, `OpenAI Platform`) and Cursor are unchanged. This reverts the earlier 2026-05-31 shortenings ("Claude Code" -> "Claude", "ChatGPT" -> "Codex"... see those entries).
+
+**How**: Menu source of truth `ReportLabels.heading(provider:kind:)` (`.claude` subscription -> "Claude Code"; `.codex` subscription -> "Codex"). For CLI parity the underlying `SubscriptionQuotaReport.forProvider(...)` strings were also updated (`ClaudeQuotaProvider` -> "Claude Code", `CodexQuotaProvider` -> "Codex"), which flows into `TerminalDisplay.subscriptionTitle`. No comparison logic keys off these strings (only `== "Cursor"`/`"OpenAI"` are used), so no behavior change. Version `3.19.3`.
 
 ### 2026-06-01: Enable refetches, disable is display-only
 

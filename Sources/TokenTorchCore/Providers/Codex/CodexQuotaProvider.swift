@@ -147,7 +147,7 @@ public enum CodexQuotaProvider {
     }
 
     public static func mapUsage(_ response: ChatGptUsageResponse) -> SubscriptionQuotaReport {
-        var report = SubscriptionQuotaReport.forProvider("ChatGPT")
+        var report = SubscriptionQuotaReport.forProvider("Codex")
         report.planTier = PlanBranding.chatGPT(response.planType)
         report.planPrice = PlanBranding.chatGPTPrice(response.planType)
 

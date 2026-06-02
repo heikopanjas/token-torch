@@ -14,8 +14,8 @@ enum ReportLabels {
     /// shared by the menu headers and the Settings provider-order list.
     static func heading(provider: ProviderID, kind: ProviderSectionKind) -> String {
         switch provider {
-            case .codex: kind == .subscription ? "ChatGPT" : "OpenAI Platform"
-            case .claude: kind == .subscription ? "Claude" : "Anthropic API"
+            case .codex: kind == .subscription ? "Codex" : "OpenAI Platform"
+            case .claude: kind == .subscription ? "Claude Code" : "Anthropic API"
             case .cursor: kind == .subscription ? "Cursor" : provider.displayName
         }
     }

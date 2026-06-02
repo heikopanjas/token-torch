@@ -144,7 +144,7 @@ public enum ClaudeQuotaProvider {
     public static func mapUsage(
         _ response: ClaudeUsageResponse, subscriptionType: String?, rateLimitTier: String? = nil
     ) -> SubscriptionQuotaReport {
-        var report = SubscriptionQuotaReport.forProvider("Claude")
+        var report = SubscriptionQuotaReport.forProvider("Claude Code")
         report.planTier = PlanBranding.claude(subscriptionType: subscriptionType, rateLimitTier: rateLimitTier)
         report.planPrice = PlanBranding.claudePrice(subscriptionType: subscriptionType, rateLimitTier: rateLimitTier)
         var windows: [QuotaWindow] = []
