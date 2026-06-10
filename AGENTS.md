@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-10 (macOS 15 deployment target)
+Last updated: 2026-06-10 (Configurable menu bar icon)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -233,6 +233,7 @@ Grand Total: €Z.ZZ ($W.WW)
 - `DisplayCurrency` (USD/EUR) + `CurrencyConverter` in `TokenTorchCore/Utilities/DisplayCurrency.swift` (pure; USD<->EUR via `Pricing.usdToEUR`, native passthrough for other source currencies).
 - Default = `Locale.current.currency` mapped to USD/EUR (`.systemDefault`, USD fallback).
 - Menu bar: General tab popup, persisted in `ProviderPreferences.displayCurrency`; changing it posts `tokenTorchDisplayChanged` to rebuild the menu (no refetch).
+- Menu bar icon: General tab **Menu bar icon** popup (`MenuBarIconProvider`: Anthropic, OpenAI, Cursor, Copilot); persisted in `ProviderPreferences.menuBarIcon` (default Cursor); posts `tokenTorchDisplayChanged` to update the status item.
 - CLI: `-c/--currency` per subcommand (the CLI can't read the app's `UserDefaults`, so it defaults to system locale).
 - Source currencies fed to the converter: USD for Cursor / Anthropic org / OpenAI org / ChatGPT credits; `extra_usage.currency` for Claude credits.
 
@@ -309,6 +310,12 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-06-10: Configurable menu bar icon
+
+**What**: General tab adds **Menu bar icon** picker (Anthropic, OpenAI, Cursor, Copilot). Persisted as `ProviderPreferences.menuBarIcon` (`MenuBarIconProvider` in Core); `MenuBarStatusIcon` loads the matching PDF; changing posts `tokenTorchDisplayChanged`.
+
+**Why**: Users want the status item to reflect their primary provider without editing code.
 
 ### 2026-06-10: macOS 15 minimum deployment target
 

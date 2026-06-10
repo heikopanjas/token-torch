@@ -105,6 +105,14 @@ import Testing
     let prefs = try JSONDecoder().decode(ProviderPreferences.self, from: Data(legacy.utf8))
     #expect(prefs.refreshIntervalMinutes == 20)
     #expect(prefs.displayCurrency == DisplayCurrency.systemDefault)
+    #expect(prefs.menuBarIcon == .cursor)
+}
+
+@Test func menuBarIconProviderMapsPdfResources() {
+    #expect(MenuBarIconProvider.anthropic.pdfResourceName == "anthropic")
+    #expect(MenuBarIconProvider.openai.pdfResourceName == "openai")
+    #expect(MenuBarIconProvider.cursor.pdfResourceName == "cursor")
+    #expect(MenuBarIconProvider.copilot.pdfResourceName == "githubcopilot")
 }
 
 @Test func providerSectionAllSectionsCoversSixMenuViews() {

@@ -126,7 +126,7 @@ Set your **Development Team** in the target’s Signing & Capabilities before di
 
 **Settings** toolbar:
 
-- **General** — refresh interval, display currency (USD/EUR), and a **Providers** table listing the six menu views (Claude Code, Anthropic API, Codex, OpenAI Platform, Cursor, Copilot): drag rows to reorder, use **Enabled** to turn each view on or off (enabling triggers a refresh; disabling is instant)
+- **General** — refresh interval, display currency (USD/EUR), **Menu bar icon** (Anthropic, OpenAI, Cursor, Copilot), and a **Providers** table listing the six menu views (Claude Code, Anthropic API, Codex, OpenAI Platform, Cursor, Copilot): drag rows to reorder, use **Enabled** to turn each view on or off (enabling triggers a refresh; disabling is instant)
 - **Claude / Codex / Cursor** — reset imported subscription credentials; Admin API key field on Claude and Codex tabs
 - **Codex** — optional **Show additional model usage** (e.g. Codex Spark)
 - **Copilot** — paste and save the fine-grained GitHub PAT

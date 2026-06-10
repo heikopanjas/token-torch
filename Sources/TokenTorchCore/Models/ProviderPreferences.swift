@@ -77,6 +77,8 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
     public var showAdditionalModelUsage: Bool
     /// User-chosen order of the six menu views (provider + subscription/org). Normalize via `orderedSections()`.
     public var sectionOrder: [ProviderSection]
+    /// Menu bar status item icon (Anthropic, OpenAI, Cursor, or Copilot PDF).
+    public var menuBarIcon: MenuBarIconProvider
 
     public init(
         claude: ProviderModeFlags = .init(),
@@ -86,7 +88,8 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         refreshIntervalMinutes: Int = 15,
         displayCurrency: DisplayCurrency = .systemDefault,
         showAdditionalModelUsage: Bool = false,
-        sectionOrder: [ProviderSection] = ProviderSection.allSections
+        sectionOrder: [ProviderSection] = ProviderSection.allSections,
+        menuBarIcon: MenuBarIconProvider = .cursor
     ) {
         self.claude = claude
         self.codex = codex
@@ -96,6 +99,7 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         self.displayCurrency = displayCurrency
         self.showAdditionalModelUsage = showAdditionalModelUsage
         self.sectionOrder = sectionOrder
+        self.menuBarIcon = menuBarIcon
     }
 
     public init(from decoder: Decoder) throws {
@@ -112,6 +116,7 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         displayCurrency = try container.decodeIfPresent(DisplayCurrency.self, forKey: .displayCurrency) ?? .systemDefault
         showAdditionalModelUsage = try container.decodeIfPresent(Bool.self, forKey: .showAdditionalModelUsage) ?? false
         sectionOrder = try container.decodeIfPresent([ProviderSection].self, forKey: .sectionOrder) ?? ProviderSection.allSections
+        menuBarIcon = try container.decodeIfPresent(MenuBarIconProvider.self, forKey: .menuBarIcon) ?? .cursor
     }
 
     /// True when at least one provider has subscription quota or org billing enabled.

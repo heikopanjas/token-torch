@@ -31,6 +31,8 @@ final class GeneralSettingsViewController: NSViewController {
     private var intervalPopup: NSPopUpButton!
     private var currencyLabel: NSTextField!
     private var currencyPopup: NSPopUpButton!
+    private var iconLabel: NSTextField!
+    private var iconPopup: NSPopUpButton!
     private let currencies = DisplayCurrency.allCases
     private var orderLabel: NSTextField!
     private var orderTable: NSTableView!
@@ -82,6 +84,23 @@ final class GeneralSettingsViewController: NSViewController {
         currencyPopup.target = self
         currencyPopup.action = #selector(currencyChanged)
         view.addSubview(currencyPopup)
+
+        y -= 16 + 16
+        iconLabel = NSTextField(labelWithString: "Menu bar icon")
+        iconLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
+        iconLabel.autoresizingMask = [.minYMargin, .width]
+        view.addSubview(iconLabel)
+
+        y -= 4 + 26
+        iconPopup = NSPopUpButton(frame: NSRect(x: x, y: y, width: controlW, height: 26), pullsDown: false)
+        iconPopup.autoresizingMask = [.minYMargin, .width]
+        for provider in MenuBarIconProvider.allCases {
+            iconPopup.addItem(withTitle: provider.displayName)
+            iconPopup.lastItem?.image = MenuBarStatusIcon.previewImage(for: provider)
+        }
+        iconPopup.target = self
+        iconPopup.action = #selector(iconChanged)
+        view.addSubview(iconPopup)
 
         y -= 16 + 16
         orderLabel = NSTextField(labelWithString: "Providers")
@@ -161,6 +180,9 @@ final class GeneralSettingsViewController: NSViewController {
         if let index = currencies.firstIndex(of: prefs.displayCurrency) {
             currencyPopup.selectItem(at: index)
         }
+        if let index = MenuBarIconProvider.allCases.firstIndex(of: prefs.menuBarIcon) {
+            iconPopup.selectItem(at: index)
+        }
         orderItems = prefs.orderedSections()
         orderTable.reloadData()
     }
@@ -178,6 +200,15 @@ final class GeneralSettingsViewController: NSViewController {
         guard currencies.indices.contains(index) else { return }
         var prefs = ProviderPreferencesStore.shared.load()
         prefs.displayCurrency = currencies[index]
+        ProviderPreferencesStore.shared.save(prefs)
+        NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
+    }
+
+    @objc private func iconChanged() {
+        let index = iconPopup.indexOfSelectedItem
+        guard MenuBarIconProvider.allCases.indices.contains(index) else { return }
+        var prefs = ProviderPreferencesStore.shared.load()
+        prefs.menuBarIcon = MenuBarIconProvider.allCases[index]
         ProviderPreferencesStore.shared.save(prefs)
         NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
     }
