@@ -76,7 +76,7 @@ final class ProviderSettingsViewController: NSViewController {
         if usesPersonalAccessToken {
             hintLabel = NSTextField(
                 wrappingLabelWithString:
-                    "Create a classic GitHub Personal Access Token with the read:user scope at github.com/settings/tokens, then paste it below. Token Torch only reads Copilot usage; it never writes back to GitHub."
+                    "Create a fine-grained GitHub Personal Access Token on your personal account with Account permission “Copilot requests” (Read-only) at github.com/settings/personal-access-tokens. Under Repository access, choose Public repositories only (or the most restrictive option available). Classic tokens (ghp_…) return HTTP 401. Token Torch only reads Copilot usage; it never writes back to GitHub."
             )
             hintLabel.frame = NSRect(x: x, y: y, width: controlW, height: 44)
             hintLabel.autoresizingMask = [.minYMargin, .width]
@@ -92,7 +92,7 @@ final class ProviderSettingsViewController: NSViewController {
 
             y -= 4 + 22
             tokenField = NSSecureTextField(frame: NSRect(x: x, y: y, width: controlW, height: 22))
-            tokenField.placeholderString = "ghp_…"
+            tokenField.placeholderString = "github_pat_…"
             tokenField.autoresizingMask = [.minYMargin, .width]
             view.addSubview(tokenField)
 

@@ -8,9 +8,35 @@ public enum CopilotQuotaProvider {
     static let quotaGroupKeys = ["chat", "completions", "premium_interactions"]
 
     public static func fetch(personalAccessToken: String) async throws -> SubscriptionQuotaReport {
-        let response: CopilotUserResponse = try await client.getJSON(
-            url: apiURL,
-            headers: copilotHeaders(token: personalAccessToken)
+        let token = try GitHubPersonalAccessToken.validateForCopilot(personalAccessToken)
+        let headers = copilotHeaders(token: token)
+        TokenTorchLog.copilot.info("Fetching Copilot quota (\(GitHubPersonalAccessToken.redactedSummary(token), privacy: .public))")
+
+        let (data, http) = try await client.data(for: apiURL, headers: headers)
+        guard (200 ..< 300).contains(http.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            TokenTorchLog.copilot.error(
+                "Copilot quota HTTP \(http.statusCode, privacy: .public): \(Redaction.redactSecrets(body), privacy: .public)"
+            )
+            throw TokenTorchError.message(
+                copilotHTTPError(statusCode: http.statusCode, body: body, token: token)
+            )
+        }
+
+        let response: CopilotUserResponse
+        do {
+            response = try JSONDecoder().decode(CopilotUserResponse.self, from: data)
+        }
+        catch {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            TokenTorchLog.copilot.error("Copilot quota decode failed: \(Redaction.redactSecrets(body), privacy: .public)")
+            throw TokenTorchError.message(
+                "Invalid Copilot usage response: \(Redaction.redactSecrets(body))"
+            )
+        }
+
+        TokenTorchLog.copilot.info(
+            "Copilot quota OK plan=\(response.copilotPlan ?? "nil", privacy: .public) sku=\(response.accessTypeSKU ?? "nil", privacy: .public)"
         )
         return mapUsage(response)
     }
@@ -165,13 +191,48 @@ public enum CopilotQuotaProvider {
 
     private static func copilotHeaders(token: String) -> [String: String] {
         [
-            "Authorization": "token \(token)",
+            "Authorization": "Bearer \(token)",
             "Accept": "application/json",
             "Editor-Version": "vscode/1.96.2",
             "Editor-Plugin-Version": "copilot-chat/0.26.7",
             "User-Agent": "GitHubCopilotChat/0.26.7",
             "X-Github-Api-Version": "2025-04-01"
         ]
+    }
+
+    private static func copilotHTTPError(statusCode: Int, body: String, token: String) -> String {
+        let redacted = Redaction.redactSecrets(body)
+        let githubMessage = parseGitHubMessage(body)
+        var lines = ["Copilot usage request failed (HTTP \(statusCode))"]
+        if let githubMessage, !githubMessage.isEmpty {
+            lines.append(githubMessage)
+        }
+        else if !redacted.isEmpty {
+            lines.append(redacted)
+        }
+
+        if statusCode == 401 {
+            switch GitHubPersonalAccessToken.classify(token) {
+                case .classic:
+                    lines.append(
+                        "Classic PATs (ghp_…) are rejected. Use a fine-grained PAT (github_pat_…) with Account permission “Copilot requests”."
+                    )
+                case .fineGrained, .oauth, .unknown:
+                    lines.append(
+                        "Check that the token is valid, not expired, and has Account permission “Copilot requests” (Read-only) on your personal account."
+                    )
+            }
+        }
+
+        return lines.joined(separator: " ")
+    }
+
+    private static func parseGitHubMessage(_ body: String) -> String? {
+        guard
+            let data = body.data(using: .utf8),
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else { return nil }
+        return json["message"] as? String
     }
 
     private static func parseResetDate(_ response: CopilotUserResponse) -> Date? {

@@ -273,7 +273,7 @@ enum TerminalDisplay {
     static func displayCopilotOrgUnavailable() {
         print()
         print(ANSIColor.yellow("Copilot organization billing is not available in \(AppBrand.displayName)."))
-        print(ANSIColor.dimmed("Use `token-torch-cli copilot --quota` for personal subscription quota (GitHub PAT with read:user scope)."))
+        print(ANSIColor.dimmed("Use `token-torch-cli copilot --quota` for personal subscription quota (fine-grained GitHub PAT with Copilot requests permission)."))
         print()
     }
 

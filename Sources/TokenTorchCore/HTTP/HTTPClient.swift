@@ -105,14 +105,25 @@ public struct HTTPClient: Sendable {
     }
 
     public func getJSON<T: Decodable>(url: URL, headers: [String: String] = [:]) async throws -> T {
+        let (data, http) = try await data(for: url, method: "GET", headers: headers)
+        return try QuotaHTTP.parseQuotaResponse(data: data, statusCode: http.statusCode, operation: "GET \(url.absoluteString)")
+    }
+
+    public func data(
+        for url: URL,
+        method: String = "GET",
+        headers: [String: String] = [:],
+        body: Data? = nil
+    ) async throws -> (Data, HTTPURLResponse) {
         var request = URLRequest(url: url)
-        request.httpMethod = "GET"
+        request.httpMethod = method
+        request.httpBody = body
         for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else {
             throw TokenTorchError.message("Invalid HTTP response")
         }
-        return try QuotaHTTP.parseQuotaResponse(data: data, statusCode: http.statusCode, operation: "GET \(url.absoluteString)")
+        return (data, http)
     }
 
     public func postJSON<T: Decodable>(

@@ -144,7 +144,7 @@ public struct UsageOrchestrator: Sendable {
         else {
             throw TokenTorchError.missingPersonalAccessToken(provider: .copilot)
         }
-        return token
+        return GitHubPersonalAccessToken.normalize(token)
     }
 
     private func requireAdminKey(provider: ProviderID) throws -> String {

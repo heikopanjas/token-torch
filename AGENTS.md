@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-10 (Release build output under .build)
+Last updated: 2026-06-10 (Remove Claude long-lived token)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -16,7 +16,7 @@ Run `/init-session` at the beginning of each new session, OR read this entire fi
 
 - **Anthropic**: token usage from Admin API; costs calculated from pricing docs.
 - **OpenAI**: completions token usage + native billed costs from `/organization/costs`.
-- **Personal subscriptions** (`--quota` on `claude`, `codex`, `cursor`, or `copilot`): rate limits and plan usage from reverse-engineered OAuth APIs (Claude/Codex/Cursor read local Keychain / auth files / Cursor SQLite on macOS) or GitHub Copilot via user-pasted PAT (`read:user`).
+- **Personal subscriptions** (`--quota` on `claude`, `codex`, `cursor`, or `copilot`): rate limits and plan usage from reverse-engineered OAuth APIs (Claude/Codex/Cursor read local Keychain / auth files / Cursor SQLite on macOS) or GitHub Copilot via fine-grained PAT (Account: **Copilot requests**).
 
 ## Mission Statement
 
@@ -25,7 +25,7 @@ Run `/init-session` at the beginning of each new session, OR read this entire fi
 ## Technology Stack
 
 - **Language:** Swift 6
-- **Platforms:** macOS 14+
+- **Platforms:** macOS 27+
 - **CLI:** ArgumentParser (`token-torch-cli`)
 - **App:** AppKit menu bar app (Xcode, `Token Torch.app`, bundle `com.panjas.tokentorch`) — `NSStatusItem` + `NSMenu` with custom-view usage items
 - **Package manager:** Swift Package Manager (`Package.swift` at repo root)
@@ -98,7 +98,7 @@ cd Sources/TokenTorchApp && xcodebuild -scheme token-torch -configuration Debug 
 - Claude Code: Keychain `Claude Code-credentials` → `~/.claude/.credentials.json`
 - ChatGPT/Codex: `~/.codex/auth.json` (or `CODEX_HOME`, `~/.config/codex`, Keychain `Codex Auth`)
 - Cursor: `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb` → Keychain `cursor-access-token`
-- GitHub Copilot: classic PAT with **`read:user`** scope, pasted in Settings → `AppKeychainStore` (`com.tokentorch.keys.copilot.personalAccessToken`); CLI `-t` / `GITHUB_TOKEN` / `COPILOT_TOKEN`
+- GitHub Copilot: fine-grained PAT with Account **Copilot requests** permission, pasted in Settings → `AppKeychainStore` (`com.tokentorch.keys.copilot.personalAccessToken`); CLI `-t` / `GITHUB_TOKEN` / `COPILOT_TOKEN`. Classic `ghp_` / `read:user` tokens are rejected (HTTP 401).
 
 These APIs are undocumented and may change; reference: [OpenUsage provider docs](https://github.com/robinebers/openusage/tree/main/docs/providers).
 
@@ -181,7 +181,7 @@ Pictures/                  # Provider icon PDFs (referenced by Xcode)
 |-------|---------|
 | `VendorCredentialsReader` / `VendorCredentialImporter` | Subscription quota OAuth: **read-only** import from vendor files/Keychain; menu bar stores a copy in Token Torch Keychain |
 | `TokenTorchVendorCredentialStore` | Token Torch-owned OAuth copies (`com.tokentorch.vendor.*`) for silent menu bar refresh |
-| `AppKeychainStore` | User-entered Admin keys (`com.tokentorch.keys.<provider>.adminKey`) |
+| `AppKeychainStore` | User-entered Admin keys (`com.tokentorch.keys.<provider>.adminKey`); Copilot PAT (`com.tokentorch.keys.copilot.personalAccessToken`) |
 
 **Strategies** (`VendorCredentialStrategy`):
 
@@ -195,7 +195,7 @@ Pictures/                  # Provider icon PDFs (referenced by Xcode)
 - Anthropic: `-a`, `--quota`, `--list-workspaces`, `--workspace`, `-s`, `-e`
 - OpenAI: `-a`, `--quota`, `--list-projects`, `--project`, `-s`, `-e`
 - Cursor: `--quota` only (no org Admin API; default prints unavailability notice)
-- Copilot: `-t`, `--quota` only (GitHub PAT with `read:user`; default prints unavailability notice)
+- Copilot: `-t`, `--quota` only (fine-grained GitHub PAT with Copilot requests; default prints unavailability notice)
 - All subcommands: `-c/--currency` (USD/EUR; defaults to system locale) via shared `CurrencyOptions` `@OptionGroup`
 - Modes: org usage (default + Admin key), personal subscription quota (`--quota`)
 
@@ -295,7 +295,7 @@ swift test
 
 ## Swift Coding Standards
 
-- Swift 6, macOS 14+ APIs
+- Swift 6, macOS 27+ APIs
 - Prefer `Sendable` and actor isolation where appropriate
 - Public APIs documented with `///` when non-obvious
 - Match existing naming and file organization under `Sources/TokenTorchCore/`
@@ -309,6 +309,36 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-06-10: Remove Claude long-lived token
+
+**What**: Reverted the optional Claude Code long-lived token (`claude setup-token`) Settings field, Keychain storage (`AppKeyKind.longLivedToken`), orchestrator bypass, and OAuth fallback path. Claude subscription quota again uses vendor OAuth credentials only.
+
+**Why**: Setup-tokens lack OAuth scopes for `/api/oauth/usage` (HTTP 403); the feature did not work reliably and added complexity.
+
+### 2026-06-10: Copilot PAT permission docs — Read-only is correct
+
+**What**: Settings/CLI/error copy now says Account **Copilot requests (Read-only)** instead of “Read and write”. Repository access guidance uses GitHub’s real options (e.g. Public repositories only), not a nonexistent “No repositories” setting.
+
+**Why**: GitHub’s fine-grained PAT UI only exposes Read-only for Copilot requests when reading quota; write is for making Copilot API calls Token Torch does not perform.
+
+### 2026-06-10: Copilot fine-grained PAT auth + logging
+
+**What**: GitHub Copilot quota now requires a fine-grained PAT (`github_pat_…`) with Account permission **Copilot requests**; classic `ghp_` / `read:user` tokens are rejected up front with a clear error. Auth header switched from `Authorization: token` to `Bearer`. Added `GitHubPersonalAccessToken` validation, `TokenTorchLog.copilot` os.Logger diagnostics (token kind/length prefix, HTTP status, plan on success), and richer 401 messages parsing GitHub's JSON `message`. Settings/CLI copy updated.
+
+**Why**: Users pasting classic PATs per old docs got silent HTTP 401; GitHub Copilot CLI docs confirm classic tokens are rejected by `/copilot_internal/user`.
+
+### 2026-06-10: macOS 27 minimum deployment target
+
+**What**: Raised the Token Torch app and TokenTorchCore SPM platform minimum from macOS 14 to macOS 27 (`MACOSX_DEPLOYMENT_TARGET` in `project.pbxproj`, `Package.swift` `.macOS(.v27)` with `swift-tools-version: 6.4`). CLI version bumped to `4.0.0` (breaking platform requirement).
+
+**Why**: Target the current macOS 27 SDK/Xcode beta toolchain the project is built with.
+
+### 2026-06-10: build.sh fails loudly when Xcode is missing
+
+**What**: Root `build.sh` now calls `require_xcode` before any build steps. If `xcodebuild` is unavailable (e.g. `xcode-select` points at Command Line Tools only), the script prints the active developer directory, suggests `sudo xcode-select -s …` for any installed `Xcode.app` / `Xcode-beta.app`, and shows a one-off `DEVELOPER_DIR=… ./build.sh` alternative. Version lookup uses a single `-showBuildSettings` pass with explicit errors instead of `2>/dev/null` + silent `set -e` exit.
+
+**Why**: Archive/export requires full Xcode; the old script exited immediately with no output when CLT was active.
 
 ### 2026-06-10: Release build output under .build
 

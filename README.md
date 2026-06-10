@@ -16,7 +16,7 @@ Org-wide usage is the default. Scope with `--workspace` (Anthropic) or `--projec
 
 ## Requirements
 
-- macOS 14+
+- macOS 27+
 - Xcode 16+ / Swift 6 toolchain
 
 ## Build

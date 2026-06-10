@@ -6,7 +6,7 @@ public enum Redaction {
     ]
 
     private static let prefixes = [
-        "eyJhbG", "eyJ", "sk-ant-admin-", "sk-admin-", "sk-ant-api-", "sk-ant-", "sk-proj-", "sk-"
+        "github_pat_", "ghp_", "ghu_", "gho_", "eyJhbG", "eyJ", "sk-ant-admin-", "sk-admin-", "sk-ant-api-", "sk-ant-", "sk-proj-", "sk-"
     ]
 
     public static func redactSecrets(_ text: String) -> String {

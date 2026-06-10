@@ -476,6 +476,19 @@ import Testing
     #expect(PlanBranding.claudePrice(subscriptionType: "team", rateLimitTier: nil) == nil)
 }
 
+@Test func githubPATValidationForCopilot() throws {
+    #expect(GitHubPersonalAccessToken.classify("ghp_abc") == .classic)
+    #expect(GitHubPersonalAccessToken.classify("github_pat_abc") == .fineGrained)
+    #expect(GitHubPersonalAccessToken.normalize("  github_pat_x  ") == "github_pat_x")
+
+    #expect(throws: TokenTorchError.self) {
+        try GitHubPersonalAccessToken.validateForCopilot("ghp_classic_token")
+    }
+
+    let validated = try GitHubPersonalAccessToken.validateForCopilot("github_pat_test")
+    #expect(validated == "github_pat_test")
+}
+
 @Test func planBrandingCopilotNamesAndPrices() {
     #expect(PlanBranding.copilot(copilotPlan: "individual_max", accessTypeSKU: "max_monthly_subscriber_quota") == "Max")
     #expect(PlanBranding.copilotPrice(copilotPlan: "individual_max", accessTypeSKU: "max_monthly_subscriber_quota") == "$100/mo")

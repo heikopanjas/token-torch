@@ -7,7 +7,7 @@ struct TokenTorchCLI: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "token-torch-cli",
         abstract: "Monitor Anthropic, OpenAI, Cursor, and Copilot usage (org billing and personal subscription quotas)",
-        version: "3.20.7",
+        version: "4.1.2",
         subcommands: [AnthropicCommand.self, OpenAICommand.self, CursorCommand.self, CopilotCommand.self]
     )
 
@@ -191,7 +191,7 @@ struct CursorCommand: AsyncParsableCommand {
 struct CopilotCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(commandName: "copilot")
 
-    @Option(name: .shortAndLong, help: "GitHub Personal Access Token (read:user scope)")
+    @Option(name: .shortAndLong, help: "Fine-grained GitHub PAT (Account: Copilot requests, Read-only)")
     var token: String?
 
     @Flag(name: .long, help: "Show GitHub Copilot personal subscription quota")
@@ -244,12 +244,12 @@ private func resolveAdminKey(flag: String?, provider: ProviderID) throws -> Stri
 }
 
 private func resolvePersonalAccessToken(flag: String?) throws -> String {
-    if let flag, !flag.isEmpty { return flag }
+    if let flag, !flag.isEmpty { return GitHubPersonalAccessToken.normalize(flag) }
     let env = ProcessInfo.processInfo.environment
-    if let github = env["GITHUB_TOKEN"], !github.isEmpty { return github }
-    if let copilot = env["COPILOT_TOKEN"], !copilot.isEmpty { return copilot }
+    if let github = env["GITHUB_TOKEN"], !github.isEmpty { return GitHubPersonalAccessToken.normalize(github) }
+    if let copilot = env["COPILOT_TOKEN"], !copilot.isEmpty { return GitHubPersonalAccessToken.normalize(copilot) }
     if let stored = try? AppKeychainStore.shared.load(provider: .copilot, kind: .personalAccessToken), !stored.isEmpty {
-        return stored
+        return GitHubPersonalAccessToken.normalize(stored)
     }
     throw TokenTorchError.missingPersonalAccessToken(provider: .copilot)
 }

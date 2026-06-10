@@ -59,10 +59,64 @@ for arg in "$@"; do
     esac
 done
 
-VERSION=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -showBuildSettings 2>/dev/null \
-    | awk '/MARKETING_VERSION/ { print $3; exit }')
-BUILD_NUMBER=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -showBuildSettings 2>/dev/null \
-    | awk '/CURRENT_PROJECT_VERSION/ { print $3; exit }')
+require_xcode() {
+    if xcodebuild -version &>/dev/null; then
+        return 0
+    fi
+
+    echo "Error: xcodebuild requires full Xcode.app, not Command Line Tools alone." >&2
+    echo "" >&2
+
+    local active_dir="(unknown)"
+    if active_dir="$(xcode-select -p 2>/dev/null)"; then
+        echo "Active developer directory: ${active_dir}" >&2
+    fi
+
+    local -a xcode_apps=()
+    local candidate
+    for candidate in /Applications/Xcode.app /Applications/Xcode-beta.app; do
+        if [ -d "$candidate" ]; then
+            xcode_apps+=("$candidate")
+        fi
+    done
+
+    if [ "${#xcode_apps[@]}" -gt 0 ]; then
+        echo "" >&2
+        echo "Found Xcode installation(s). Point xcode-select at one of them:" >&2
+        for candidate in "${xcode_apps[@]}"; do
+            echo "  sudo xcode-select -s \"${candidate}/Contents/Developer\"" >&2
+        done
+        echo "" >&2
+        echo "Or run this build once without changing the global setting:" >&2
+        echo "  DEVELOPER_DIR=\"${xcode_apps[0]}/Contents/Developer\" $(basename "$0")" >&2
+    else
+        echo "" >&2
+        echo "Install Xcode from the App Store, then run:" >&2
+        echo "  sudo xcode-select -s /Applications/Xcode.app/Contents/Developer" >&2
+    fi
+
+    exit 1
+}
+
+read_build_version() {
+    local settings
+    if ! settings="$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -showBuildSettings 2>&1)"; then
+        echo "Error: failed to read build settings from ${PROJECT}" >&2
+        echo "$settings" >&2
+        exit 1
+    fi
+
+    VERSION="$(echo "$settings" | awk '/MARKETING_VERSION/ { print $3; exit }')"
+    BUILD_NUMBER="$(echo "$settings" | awk '/CURRENT_PROJECT_VERSION/ { print $3; exit }')"
+
+    if [ -z "$VERSION" ] || [ -z "$BUILD_NUMBER" ]; then
+        echo "Error: could not read MARKETING_VERSION or CURRENT_PROJECT_VERSION from ${PROJECT}" >&2
+        exit 1
+    fi
+}
+
+require_xcode
+read_build_version
 
 echo "==> Token Torch ${VERSION} (${BUILD_NUMBER})"
 echo ""
