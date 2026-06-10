@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-02 (Match Settings toolbar provider icons to SF Symbol size)
+Last updated: 2026-06-10 (Release build output under .build)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -49,9 +49,9 @@ swift test
 open Sources/TokenTorchApp/token-torch.xcodeproj
 cd Sources/TokenTorchApp && xcodebuild -scheme token-torch -configuration Debug build
 
-# Release archive + Developer ID export (from Sources/TokenTorchApp/)
-cd Sources/TokenTorchApp && ./build.sh
-cd Sources/TokenTorchApp && ./build.sh --clean --notarize   # requires ExportOptions.plist + notarytool profile TokenTorch-Notarize
+# Release archive + Developer ID export (from repo root)
+./build.sh
+./build.sh --clean --notarize   # requires Sources/TokenTorchApp/ExportOptions.plist + notarytool profile TokenTorch-Notarize
 ```
 
 ### Project-specific run examples
@@ -309,6 +309,20 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-06-10: Release build output under .build
+
+**What**: Root `build.sh` now writes archive, export, and notarization zip under `.build/` (same directory tree as SPM), instead of `./build/`. `--clean` removes only release artifacts (`.xcarchive`, `export/`, `TokenTorch.zip`), not the whole `.build/` tree.
+
+**Why**: One ignored build directory at the repo root; avoids a separate `build/` folder.
+
+### 2026-06-02: Repo-root build.sh for Token Torch release
+
+**What**: Replaced the copied Senor Particle `build.sh` at the repository root with a Token Torch release script. It archives `token-torch` (Release), exports with `Sources/TokenTorchApp/ExportOptions.plist` (Developer ID, `com.panjas.tokentorch`), and optionally notarizes via `TokenTorch-Notarize` (override with `NOTARIZE_PROFILE`). Build output goes to `.build/` at the repo root (alongside SPM artifacts).
+
+**Why**: Root-level release workflow should match the product; paths are anchored to the script location so it runs from anywhere.
+
+**How**: `build.sh` at repo root (same options as `Sources/TokenTorchApp/build.sh`: `--clean`, `--notarize`, notary profile check). AGENTS build commands updated to use `./build.sh`.
 
 ### 2026-06-02: Match Settings toolbar provider icons to SF Symbol size
 
