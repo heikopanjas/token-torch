@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-10 (Remove Claude long-lived token)
+Last updated: 2026-06-10 (macOS 15 deployment target)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -25,7 +25,7 @@ Run `/init-session` at the beginning of each new session, OR read this entire fi
 ## Technology Stack
 
 - **Language:** Swift 6
-- **Platforms:** macOS 27+
+- **Platforms:** macOS 15+
 - **CLI:** ArgumentParser (`token-torch-cli`)
 - **App:** AppKit menu bar app (Xcode, `Token Torch.app`, bundle `com.panjas.tokentorch`) — `NSStatusItem` + `NSMenu` with custom-view usage items
 - **Package manager:** Swift Package Manager (`Package.swift` at repo root)
@@ -295,7 +295,7 @@ swift test
 
 ## Swift Coding Standards
 
-- Swift 6, macOS 27+ APIs
+- Swift 6, macOS 15+ APIs
 - Prefer `Sendable` and actor isolation where appropriate
 - Public APIs documented with `///` when non-obvious
 - Match existing naming and file organization under `Sources/TokenTorchCore/`
@@ -309,6 +309,12 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-06-10: macOS 15 minimum deployment target
+
+**What**: Lowered the Token Torch app and TokenTorchCore SPM platform minimum from macOS 27 to macOS 15 (`MACOSX_DEPLOYMENT_TARGET` in `project.pbxproj`, `Package.swift` `.macOS(.v15)`).
+
+**Why**: macOS 27 was too restrictive; macOS 15 (Sequoia) is the intended floor for current builds.
 
 ### 2026-06-10: Remove Claude long-lived token
 

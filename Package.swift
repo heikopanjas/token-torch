@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "token-torch-swift",
-    platforms: [.macOS(.v27)],
+    platforms: [.macOS(.v15)],
     products: [
         .library(name: "TokenTorchCore", targets: ["TokenTorchCore"]),
         .executable(name: "token-torch-cli", targets: ["TokenTorchCli"])

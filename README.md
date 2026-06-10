@@ -1,23 +1,26 @@
 # Token Torch
 
-macOS-native **Token Torch** helps you see where your LLM usage goes — before the invoice or rate limit does. It unifies **organization billing** (Anthropic and OpenAI Admin APIs) and **personal subscription quotas** (Claude Code, ChatGPT/Codex, Cursor) into one Swift stack: shared **TokenTorchCore**, terminal **token-torch-cli**, and menu bar **Token Torch**.
+macOS-native **Token Torch** helps you see where your LLM usage goes — before the invoice or rate limit does. It unifies **organization billing** (Anthropic and OpenAI Admin APIs) and **personal subscription quotas** (Claude Code, Codex, Cursor, GitHub Copilot) into one Swift stack: shared **TokenTorchCore**, terminal **token-torch-cli**, and menu bar **Token Torch**.
 
-Credentials stay on your Mac. Token Torch reads vendor OAuth and Admin keys **read-only** and never writes back to Claude Code, Codex, or Cursor.
+Credentials stay on your Mac. Token Torch reads vendor OAuth and Admin keys **read-only** and never writes back to Claude Code, Codex, Cursor, or GitHub.
 
 ## What it does
 
 | Provider | Org billing (Admin API) | Personal quota (`--quota`) |
 |----------|-------------------------|----------------------------|
 | **Anthropic** (`anthropic`, alias `claude`) | Token usage + model costs from pricing docs | Claude Code rate limits and plan usage |
-| **OpenAI** (`openai`, alias `codex`) | Completions usage + native billed costs | ChatGPT/Codex subscription limits |
+| **OpenAI** (`openai`, alias `codex`) | Completions usage + native billed costs | Codex / ChatGPT subscription limits |
 | **Cursor** (`cursor`) | Not available | Plan usage (Auto, API, total meters) |
+| **GitHub Copilot** (`copilot`) | Not available | AI Credits and monthly quotas via fine-grained PAT |
 
 Org-wide usage is the default. Scope with `--workspace` (Anthropic) or `--project` (OpenAI; use `default` for unscoped usage).
 
+All subcommands accept `-c` / `--currency` (`USD` or `EUR`; defaults to your system locale).
+
 ## Requirements
 
-- macOS 27+
-- Xcode 16+ / Swift 6 toolchain
+- macOS 15+
+- Xcode 16+ / Swift 6 toolchain (full Xcode required for the menu bar app and `./build.sh` release builds)
 
 ## Build
 
@@ -32,19 +35,34 @@ Binaries:
 - `.build/debug/token-torch-cli` — CLI (Swift Package)
 - `Sources/TokenTorchApp/.build/Products/Debug/Token Torch.app` — menu bar app (Xcode)
 
+### Release (Developer ID export)
+
+From the repository root:
+
+```bash
+./build.sh                  # archive + export to .build/export/
+./build.sh --clean          # clean release artifacts first
+./build.sh --notarize       # submit and staple (requires notarytool profile)
+```
+
+If `xcodebuild` is missing, the script prints how to point `xcode-select` at Xcode (or use `DEVELOPER_DIR=… ./build.sh` once).
+
 ## CLI
 
 Command name: `token-torch-cli`. Top-level flags: `--version` / `-V`.
 
 ### Subscription quotas
 
-Reads local OAuth on macOS (no Admin API key):
+Reads local OAuth on macOS (Claude, Codex, Cursor) or a user-pasted GitHub PAT (Copilot). No Admin API key required:
 
 ```bash
 .build/debug/token-torch-cli anthropic --quota   # alias: claude
 .build/debug/token-torch-cli openai --quota      # alias: codex
 .build/debug/token-torch-cli cursor --quota
+.build/debug/token-torch-cli copilot --quota
 ```
+
+Copilot also accepts `-t` / `GITHUB_TOKEN` / `COPILOT_TOKEN` for the fine-grained PAT.
 
 ### Organization billing
 
@@ -63,6 +81,9 @@ Requires an **Admin API key** (not a regular API key):
 .build/debug/token-torch-cli anthropic -s 2026-05
 .build/debug/token-torch-cli openai -s 2026-05-01 -e 2026-05-15
 
+# Display in EUR
+.build/debug/token-torch-cli anthropic -c EUR
+
 # List workspaces / projects
 .build/debug/token-torch-cli anthropic --list-workspaces
 .build/debug/token-torch-cli openai --list-projects
@@ -72,15 +93,18 @@ Requires an **Admin API key** (not a regular API key):
 .build/debug/token-torch-cli openai --project proj_abc
 ```
 
-`cursor` without `--quota` prints a notice that org billing is not supported.
+`cursor` and `copilot` without `--quota` print a notice that org billing is not supported.
 
 ### Quota credential sources (macOS)
 
 | Tool | Where Token Torch looks (read-only) |
-|------|------------------------------|
+|------|-------------------------------------|
 | Claude Code | Keychain `Claude Code-credentials`, then `~/.claude/.credentials.json` |
 | Codex | `~/.codex/auth.json`, `CODEX_HOME`, `~/.config/codex`, Keychain `Codex Auth` |
 | Cursor | `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`, Keychain `cursor-access-token` |
+| GitHub Copilot | Fine-grained PAT pasted in Settings or passed via `-t` / env (see below) |
+
+**Copilot PAT:** create a fine-grained personal access token at [github.com/settings/personal-access-tokens](https://github.com/settings/personal-access-tokens) with Account permission **Copilot requests (Read-only)**. Classic `ghp_` tokens are rejected (HTTP 401).
 
 Quota APIs are undocumented and may change. Reference: [OpenUsage provider docs](https://github.com/robinebers/openusage/tree/main/docs/providers).
 
@@ -100,14 +124,15 @@ open .build/Products/Debug/Token\ Torch.app
 
 Set your **Development Team** in the target’s Signing & Capabilities before distributing. Bundle ID: `com.panjas.tokentorch`.
 
-**Settings** (per provider):
+**Settings** toolbar:
 
-- **General** — refresh interval, display currency, and a **Providers** table listing the five menu views (Claude, Anthropic API, ChatGPT, OpenAI Platform, Cursor): drag rows to set their order in the menu, and use the **Enabled** checkbox to turn each view on or off (toggling refreshes immediately)
-- **Claude / Codex** — reset subscription credentials and the Admin API key field (enable/disable moved to the General **Providers** table)
-- **Cursor** — reset subscription credentials only (no org billing)
+- **General** — refresh interval, display currency (USD/EUR), and a **Providers** table listing the six menu views (Claude Code, Anthropic API, Codex, OpenAI Platform, Cursor, Copilot): drag rows to reorder, use **Enabled** to turn each view on or off (enabling triggers a refresh; disabling is instant)
+- **Claude / Codex / Cursor** — reset imported subscription credentials; Admin API key field on Claude and Codex tabs
+- **Codex** — optional **Show additional model usage** (e.g. Codex Spark)
+- **Copilot** — paste and save the fine-grained GitHub PAT
+- **Advanced** — **Reset Keychain…** deletes all Token Torch-owned Keychain items (`com.tokentorch.*`); vendor logins are not touched
 
 The app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider so routine refresh does not re-prompt macOS for vendor Keychain access. On first launch after upgrading from **burn**, `CredentialStoreMigration` copies legacy `com.burn.*` Keychain entries. **token-torch-cli** reads vendor stores directly (also runs migration on startup).
-
 
 ## Architecture
 
@@ -125,10 +150,10 @@ UI targets never call vendor URLs directly — only `UsageOrchestrator` and sett
 Package.swift
 Sources/
 ├── TokenTorchCore/          # Library: providers, credentials, orchestration
-├── TokenTorchCli/          # Terminal CLI
-└── TokenTorchApp/      # Xcode menu bar project (Token Torch.app)
+├── TokenTorchCli/           # Terminal CLI
+└── TokenTorchApp/           # Xcode menu bar project (Token Torch.app)
 Tests/TokenTorchCoreTests/
-Pictures/              # Provider icons (PDF/SVG)
+Pictures/                    # Provider icon PDFs (referenced by Xcode)
 ```
 
 ### Credential stores
@@ -137,7 +162,7 @@ Pictures/              # Provider icons (PDF/SVG)
 |-------|---------|
 | `VendorCredentialsReader` / `VendorCredentialImporter` | Read-only import from vendor Keychain/files for subscription quota |
 | `TokenTorchVendorCredentialStore` | Token Torch-owned OAuth copies (`com.tokentorch.vendor.*`) for silent menu bar refresh |
-| `AppKeychainStore` | User-entered Admin keys (`com.tokentorch.keys.<provider>.adminKey`) |
+| `AppKeychainStore` | User-entered Admin keys (`com.tokentorch.keys.<provider>.adminKey`); Copilot PAT (`com.tokentorch.keys.copilot.personalAccessToken`) |
 
 ## Tests
 
@@ -145,13 +170,13 @@ Pictures/              # Provider icons (PDF/SVG)
 swift test
 ```
 
-Mapper, date, redaction, and credential-guard tests run offline. Live quota tests require macOS vendor logins.
+Offline unit tests cover mappers, dates, redaction, credential guards, and Keychain round-trips. Live quota tests require macOS vendor logins and a Copilot PAT.
 
 ## Security
 
-- Never commit API keys or OAuth tokens
+- Never commit API keys, OAuth tokens, or PATs
 - User-visible errors are redacted via `Redaction`
-- Quota mode does not refresh or write vendor credentials; on 401/403, re-login in the vendor tool
+- Quota mode does not refresh or write vendor credentials; on 401/403, re-login in the vendor tool (or replace the Copilot PAT)
 - Keychain access uses Security framework APIs in **TokenTorchCore** (no `security` CLI subprocess)
 
 ## Development
