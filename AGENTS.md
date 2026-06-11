@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-11 (General settings providers hint)
+Last updated: 2026-06-11 (Swift 6.2 toolchain pin)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -24,7 +24,7 @@ Run `/init-session` at the beginning of each new session, OR read this entire fi
 
 ## Technology Stack
 
-- **Language:** Swift 6
+- **Language:** Swift 6.2 (`swift-tools-version: 6.2` in `Package.swift`; Xcode `SWIFT_VERSION = 6.0` language mode)
 - **Platforms:** macOS 15+ (Apple Silicon / arm64)
 - **CLI:** ArgumentParser (`token-torch-cli`)
 - **App:** AppKit menu bar app (Xcode, `Token Torch.app`, bundle `com.panjas.tokentorch`) — `NSStatusItem` + `NSMenu` with custom-view usage items
@@ -298,7 +298,7 @@ swift test
 
 ## Swift Coding Standards
 
-- Swift 6, macOS 15+ APIs
+- Swift 6.2, macOS 15+ APIs
 - Prefer `Sendable` and actor isolation where appropriate
 - Public APIs documented with `///` when non-obvious
 - Match existing naming and file organization under `Sources/TokenTorchCore/`
@@ -312,6 +312,14 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-06-11: Pin Swift toolchain to 6.2
+
+**What**: `Package.swift` `swift-tools-version` lowered from `6.4` to `6.2`. Docs require Swift 6.2 (not 6.3/6.4). No source changes needed — the codebase does not use newer-only language or PackageDescription APIs.
+
+**Why**: Downstream builds must compile with Swift 6.2; avoid manifest or API drift tied to Xcode beta 6.4.
+
+**How**: `Package.swift`, `AGENTS.md`, `README.md`. Version `4.2.13`.
 
 ### 2026-06-11: General tab providers table hint
 

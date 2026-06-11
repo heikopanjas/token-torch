@@ -20,7 +20,7 @@ All subcommands accept `-c` / `--currency` (`USD` or `EUR`; defaults to your sys
 ## Requirements
 
 - macOS 15+ (Apple Silicon)
-- Xcode 16+ / Swift 6 toolchain (full Xcode required for the menu bar app and `./build.sh` release builds)
+- Xcode 16+ with **Swift 6.2** toolchain (full Xcode required for the menu bar app and `./build.sh` release builds; do not require Swift 6.3/6.4)
 
 ## Build
 
