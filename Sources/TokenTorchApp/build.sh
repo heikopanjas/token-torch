@@ -9,6 +9,10 @@ ARCHIVE_PATH="${BUILD_DIR}/${APP_NAME}.xcarchive"
 EXPORT_PATH="${BUILD_DIR}/export"
 EXPORT_PLIST="ExportOptions.plist"
 NOTARIZE_PROFILE="${NOTARIZE_PROFILE:-TokenTorch-Notarize}"
+# Apple Silicon only — not a universal/Intel build. Architecture comes from Xcode
+# ARCHS=arm64 (project + target). generic/platform=macOS is required for archive
+# (xcodebuild rejects arch= on "Any Mac").
+BUILD_ARCH="arm64"
 DESTINATION="generic/platform=macOS"
 TEAM_ID="8J2G689FCZ"
 
@@ -20,6 +24,7 @@ usage() {
 Usage: $(basename "$0") [OPTIONS]
 
 Build, export, and optionally notarize Token Torch for direct distribution (Developer ID).
+Apple Silicon (arm64) only — not a universal binary.
 
 Run from Sources/TokenTorchApp/. Requires ExportOptions.plist with a valid Developer ID
 provisioning profile for com.panjas.tokentorch.

@@ -8,14 +8,19 @@ final class ProviderSettingsViewController: NSViewController {
     private let keychain = AppKeychainStore.shared
     private let preferences = ProviderPreferencesStore.shared
 
-    private var hintLabel: NSTextField!
+    private static let sectionGap: CGFloat = 24
+
+    private var resetHintLabel: NSTextField!
     private var resetButton: NSButton!
+    private var tokenHintLabel: NSTextField!
     private var additionalUsageToggle: NSButton?
+    private var additionalUsageHintLabel: NSTextField?
     private var tokenLabel: NSTextField!
     private var tokenField: NSSecureTextField!
     private var saveTokenButton: NSButton!
     private var clearTokenButton: NSButton!
     private var adminKeyLabel: NSTextField!
+    private var adminKeyHintLabel: NSTextField!
     private var adminKeyField: NSSecureTextField!
     private var saveKeyButton: NSButton!
     private var clearKeyButton: NSButton!
@@ -30,9 +35,12 @@ final class ProviderSettingsViewController: NSViewController {
     }
 
     private var preferredHeight: CGFloat {
-        provider.supportsOrgBilling
-            ? SettingsStyle.providerPaneHeight
-            : SettingsStyle.providerQuotaOnlyPaneHeight
+        switch provider {
+            case .codex: SettingsStyle.providerPaneHeight + 40
+            case .copilot: SettingsStyle.copilotPaneHeight
+            case .claude: SettingsStyle.providerPaneHeight
+            case .cursor: SettingsStyle.providerQuotaOnlyPaneHeight
+        }
     }
 
     init(provider: ProviderID) {
@@ -50,47 +58,38 @@ final class ProviderSettingsViewController: NSViewController {
         let h = preferredHeight
         let x = SettingsStyle.contentPadding
         let controlW = w - 2 * x
-        var y = h - x - 44
+        var y = h - SettingsStyle.contentPadding - 22
 
         view = NSView(frame: NSRect(x: 0, y: 0, width: w, height: h))
 
         if usesVendorOAuth {
-            hintLabel = NSTextField(
-                wrappingLabelWithString:
-                    "Clears \(AppBrand.displayName)'s copied subscription credentials only. Vendor app logins are not changed. Use after re-login in Claude Code, Codex CLI, or Cursor IDE."
-            )
-            hintLabel.frame = NSRect(x: x, y: y, width: controlW, height: 44)
-            hintLabel.autoresizingMask = [.minYMargin, .width]
-            hintLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-            hintLabel.textColor = .secondaryLabelColor
-            view.addSubview(hintLabel)
-
-            y -= 16 + 22
             resetButton = NSButton(title: "Reset subscription credentials", target: self, action: #selector(resetCredentials))
             resetButton.bezelStyle = .rounded
-            resetButton.frame = NSRect(x: x, y: y, width: 220, height: 22)
+            resetButton.frame = NSRect(x: x, y: y, width: 240, height: 22)
             resetButton.autoresizingMask = [.minYMargin]
             view.addSubview(resetButton)
+
+            resetHintLabel = SettingsLayout.makeHintLabel(ProviderSettingsCopy.resetHint(for: provider))
+            let resetHintHeight = SettingsLayout.measuredHintHeight(resetHintLabel, width: controlW)
+            y -= SettingsLayout.groupedControlGap + resetHintHeight
+            resetHintLabel.frame = NSRect(x: x, y: y, width: controlW, height: resetHintHeight)
+            view.addSubview(resetHintLabel)
         }
 
         if usesPersonalAccessToken {
-            hintLabel = NSTextField(
-                wrappingLabelWithString:
-                    "Create a fine-grained GitHub Personal Access Token on your personal account with Account permission “Copilot requests” (Read-only) at github.com/settings/personal-access-tokens. Under Repository access, choose Public repositories only (or the most restrictive option available). Classic tokens (ghp_…) return HTTP 401. Token Torch only reads Copilot usage; it never writes back to GitHub."
-            )
-            hintLabel.frame = NSRect(x: x, y: y, width: controlW, height: 44)
-            hintLabel.autoresizingMask = [.minYMargin, .width]
-            hintLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-            hintLabel.textColor = .secondaryLabelColor
-            view.addSubview(hintLabel)
-
-            y -= 16 + 16
+            y = h - SettingsStyle.contentPadding - 16
             tokenLabel = NSTextField(labelWithString: "GitHub Personal Access Token")
             tokenLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
             tokenLabel.autoresizingMask = [.minYMargin, .width]
             view.addSubview(tokenLabel)
 
-            y -= 4 + 22
+            tokenHintLabel = SettingsLayout.makeHintLabel(ProviderSettingsCopy.personalAccessTokenHint())
+            let tokenHintHeight = SettingsLayout.measuredHintHeight(tokenHintLabel, width: controlW)
+            y -= 4 + tokenHintHeight
+            tokenHintLabel.frame = NSRect(x: x, y: y, width: controlW, height: tokenHintHeight)
+            view.addSubview(tokenHintLabel)
+
+            y -= SettingsLayout.groupedControlGap + 22
             tokenField = NSSecureTextField(frame: NSRect(x: x, y: y, width: controlW, height: 22))
             tokenField.placeholderString = "github_pat_…"
             tokenField.autoresizingMask = [.minYMargin, .width]
@@ -110,27 +109,22 @@ final class ProviderSettingsViewController: NSViewController {
             view.addSubview(clearTokenButton)
         }
 
-        if provider == .codex {
-            y -= 16 + 22
-            let toggle = NSButton(
-                checkboxWithTitle: "Show additional model usage (e.g. Codex Spark)",
-                target: self,
-                action: #selector(additionalUsageChanged)
-            )
-            toggle.frame = NSRect(x: x, y: y, width: controlW, height: 22)
-            toggle.autoresizingMask = [.minYMargin, .width]
-            view.addSubview(toggle)
-            additionalUsageToggle = toggle
-        }
-
         if provider.supportsOrgBilling {
-            y -= 16 + 16
+            y -= Self.sectionGap + 16
             adminKeyLabel = NSTextField(labelWithString: "Admin API key")
             adminKeyLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
             adminKeyLabel.autoresizingMask = [.minYMargin, .width]
             view.addSubview(adminKeyLabel)
 
-            y -= 4 + 22
+            if let adminHint = ProviderSettingsCopy.adminKeyHint(for: provider) {
+                adminKeyHintLabel = SettingsLayout.makeHintLabel(adminHint)
+                let adminHintHeight = SettingsLayout.measuredHintHeight(adminKeyHintLabel, width: controlW)
+                y -= 4 + adminHintHeight
+                adminKeyHintLabel.frame = NSRect(x: x, y: y, width: controlW, height: adminHintHeight)
+                view.addSubview(adminKeyHintLabel)
+            }
+
+            y -= SettingsLayout.groupedControlGap + 22
             adminKeyField = NSSecureTextField(frame: NSRect(x: x, y: y, width: controlW, height: 22))
             adminKeyField.placeholderString = "Admin key"
             adminKeyField.autoresizingMask = [.minYMargin, .width]
@@ -148,6 +142,26 @@ final class ProviderSettingsViewController: NSViewController {
             clearKeyButton.frame = NSRect(x: x + 98, y: y, width: 90, height: 22)
             clearKeyButton.autoresizingMask = [.minYMargin]
             view.addSubview(clearKeyButton)
+        }
+
+        if provider == .codex {
+            y -= Self.sectionGap + 22
+            let toggle = NSButton(
+                checkboxWithTitle: "Show additional model usage (e.g. Codex Spark)",
+                target: self,
+                action: #selector(additionalUsageChanged)
+            )
+            toggle.frame = NSRect(x: x, y: y, width: controlW, height: 22)
+            toggle.autoresizingMask = [.minYMargin, .width]
+            view.addSubview(toggle)
+            additionalUsageToggle = toggle
+
+            let usageHint = SettingsLayout.makeHintLabel(ProviderSettingsCopy.additionalModelUsageHint())
+            let usageHintHeight = SettingsLayout.measuredHintHeight(usageHint, width: controlW)
+            y -= SettingsLayout.groupedControlGap + usageHintHeight
+            usageHint.frame = NSRect(x: x, y: y, width: controlW, height: usageHintHeight)
+            view.addSubview(usageHint)
+            additionalUsageHintLabel = usageHint
         }
 
         y -= 16 + 16

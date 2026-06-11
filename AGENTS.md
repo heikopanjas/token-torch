@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-11 (VAT display fixes)
+Last updated: 2026-06-11 (General settings providers hint)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -25,7 +25,7 @@ Run `/init-session` at the beginning of each new session, OR read this entire fi
 ## Technology Stack
 
 - **Language:** Swift 6
-- **Platforms:** macOS 15+
+- **Platforms:** macOS 15+ (Apple Silicon / arm64)
 - **CLI:** ArgumentParser (`token-torch-cli`)
 - **App:** AppKit menu bar app (Xcode, `Token Torch.app`, bundle `com.panjas.tokentorch`) — `NSStatusItem` + `NSMenu` with custom-view usage items
 - **Package manager:** Swift Package Manager (`Package.swift` at repo root)
@@ -233,6 +233,7 @@ Grand Total: €Z.ZZ ($W.WW)
 - `DisplayCurrency` (USD/EUR) + `CurrencyConverter` in `TokenTorchCore/Utilities/DisplayCurrency.swift` (pure; USD<->EUR via `Pricing.usdToEUR`, native passthrough for other source currencies).
 - Default = `Locale.current.currency` mapped to USD/EUR (`.systemDefault`, USD fallback).
 - Menu bar: General tab popup, persisted in `ProviderPreferences.displayCurrency`; changing it posts `tokenTorchDisplayChanged` to rebuild the menu (no refetch).
+- Start at login: General tab **Start at login** checkbox; uses `SMAppService.mainApp` register/unregister (system-managed login item, not `ProviderPreferences`).
 - VAT / gross vs net: General tab **VAT rate (%)** and **Automatically deduct VAT** toggle, persisted as `ProviderPreferences.vatRatePercent` and `automaticallyDeductVAT`. Entering a positive rate saves on field blur (not just Enter), auto-enables deduction, and applies to plan list prices (`$20/mo`) via `DisplayPriceOptions.formatPlanPrice`. Other menu amounts use `DisplayPriceOptions` (vendor gross incl. VAT; deduct divides by `1 + rate/100`). Posts `tokenTorchDisplayChanged` and repopulates the cached menu immediately.
 - Menu bar icon: General tab **Menu bar icon** popup (`MenuBarIconProvider`: Anthropic, OpenAI, Cursor, Copilot); persisted in `ProviderPreferences.menuBarIcon` (default Cursor); posts `tokenTorchDisplayChanged` to update the status item.
 - CLI: `-c/--currency` per subcommand (the CLI can't read the app's `UserDefaults`, so it defaults to system locale).
@@ -311,6 +312,60 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-06-11: General tab providers table hint
+
+**What**: Replaced the outdated hint below the General **Providers** table (which incorrectly said “Admin keys below”). New copy in `GeneralSettingsCopy.providersTableHint` explains drag-reorder, Enabled toggles, and that credentials/Admin keys live on provider tabs; uses `SettingsLayout.makeHintLabel` with measured height.
+
+**Why**: Admin keys are on provider tabs, not the General tab; table now also covers enable/order for all six menu views including Copilot.
+
+### 2026-06-11: arm64-only app builds
+
+**What**: Xcode target and project `ARCHS = arm64`; scheme `buildArchitectures = ARM64`. Root `build.sh` debug destination is `platform=macOS,arch=arm64`; release archive uses `generic/platform=macOS` (xcodebuild rejects `arch` on generic "Any Mac" — arm64-only still enforced by `ARCHS`). Drops Intel (x86_64) slices from app/release builds.
+
+**Why**: Apple Silicon-only; avoids dual-destination xcodebuild warnings and unnecessary universal binaries.
+
+**How**: `project.pbxproj`, `token-torch.xcscheme`, `build.sh`. Version `4.2.9`.
+
+### 2026-06-11: Advanced settings tab visual parity
+
+**What**: Advanced tab matches provider layout: **Reset Keychain** section label, measured hint, destructive button (8pt gap). Shared hint helpers in `SettingsLayout.swift`; copy in `AdvancedSettingsCopy.swift`.
+
+**Why**: Advanced used a bold header and fixed 88pt hint block above the button; other tabs group label, hint, and control.
+
+**How**: `AdvancedSettingsViewController`, `SettingsLayout`, `ProviderSettingsViewController` refactor. Version `4.2.8`.
+
+### 2026-06-11: Copilot settings tab visual parity
+
+**What**: Copilot tab matches Anthropic/OpenAI layout: section label, measured hint, token field (8pt gap), Save/Clear. Copy moved to `ProviderSettingsCopy.personalAccessTokenHint()`.
+
+**Why**: Copilot used a fixed-height intro block above the label; other provider tabs group explanatory text with their inputs.
+
+**How**: `ProviderSettingsViewController`, `SettingsStyle.copilotPaneHeight`. Version `4.2.7`.
+
+### 2026-06-11: OpenAI provider tab settings copy
+
+**What**: OpenAI (Codex) settings tab matches Anthropic: Codex-specific reset hint under the button, Admin API key guidance (platform.openai.com Admin keys, regular keys return 401), and explanatory text grouped under the additional-model-usage toggle.
+
+**Why**: Parity with the Anthropic tab; OpenAI org billing needs the same explicit Admin key instructions.
+
+**How**: `ProviderSettingsCopy` codex strings, `ProviderSettingsViewController` toggle hint. Version `4.2.3`.
+
+### 2026-06-11: Anthropic provider tab settings copy
+
+**What**: Claude settings tab groups **Reset subscription credentials** with Claude Code-specific explanatory text directly beneath the button. Admin API key field adds guidance (Anthropic Console Admin key, not regular API key). Codex/Cursor reset and Codex admin hints use the same layout via `ProviderSettingsCopy`.
+
+**Why**: Generic multi-vendor reset text was unclear on the Anthropic tab; org billing needs explicit Admin key setup instructions.
+
+**How**: `ProviderSettingsCopy.swift`, `ProviderSettingsViewController` layout. Version `4.2.2`.
+
+### 2026-06-11: Start at login
+
+**What**: General tab adds **Start at login**. Checked state registers Token Torch via `SMAppService.mainApp`; unchecked unregisters. If macOS requires approval, an alert offers to open Login Items in System Settings.
+
+**Why**: Menu bar utilities should launch automatically after sign-in without manual setup.
+
+**How**: `LoginItemRegistration.swift`, `GeneralSettingsViewController`. Version `4.2.0`.
 
 ### 2026-06-11: Fix VAT not applied in menu
 

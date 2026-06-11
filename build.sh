@@ -13,8 +13,12 @@ ARCHIVE_PATH="${BUILD_DIR}/${APP_NAME}.xcarchive"
 EXPORT_PATH="${BUILD_DIR}/export"
 EXPORT_PLIST="${APP_DIR}/ExportOptions.plist"
 NOTARIZE_PROFILE="${NOTARIZE_PROFILE:-TokenTorch-Notarize}"
+# Apple Silicon only — not a universal/Intel build. Architecture comes from Xcode
+# ARCHS=arm64 (project + target). Debug can pass arch= on -destination; release
+# archive must use generic/platform=macOS (xcodebuild rejects arch on "Any Mac").
+BUILD_ARCH="arm64"
+DEBUG_DESTINATION="platform=macOS,arch=${BUILD_ARCH}"
 RELEASE_DESTINATION="generic/platform=macOS"
-DEBUG_DESTINATION="platform=macOS"
 TEAM_ID="8J2G689FCZ"
 
 RELEASE=false
@@ -26,6 +30,7 @@ usage() {
 Usage: $(basename "$0") [OPTIONS]
 
 Build the Token Torch menu bar app (Xcode). Run from the repository root.
+Apple Silicon (arm64) only — not a universal binary.
 
 Modes:
     (default)     Debug build → ${DEBUG_APP}

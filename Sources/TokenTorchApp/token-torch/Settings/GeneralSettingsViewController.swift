@@ -27,6 +27,7 @@ final class GeneralSettingsViewController: NSViewController {
 
     var onRefreshIntervalChanged: (() -> Void)?
 
+    private var startAtLoginToggle: NSButton!
     private var intervalLabel: NSTextField!
     private var intervalPopup: NSPopUpButton!
     private var currencyLabel: NSTextField!
@@ -56,6 +57,17 @@ final class GeneralSettingsViewController: NSViewController {
 
         view = NSView(frame: NSRect(x: 0, y: 0, width: w, height: h))
 
+        y -= 6
+        startAtLoginToggle = NSButton(
+            checkboxWithTitle: "Start at login",
+            target: self,
+            action: #selector(startAtLoginChanged)
+        )
+        startAtLoginToggle.frame = NSRect(x: x, y: y, width: controlW, height: 22)
+        startAtLoginToggle.autoresizingMask = [.minYMargin, .width]
+        view.addSubview(startAtLoginToggle)
+
+        y -= 16 + 16
         intervalLabel = NSTextField(labelWithString: "Refresh interval")
         intervalLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
         intervalLabel.autoresizingMask = [.minYMargin, .width]
@@ -178,15 +190,12 @@ final class GeneralSettingsViewController: NSViewController {
         scroll.documentView = orderTable
         view.addSubview(scroll)
 
-        y -= 16 + 60
-        infoLabel = NSTextField(
-            wrappingLabelWithString:
-                "Subscription quotas import vendor OAuth into \(AppBrand.displayName)'s Keychain once (a login prompt is OK the first time). Routine refresh reads only \(AppBrand.displayName)'s copy. Admin keys below are stored in \(AppBrand.displayName)'s Keychain."
-        )
-        infoLabel.frame = NSRect(x: x, y: y, width: controlW, height: 60)
+        y -= 16
+        infoLabel = SettingsLayout.makeHintLabel(GeneralSettingsCopy.providersTableHint)
+        let infoHeight = SettingsLayout.measuredHintHeight(infoLabel, width: controlW)
+        y -= infoHeight
+        infoLabel.frame = NSRect(x: x, y: y, width: controlW, height: infoHeight)
         infoLabel.autoresizingMask = [.minYMargin, .width]
-        infoLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-        infoLabel.textColor = .secondaryLabelColor
         view.addSubview(infoLabel)
     }
 
@@ -194,6 +203,7 @@ final class GeneralSettingsViewController: NSViewController {
         super.viewWillAppear()
         let prefs = ProviderPreferencesStore.shared.load()
         let saved = prefs.refreshIntervalMinutes
+        syncStartAtLoginToggle()
         if let index = (0 ..< intervalPopup.numberOfItems).first(where: { intervalPopup.item(at: $0)?.tag == saved }) {
             intervalPopup.selectItem(at: index)
         }
@@ -223,6 +233,43 @@ final class GeneralSettingsViewController: NSViewController {
         prefs.refreshIntervalMinutes = minutes
         ProviderPreferencesStore.shared.save(prefs)
         onRefreshIntervalChanged?()
+    }
+
+    @objc private func startAtLoginChanged() {
+        let enabled = startAtLoginToggle.state == .on
+        do {
+            try LoginItemRegistration.setEnabled(enabled)
+            if enabled, LoginItemRegistration.requiresApproval {
+                showLoginItemApprovalAlert()
+            }
+        }
+        catch {
+            syncStartAtLoginToggle()
+            let alert = NSAlert()
+            alert.messageText = "Could not update Start at login"
+            alert.informativeText = error.localizedDescription
+            alert.alertStyle = .warning
+            alert.runModal()
+        }
+    }
+
+    private func syncStartAtLoginToggle() {
+        startAtLoginToggle.state = LoginItemRegistration.isEnabled ? .on : .off
+    }
+
+    private func showLoginItemApprovalAlert() {
+        let alert = NSAlert()
+        alert.messageText = "Approval required"
+        alert.informativeText =
+            "Open System Settings → General → Login Items and allow \(AppBrand.displayName) to open at login."
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "Open Login Items")
+        alert.addButton(withTitle: "OK")
+        if alert.runModal() == .alertFirstButtonReturn {
+            if let url = URL(string: "x-apple.systempreferences:com.apple.LoginItems-Settings.extension") {
+                NSWorkspace.shared.open(url)
+            }
+        }
     }
 
     @objc private func currencyChanged() {

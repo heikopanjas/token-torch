@@ -3,8 +3,8 @@ import TokenTorchCore
 
 @MainActor
 final class AdvancedSettingsViewController: NSViewController {
-    private var headerLabel: NSTextField!
-    private var infoLabel: NSTextField!
+    private var sectionLabel: NSTextField!
+    private var hintLabel: NSTextField!
     private var resetButton: NSButton!
     private var statusLabel: NSTextField!
 
@@ -18,28 +18,22 @@ final class AdvancedSettingsViewController: NSViewController {
         let h = SettingsStyle.advancedPaneHeight
         let x = SettingsStyle.contentPadding
         let controlW = w - 2 * x
-        var y = h - x - 16
+        var y = h - SettingsStyle.contentPadding - 16
 
         view = NSView(frame: NSRect(x: 0, y: 0, width: w, height: h))
 
-        headerLabel = NSTextField(labelWithString: "Reset Keychain")
-        headerLabel.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
-        headerLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
-        headerLabel.autoresizingMask = [.minYMargin, .width]
-        view.addSubview(headerLabel)
+        sectionLabel = NSTextField(labelWithString: "Reset Keychain")
+        sectionLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
+        sectionLabel.autoresizingMask = [.minYMargin, .width]
+        view.addSubview(sectionLabel)
 
-        y -= 8 + 88
-        infoLabel = NSTextField(
-            wrappingLabelWithString:
-                "Permanently deletes every Keychain item \(AppBrand.displayName) created — the admin API keys you entered and the imported subscription OAuth copies (services starting with “com.tokentorch.”).\n\nVendor logins for Claude Code, Codex CLI, and Cursor are NOT touched. After resetting, re-enter admin keys and re-import subscription credentials from each provider tab."
-        )
-        infoLabel.frame = NSRect(x: x, y: y, width: controlW, height: 88)
-        infoLabel.autoresizingMask = [.minYMargin, .width]
-        infoLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-        infoLabel.textColor = .secondaryLabelColor
-        view.addSubview(infoLabel)
+        hintLabel = SettingsLayout.makeHintLabel(AdvancedSettingsCopy.resetKeychainHint)
+        let hintHeight = SettingsLayout.measuredHintHeight(hintLabel, width: controlW)
+        y -= 4 + hintHeight
+        hintLabel.frame = NSRect(x: x, y: y, width: controlW, height: hintHeight)
+        view.addSubview(hintLabel)
 
-        y -= 16 + 22
+        y -= SettingsLayout.groupedControlGap + 22
         resetButton = NSButton(title: "Reset Keychain…", target: self, action: #selector(resetKeychain))
         resetButton.bezelStyle = .rounded
         resetButton.hasDestructiveAction = true
@@ -60,9 +54,9 @@ final class AdvancedSettingsViewController: NSViewController {
     @objc private func resetKeychain() {
         let alert = NSAlert()
         alert.alertStyle = .critical
-        alert.messageText = "Reset \(AppBrand.displayName)’s Keychain items?"
+        alert.messageText = "Reset \(AppBrand.displayName)'s Keychain items?"
         alert.informativeText =
-            "This permanently deletes \(AppBrand.displayName)’s stored admin API keys and imported subscription credentials. Vendor logins (Claude Code, Codex, Cursor) are not affected. This cannot be undone."
+            "This permanently deletes \(AppBrand.displayName)'s stored admin API keys and imported subscription credentials. Vendor logins (Claude Code, Codex, Cursor) are not affected. This cannot be undone."
         let resetAction = alert.addButton(withTitle: "Reset Keychain")
         resetAction.hasDestructiveAction = true
         alert.addButton(withTitle: "Cancel")

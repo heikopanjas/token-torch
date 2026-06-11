@@ -19,7 +19,7 @@ All subcommands accept `-c` / `--currency` (`USD` or `EUR`; defaults to your sys
 
 ## Requirements
 
-- macOS 15+
+- macOS 15+ (Apple Silicon)
 - Xcode 16+ / Swift 6 toolchain (full Xcode required for the menu bar app and `./build.sh` release builds)
 
 ## Build
@@ -126,11 +126,11 @@ Set your **Development Team** in the target’s Signing & Capabilities before di
 
 **Settings** toolbar:
 
-- **General** — refresh interval, display currency (USD/EUR), **VAT rate (%)**, **Automatically deduct VAT**, **Menu bar icon** (Anthropic, OpenAI, Cursor, Copilot), and a **Providers** table listing the six menu views (Claude Code, Anthropic API, Codex, OpenAI Platform, Cursor, Copilot): drag rows to reorder, use **Enabled** to turn each view on or off (enabling triggers a refresh; disabling is instant)
-- **Claude / Codex / Cursor** — reset imported subscription credentials; Admin API key field on Claude and Codex tabs
+- **General** — **Start at login**, refresh interval, display currency (USD/EUR), **VAT rate (%)**, **Automatically deduct VAT**, **Menu bar icon** (Anthropic, OpenAI, Cursor, Copilot), and a **Providers** table listing the six menu views (Claude Code, Anthropic API, Codex, OpenAI Platform, Cursor, Copilot): drag rows to reorder, use **Enabled** to turn each view on or off (enabling triggers a refresh; disabling is instant)
+- **Claude / Codex / Cursor** — reset imported subscription credentials (button with explanatory text); Claude and Codex tabs also include an Admin API key field with setup guidance
 - **Codex** — optional **Show additional model usage** (e.g. Codex Spark)
-- **Copilot** — paste and save the fine-grained GitHub PAT
-- **Advanced** — **Reset Keychain…** deletes all Token Torch-owned Keychain items (`com.tokentorch.*`); vendor logins are not touched
+- **Copilot** — GitHub Personal Access Token field with setup guidance (same grouped layout as Admin API keys on Claude/OpenAI)
+- **Advanced** — **Reset Keychain…** with explanatory text (same grouped layout as provider tabs); deletes all Token Torch-owned Keychain items (`com.tokentorch.*`); vendor logins are not touched
 
 The app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider so routine refresh does not re-prompt macOS for vendor Keychain access. On first launch after upgrading from **burn**, `CredentialStoreMigration` copies legacy `com.burn.*` Keychain entries. **token-torch-cli** reads vendor stores directly (also runs migration on startup).
 

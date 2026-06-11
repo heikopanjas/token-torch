@@ -30,6 +30,11 @@
 		B00101000000000000000015 /* AdvancedSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000017 /* AdvancedSettingsViewController.swift */; };
 		B00101000000000000000016 /* githubcopilot.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000018 /* githubcopilot.pdf */; };
 		B00101000000000000000017 /* MenuBarStatusIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000019 /* MenuBarStatusIcon.swift */; };
+		B00101000000000000000018 /* LoginItemRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001A /* LoginItemRegistration.swift */; };
+		B00101000000000000000019 /* ProviderSettingsCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001B /* ProviderSettingsCopy.swift */; };
+		B0010100000000000000001A /* AdvancedSettingsCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001C /* AdvancedSettingsCopy.swift */; };
+		B0010100000000000000001B /* SettingsLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001D /* SettingsLayout.swift */; };
+		B0010100000000000000001C /* GeneralSettingsCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001E /* GeneralSettingsCopy.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -58,6 +63,11 @@
 		B00102000000000000000017 /* AdvancedSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettingsViewController.swift; sourceTree = "<group>"; };
 		B00102000000000000000018 /* githubcopilot.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = githubcopilot.pdf; path = ../../Pictures/githubcopilot.pdf; sourceTree = SOURCE_ROOT; };
 		B00102000000000000000019 /* MenuBarStatusIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarStatusIcon.swift; sourceTree = "<group>"; };
+		B0010200000000000000001A /* LoginItemRegistration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItemRegistration.swift; sourceTree = "<group>"; };
+		B0010200000000000000001B /* ProviderSettingsCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSettingsCopy.swift; sourceTree = "<group>"; };
+		B0010200000000000000001C /* AdvancedSettingsCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettingsCopy.swift; sourceTree = "<group>"; };
+		B0010200000000000000001D /* SettingsLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsLayout.swift; sourceTree = "<group>"; };
+		B0010200000000000000001E /* GeneralSettingsCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsCopy.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -136,7 +146,12 @@
 			children = (
 				B00102000000000000000012 /* SettingsWindowController.swift */,
 				B00102000000000000000016 /* SettingsStyle.swift */,
+				B0010200000000000000001D /* SettingsLayout.swift */,
+				B0010200000000000000001C /* AdvancedSettingsCopy.swift */,
+				B0010200000000000000001E /* GeneralSettingsCopy.swift */,
 				B00102000000000000000013 /* GeneralSettingsViewController.swift */,
+				B0010200000000000000001A /* LoginItemRegistration.swift */,
+				B0010200000000000000001B /* ProviderSettingsCopy.swift */,
 				B00102000000000000000014 /* ProviderSettingsViewController.swift */,
 				B00102000000000000000017 /* AdvancedSettingsViewController.swift */,
 			);
@@ -239,6 +254,11 @@
 				B00101000000000000000012 /* ProviderSettingsViewController.swift in Sources */,
 				B00101000000000000000015 /* AdvancedSettingsViewController.swift in Sources */,
 				B00101000000000000000017 /* MenuBarStatusIcon.swift in Sources */,
+				B00101000000000000000018 /* LoginItemRegistration.swift in Sources */,
+				B00101000000000000000019 /* ProviderSettingsCopy.swift in Sources */,
+				B0010100000000000000001A /* AdvancedSettingsCopy.swift in Sources */,
+				B0010100000000000000001B /* SettingsLayout.swift in Sources */,
+				B0010100000000000000001C /* GeneralSettingsCopy.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -294,6 +314,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				ONLY_ACTIVE_ARCH = YES;
+				ARCHS = arm64;
 				SDKROOT = macosx;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
@@ -344,6 +365,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
+				ARCHS = arm64;
 				SDKROOT = macosx;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -373,6 +395,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				ARCHS = arm64;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.panjas.token-torch";
 				PRODUCT_NAME = "Token Torch";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -404,6 +427,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				ARCHS = arm64;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.panjas.token-torch";
 				PRODUCT_NAME = "Token Torch";
 				PROVISIONING_PROFILE_SPECIFIER = "";

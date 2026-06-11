@@ -5,7 +5,7 @@
    <BuildAction
       parallelizeBuildables = "YES"
       buildImplicitDependencies = "YES"
-      buildArchitectures = "Automatic">
+      buildArchitectures = "ARM64">
       <BuildActionEntries>
          <BuildActionEntry
             buildForTesting = "YES"
