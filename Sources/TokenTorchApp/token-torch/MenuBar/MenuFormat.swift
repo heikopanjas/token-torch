@@ -40,8 +40,8 @@ enum MenuFormat {
         return "in \(minutes)m"
     }
 
-    static func orgCost(_ usd: Double, in currency: DisplayCurrency) -> String {
-        CurrencyConverter.formatConverted(amount: usd, from: "USD", to: currency)
+    static func orgCost(_ usd: Double, pricing: DisplayPriceOptions) -> String {
+        pricing.formatConverted(amount: usd, from: "USD")
     }
 
     static var captionFont: NSFont { .systemFont(ofSize: NSFont.smallSystemFontSize) }

@@ -19,7 +19,7 @@ final class MenuBuilder {
         menu.removeAllItems()
         menu.minimumWidth = MenuFormat.menuWidth
         let prefs = ProviderPreferencesStore.shared.load()
-        let currency = prefs.displayCurrency
+        let pricing = DisplayPriceOptions(preferences: prefs)
         let showAdditional = prefs.showAdditionalModelUsage
 
         guard prefs.hasAnyEnabledProvider else {
@@ -48,7 +48,7 @@ final class MenuBuilder {
                 if index > 0 {
                     menu.addItem(.separator())
                 }
-                appendReport(to: menu, provider: section.provider, report: section.report, currency: currency, showAdditional: showAdditional)
+                appendReport(to: menu, provider: section.provider, report: section.report, pricing: pricing, showAdditional: showAdditional)
             }
         }
 
@@ -61,10 +61,10 @@ final class MenuBuilder {
         appendCommandItems(to: menu, model: model)
     }
 
-    private func appendReport(to menu: NSMenu, provider: ProviderID, report: ProviderReport, currency: DisplayCurrency, showAdditional: Bool) {
+    private func appendReport(to menu: NSMenu, provider: ProviderID, report: ProviderReport, pricing: DisplayPriceOptions, showAdditional: Bool) {
         let trailing: String? = {
             if case .subscription(let quota) = report {
-                return ReportLabels.planSummary(quota)
+                return ReportLabels.planSummary(quota, pricing: pricing)
             }
             return nil
         }()
@@ -78,7 +78,7 @@ final class MenuBuilder {
         switch report {
             case .subscription(let quota):
                 if quota.provider == "Cursor" {
-                    appendCursorSubscription(to: menu, quota: quota, currency: currency)
+                    appendCursorSubscription(to: menu, quota: quota, pricing: pricing)
                 }
                 else {
                     if quota.provider == "Copilot",
@@ -111,13 +111,13 @@ final class MenuBuilder {
                     for note in quota.notes {
                         menu.addItem(UsageMenuItemViews.costRow(label: note.label, value: note.value))
                     }
-                    if let credits = quota.credits, let label = ReportLabels.creditsLabel(credits, in: currency) {
+                    if let credits = quota.credits, let label = ReportLabels.creditsLabel(credits, pricing: pricing) {
                         let creditsTitle = quota.provider == "Copilot" ? "AI Credits" : "On-demand credits"
                         menu.addItem(UsageMenuItemViews.costRow(label: creditsTitle, value: label))
                     }
                 }
             case .org(let org):
-                appendOrgBilling(to: menu, org: org, currency: currency)
+                appendOrgBilling(to: menu, org: org, pricing: pricing)
             case .needsAuthorization:
                 menu.addItem(UsageMenuItemViews.noticeRow("Click Refresh to authorize Keychain access."))
             case .error(_, let mode, let message):
@@ -134,7 +134,7 @@ final class MenuBuilder {
         }
     }
 
-    private func appendCursorSubscription(to menu: NSMenu, quota: SubscriptionQuotaReport, currency: DisplayCurrency) {
+    private func appendCursorSubscription(to menu: NSMenu, quota: SubscriptionQuotaReport, pricing: DisplayPriceOptions) {
         if let start = quota.billingCycleStart, let end = quota.billingCycleEnd {
             menu.addItem(
                 UsageMenuItemViews.caption(
@@ -161,21 +161,21 @@ final class MenuBuilder {
             menu.addItem(
                 UsageMenuItemViews.costRow(
                     label: "Total usage value",
-                    value: CurrencyConverter.formatMinorUnits(total, from: "USD", to: currency)))
+                    value: pricing.formatMinorUnits(total, from: "USD")))
         }
         if let bonus = quota.bonusSpendCents, bonus > 0 {
             menu.addItem(
                 UsageMenuItemViews.costRow(
                     label: "Bonus",
-                    value: CurrencyConverter.formatMinorUnits(bonus, from: "USD", to: currency),
+                    value: pricing.formatMinorUnits(bonus, from: "USD"),
                     caption: "Free usage beyond what you've purchased"))
         }
-        if let credits = ReportLabels.cursorCreditsLabel(quota, in: currency) {
+        if let credits = ReportLabels.cursorCreditsLabel(quota, pricing: pricing) {
             menu.addItem(UsageMenuItemViews.costRow(label: "Credits", value: credits))
         }
     }
 
-    private func appendOrgBilling(to menu: NSMenu, org: OrgUsageReport, currency: DisplayCurrency) {
+    private func appendOrgBilling(to menu: NSMenu, org: OrgUsageReport, pricing: DisplayPriceOptions) {
         let cycleLine: String = {
             if let end = org.endDate {
                 return "Billing cycle: \(org.startDate) → \(end)"
@@ -198,11 +198,11 @@ final class MenuBuilder {
                 menu.addItem(
                     UsageMenuItemViews.costRow(
                         label: row.label,
-                        value: MenuFormat.orgCost(row.costUSD, in: currency)
+                        value: MenuFormat.orgCost(row.costUSD, pricing: pricing)
                     ))
             }
             menu.addItem(UsageMenuItemViews.menuSpacer())
-            menu.addItem(UsageMenuItemViews.grandTotalRow(value: MenuFormat.orgCost(org.grandTotalUSD, in: currency)))
+            menu.addItem(UsageMenuItemViews.grandTotalRow(value: MenuFormat.orgCost(org.grandTotalUSD, pricing: pricing)))
         }
     }
 

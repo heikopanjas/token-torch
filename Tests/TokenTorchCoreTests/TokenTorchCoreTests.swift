@@ -72,6 +72,38 @@ import Testing
     #expect(report.credits?.utilizationPercent == 6.54)
 }
 
+@Test func displayPriceOptionsAppliesVATDeduction() {
+    let gross = DisplayPriceOptions(currency: .eur, vatRatePercent: 19, automaticallyDeductVAT: false)
+    #expect(gross.amountForDisplay(grossAmount: 119) == 119)
+    #expect(gross.formatConverted(amount: 119, from: "EUR") == "€119.00")
+
+    let net = DisplayPriceOptions(currency: .eur, vatRatePercent: 19, automaticallyDeductVAT: true)
+    #expect(abs(net.amountForDisplay(grossAmount: 119) - 100) < 0.001)
+    #expect(net.formatConverted(amount: 119, from: "EUR") == "€100.00")
+}
+
+@Test func displayPriceOptionsNormalizesVATRate() {
+    #expect(DisplayPriceOptions.normalizeVATRate(-5) == 0)
+    #expect(DisplayPriceOptions.normalizeVATRate(150) == 100)
+    #expect(DisplayPriceOptions.normalizeVATRate(19.5) == 19.5)
+}
+
+@Test func displayPriceOptionsFormatsPlanPriceWithVAT() {
+    let net = DisplayPriceOptions(currency: .usd, vatRatePercent: 19, automaticallyDeductVAT: true)
+    #expect(net.formatPlanPrice("$119/mo") == "$100.00/mo")
+    let gross = DisplayPriceOptions(currency: .usd, vatRatePercent: 19, automaticallyDeductVAT: false)
+    #expect(gross.formatPlanPrice("$20/mo") == "$20.00/mo")
+}
+
+@Test func providerPreferencesDecodesLegacyWithoutVATSettings() throws {
+    let legacy = """
+        {"claude":{"subscriptionQuotaEnabled":true,"orgBillingEnabled":false},"codex":{"subscriptionQuotaEnabled":true,"orgBillingEnabled":false},"cursor":{"subscriptionQuotaEnabled":true,"orgBillingEnabled":false},"refreshIntervalMinutes":20}
+        """
+    let prefs = try JSONDecoder().decode(ProviderPreferences.self, from: Data(legacy.utf8))
+    #expect(prefs.vatRatePercent == 0)
+    #expect(!prefs.automaticallyDeductVAT)
+}
+
 @Test func currencyConverterConvertsBetweenUsdAndEur() {
     let toEUR = CurrencyConverter.convert(amount: 100, from: "USD", to: .eur)
     #expect(toEUR.code == "EUR")

@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-10 (build.sh debug default)
+Last updated: 2026-06-11 (VAT display fixes)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -233,6 +233,7 @@ Grand Total: €Z.ZZ ($W.WW)
 - `DisplayCurrency` (USD/EUR) + `CurrencyConverter` in `TokenTorchCore/Utilities/DisplayCurrency.swift` (pure; USD<->EUR via `Pricing.usdToEUR`, native passthrough for other source currencies).
 - Default = `Locale.current.currency` mapped to USD/EUR (`.systemDefault`, USD fallback).
 - Menu bar: General tab popup, persisted in `ProviderPreferences.displayCurrency`; changing it posts `tokenTorchDisplayChanged` to rebuild the menu (no refetch).
+- VAT / gross vs net: General tab **VAT rate (%)** and **Automatically deduct VAT** toggle, persisted as `ProviderPreferences.vatRatePercent` and `automaticallyDeductVAT`. Entering a positive rate saves on field blur (not just Enter), auto-enables deduction, and applies to plan list prices (`$20/mo`) via `DisplayPriceOptions.formatPlanPrice`. Other menu amounts use `DisplayPriceOptions` (vendor gross incl. VAT; deduct divides by `1 + rate/100`). Posts `tokenTorchDisplayChanged` and repopulates the cached menu immediately.
 - Menu bar icon: General tab **Menu bar icon** popup (`MenuBarIconProvider`: Anthropic, OpenAI, Cursor, Copilot); persisted in `ProviderPreferences.menuBarIcon` (default Cursor); posts `tokenTorchDisplayChanged` to update the status item.
 - CLI: `-c/--currency` per subcommand (the CLI can't read the app's `UserDefaults`, so it defaults to system locale).
 - Source currencies fed to the converter: USD for Cursor / Anthropic org / OpenAI org / ChatGPT credits; `extra_usage.currency` for Claude credits.
@@ -310,6 +311,20 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-06-11: Fix VAT not applied in menu
+
+**What**: VAT rate now saves when the field loses focus (not only on Enter). Entering a positive rate auto-enables **Automatically deduct VAT**. Plan list prices (`Pro · $20/mo`) go through `DisplayPriceOptions.formatPlanPrice`. Display-only changes repopulate the cached menu even when closed.
+
+**Why**: Users entered a rate and still saw gross prices because the rate was not persisted until Enter, plan prices bypassed VAT, and deduction required manually enabling the toggle.
+
+**How**: `GeneralSettingsViewController` (`NSTextFieldDelegate`, `viewWillDisappear`), `ReportLabels.planSummary(pricing:)`, `StatusItemController.displayChanged`, `DisplayPriceOptions.formatPlanPrice`. Version `4.1.10`.
+
+### 2026-06-10: VAT rate and gross/net price display
+
+**What**: General tab adds **VAT rate (%)** and **Automatically deduct VAT**. Persisted in `ProviderPreferences`; menu prices use `DisplayPriceOptions` (vendor amounts are gross incl. VAT; deduct applies `/ (1 + VAT/100)` after currency conversion).
+
+**Why**: Users see vendor gross prices by default and can optionally show net ex-VAT for bookkeeping.
 
 ### 2026-06-10: build.sh defaults to Debug
 

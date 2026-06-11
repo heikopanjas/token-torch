@@ -73,6 +73,10 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
     public var copilot: ProviderModeFlags
     public var refreshIntervalMinutes: Int
     public var displayCurrency: DisplayCurrency
+    /// VAT rate in percent (0–100). Applied when `automaticallyDeductVAT` is true.
+    public var vatRatePercent: Double
+    /// When true, deduct VAT from gross vendor prices to show net (ex-VAT) amounts.
+    public var automaticallyDeductVAT: Bool
     /// When true, the menu also lists per-model extra rate limits (e.g. Codex Spark). Default off.
     public var showAdditionalModelUsage: Bool
     /// User-chosen order of the six menu views (provider + subscription/org). Normalize via `orderedSections()`.
@@ -87,6 +91,8 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         copilot: ProviderModeFlags = .init(subscriptionQuotaEnabled: true, orgBillingEnabled: false),
         refreshIntervalMinutes: Int = 15,
         displayCurrency: DisplayCurrency = .systemDefault,
+        vatRatePercent: Double = 0,
+        automaticallyDeductVAT: Bool = false,
         showAdditionalModelUsage: Bool = false,
         sectionOrder: [ProviderSection] = ProviderSection.allSections,
         menuBarIcon: MenuBarIconProvider = .cursor
@@ -97,6 +103,8 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         self.copilot = copilot
         self.refreshIntervalMinutes = refreshIntervalMinutes
         self.displayCurrency = displayCurrency
+        self.vatRatePercent = DisplayPriceOptions.normalizeVATRate(vatRatePercent)
+        self.automaticallyDeductVAT = automaticallyDeductVAT
         self.showAdditionalModelUsage = showAdditionalModelUsage
         self.sectionOrder = sectionOrder
         self.menuBarIcon = menuBarIcon
@@ -114,6 +122,10 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
             ?? .init(subscriptionQuotaEnabled: true, orgBillingEnabled: false)
         refreshIntervalMinutes = try container.decodeIfPresent(Int.self, forKey: .refreshIntervalMinutes) ?? 15
         displayCurrency = try container.decodeIfPresent(DisplayCurrency.self, forKey: .displayCurrency) ?? .systemDefault
+        vatRatePercent = DisplayPriceOptions.normalizeVATRate(
+            try container.decodeIfPresent(Double.self, forKey: .vatRatePercent) ?? 0
+        )
+        automaticallyDeductVAT = try container.decodeIfPresent(Bool.self, forKey: .automaticallyDeductVAT) ?? false
         showAdditionalModelUsage = try container.decodeIfPresent(Bool.self, forKey: .showAdditionalModelUsage) ?? false
         sectionOrder = try container.decodeIfPresent([ProviderSection].self, forKey: .sectionOrder) ?? ProviderSection.allSections
         menuBarIcon = try container.decodeIfPresent(MenuBarIconProvider.self, forKey: .menuBarIcon) ?? .cursor

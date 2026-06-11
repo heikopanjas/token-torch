@@ -31,6 +31,9 @@ final class GeneralSettingsViewController: NSViewController {
     private var intervalPopup: NSPopUpButton!
     private var currencyLabel: NSTextField!
     private var currencyPopup: NSPopUpButton!
+    private var vatLabel: NSTextField!
+    private var vatField: NSTextField!
+    private var deductVATToggle: NSButton!
     private var iconLabel: NSTextField!
     private var iconPopup: NSPopUpButton!
     private let currencies = DisplayCurrency.allCases
@@ -84,6 +87,31 @@ final class GeneralSettingsViewController: NSViewController {
         currencyPopup.target = self
         currencyPopup.action = #selector(currencyChanged)
         view.addSubview(currencyPopup)
+
+        y -= 16 + 16
+        vatLabel = NSTextField(labelWithString: "VAT rate (%)")
+        vatLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
+        vatLabel.autoresizingMask = [.minYMargin, .width]
+        view.addSubview(vatLabel)
+
+        y -= 4 + 26
+        vatField = NSTextField(frame: NSRect(x: x, y: y, width: 120, height: 22))
+        vatField.placeholderString = "0"
+        vatField.autoresizingMask = [.minYMargin]
+        vatField.target = self
+        vatField.action = #selector(vatChanged)
+        vatField.delegate = self
+        view.addSubview(vatField)
+
+        y -= 16 + 22
+        deductVATToggle = NSButton(
+            checkboxWithTitle: "Automatically deduct VAT",
+            target: self,
+            action: #selector(deductVATChanged)
+        )
+        deductVATToggle.frame = NSRect(x: x, y: y, width: controlW, height: 22)
+        deductVATToggle.autoresizingMask = [.minYMargin, .width]
+        view.addSubview(deductVATToggle)
 
         y -= 16 + 16
         iconLabel = NSTextField(labelWithString: "Menu bar icon")
@@ -180,6 +208,8 @@ final class GeneralSettingsViewController: NSViewController {
         if let index = currencies.firstIndex(of: prefs.displayCurrency) {
             currencyPopup.selectItem(at: index)
         }
+        vatField.stringValue = formatVATRate(prefs.vatRatePercent)
+        deductVATToggle.state = prefs.automaticallyDeductVAT ? .on : .off
         if let index = MenuBarIconProvider.allCases.firstIndex(of: prefs.menuBarIcon) {
             iconPopup.selectItem(at: index)
         }
@@ -202,6 +232,52 @@ final class GeneralSettingsViewController: NSViewController {
         prefs.displayCurrency = currencies[index]
         ProviderPreferencesStore.shared.save(prefs)
         NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
+    }
+
+    @objc private func vatChanged() {
+        saveVATSettings()
+    }
+
+    @objc private func deductVATChanged() {
+        saveVATSettings()
+        var prefs = ProviderPreferencesStore.shared.load()
+        prefs.automaticallyDeductVAT = deductVATToggle.state == .on
+        ProviderPreferencesStore.shared.save(prefs)
+        NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
+    }
+
+    override func viewWillDisappear() {
+        super.viewWillDisappear()
+        saveVATSettings()
+    }
+
+    /// Persists the VAT rate from the text field. When the rate changes to a positive value,
+    /// automatically enables deduction so entering a rate alone is enough to show net prices.
+    private func saveVATSettings() {
+        let parsed = Double(vatField.stringValue.replacingOccurrences(of: ",", with: ".")) ?? 0
+        let normalized = DisplayPriceOptions.normalizeVATRate(parsed)
+        var prefs = ProviderPreferencesStore.shared.load()
+        let rateChanged = prefs.vatRatePercent != normalized
+        guard rateChanged else { return }
+        prefs.vatRatePercent = normalized
+        if normalized > 0 {
+            prefs.automaticallyDeductVAT = true
+            deductVATToggle.state = .on
+        }
+        else {
+            prefs.automaticallyDeductVAT = false
+            deductVATToggle.state = .off
+        }
+        ProviderPreferencesStore.shared.save(prefs)
+        vatField.stringValue = formatVATRate(prefs.vatRatePercent)
+        NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
+    }
+
+    private func formatVATRate(_ value: Double) -> String {
+        if value.truncatingRemainder(dividingBy: 1) == 0 {
+            return String(format: "%.0f", value)
+        }
+        return String(format: "%.1f", value)
     }
 
     @objc private func iconChanged() {
@@ -235,6 +311,13 @@ final class GeneralSettingsViewController: NSViewController {
             // Disabling just drops the view from the menu; no network call needed.
             NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
         }
+    }
+}
+
+extension GeneralSettingsViewController: NSTextFieldDelegate {
+    func controlTextDidEndEditing(_ obj: Notification) {
+        guard let field = obj.object as? NSTextField, field === vatField else { return }
+        saveVATSettings()
     }
 }
 

@@ -35,6 +35,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func displayChanged() {
         configureStatusItemButton()
+        menuBuilder.populate(menu, model: model)
         refreshOpenMenu()
     }
 
