@@ -7,13 +7,17 @@ PROJECT="${APP_DIR}/token-torch.xcodeproj"
 SCHEME="token-torch"
 APP_NAME="Token Torch"
 BUILD_DIR="${ROOT}/.build"
+DEBUG_DERIVED_DATA="${APP_DIR}/.build"
+DEBUG_APP="${DEBUG_DERIVED_DATA}/Products/Debug/${APP_NAME}.app"
 ARCHIVE_PATH="${BUILD_DIR}/${APP_NAME}.xcarchive"
 EXPORT_PATH="${BUILD_DIR}/export"
 EXPORT_PLIST="${APP_DIR}/ExportOptions.plist"
 NOTARIZE_PROFILE="${NOTARIZE_PROFILE:-TokenTorch-Notarize}"
-DESTINATION="generic/platform=macOS"
+RELEASE_DESTINATION="generic/platform=macOS"
+DEBUG_DESTINATION="platform=macOS"
 TEAM_ID="8J2G689FCZ"
 
+RELEASE=false
 CLEAN=false
 NOTARIZE=false
 
@@ -21,21 +25,27 @@ usage() {
     cat <<EOF
 Usage: $(basename "$0") [OPTIONS]
 
-Build, export, and optionally notarize Token Torch for direct distribution (Developer ID).
+Build the Token Torch menu bar app (Xcode). Run from the repository root.
 
-Run from the repository root. Requires ${APP_DIR}/ExportOptions.plist with a valid
-Developer ID provisioning profile for com.panjas.tokentorch.
+Modes:
+    (default)     Debug build → ${DEBUG_APP}
+    --release     Release archive + Developer ID export → ${EXPORT_PATH}/${APP_NAME}.app
 
 Options:
-    --clean       Clean build artifacts before building
-    --notarize    Submit the exported app for notarization and staple
+    --release     Clean, archive, export, and optionally notarize for distribution
+    --clean       Clean build artifacts before a debug build (release always cleans)
+    --notarize    Submit the exported release app for notarization and staple
+                  (requires --release)
     -h, --help    Show this help message
 
 Examples:
-    $(basename "$0")                  # Archive and export only
-    $(basename "$0") --clean          # Clean first, then archive and export
-    $(basename "$0") --notarize       # Archive, export, notarize, and staple
-    $(basename "$0") --clean --notarize
+    $(basename "$0")                      # Debug build
+    $(basename "$0") --clean              # Clean, then debug build
+    $(basename "$0") --release            # Clean, archive, and export
+    $(basename "$0") --release --notarize # Clean, archive, export, notarize, and staple
+
+Release builds require ${APP_DIR}/ExportOptions.plist with a valid Developer ID
+provisioning profile for com.panjas.tokentorch.
 
 Notarization (--notarize) requires a notarytool Keychain profile (default: ${NOTARIZE_PROFILE}).
 Create it once (app-specific password from appleid.apple.com):
@@ -45,19 +55,29 @@ Create it once (app-specific password from appleid.apple.com):
       --team-id ${TEAM_ID} \\
       --password "xxxx-xxxx-xxxx-xxxx"
 
-Override profile name: NOTARIZE_PROFILE=my-profile $(basename "$0") --notarize
+Override profile name: NOTARIZE_PROFILE=my-profile $(basename "$0") --release --notarize
 EOF
     exit 0
 }
 
 for arg in "$@"; do
     case "$arg" in
+        --release)  RELEASE=true ;;
         --clean)    CLEAN=true ;;
         --notarize) NOTARIZE=true ;;
         -h|--help)  usage ;;
-        *)          echo "Unknown option: $arg"; usage ;;
+        *)          echo "Unknown option: $arg" >&2; usage ;;
     esac
 done
+
+if [ "$NOTARIZE" = true ] && [ "$RELEASE" = false ]; then
+    echo "Error: --notarize requires --release." >&2
+    exit 1
+fi
+
+if [ "$RELEASE" = true ]; then
+    CLEAN=true
+fi
 
 require_xcode() {
     if xcodebuild -version &>/dev/null; then
@@ -115,46 +135,6 @@ read_build_version() {
     fi
 }
 
-require_xcode
-read_build_version
-
-echo "==> Token Torch ${VERSION} (${BUILD_NUMBER})"
-echo ""
-
-# Clean
-if [ "$CLEAN" = true ]; then
-    echo "==> Cleaning..."
-    xcodebuild -project "$PROJECT" -scheme "$SCHEME" -destination "$DESTINATION" clean -quiet
-    rm -rf "$ARCHIVE_PATH" "$EXPORT_PATH" "${BUILD_DIR}/TokenTorch.zip"
-    echo "    Done."
-    echo ""
-fi
-
-mkdir -p "$BUILD_DIR"
-
-# Archive
-echo "==> Archiving (Release)..."
-xcodebuild archive \
-    -project "$PROJECT" \
-    -scheme "$SCHEME" \
-    -configuration Release \
-    -destination "$DESTINATION" \
-    -archivePath "$ARCHIVE_PATH" \
-    -quiet
-echo "    Archive: ${ARCHIVE_PATH}"
-echo ""
-
-# Export
-echo "==> Exporting with Developer ID signing..."
-rm -rf "$EXPORT_PATH"
-xcodebuild -exportArchive \
-    -archivePath "$ARCHIVE_PATH" \
-    -exportPath "$EXPORT_PATH" \
-    -exportOptionsPlist "$EXPORT_PLIST" \
-    -quiet
-echo "    App: ${EXPORT_PATH}/${APP_NAME}.app"
-echo ""
-
 check_notary_profile() {
     if xcrun notarytool history --keychain-profile "$NOTARIZE_PROFILE" &>/dev/null; then
         return 0
@@ -172,33 +152,108 @@ check_notary_profile() {
     return 1
 }
 
-# Notarize
-if [ "$NOTARIZE" = true ]; then
-    check_notary_profile
+build_debug() {
+    if [ "$CLEAN" = true ]; then
+        echo "==> Cleaning (Debug)..."
+        xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -destination "$DEBUG_DESTINATION" \
+            -derivedDataPath "$DEBUG_DERIVED_DATA" \
+            clean -quiet
+        echo "    Done."
+        echo ""
+    fi
 
-    ZIP_PATH="${BUILD_DIR}/TokenTorch.zip"
+    echo "==> Building (Debug)..."
+    xcodebuild \
+        -project "$PROJECT" \
+        -scheme "$SCHEME" \
+        -configuration Debug \
+        -destination "$DEBUG_DESTINATION" \
+        -derivedDataPath "$DEBUG_DERIVED_DATA" \
+        build -quiet
+    echo "    App: ${DEBUG_APP}"
+    echo ""
+    echo "==> Build complete: ${DEBUG_APP}"
+}
 
-    echo "==> Creating zip for notarization..."
-    rm -f "$ZIP_PATH"
-    ditto -c -k --keepParent "${EXPORT_PATH}/${APP_NAME}.app" "$ZIP_PATH"
-    echo "    Zip: ${ZIP_PATH}"
+build_release() {
+    if [ "$CLEAN" = true ]; then
+        echo "==> Cleaning (Release)..."
+        xcodebuild \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -destination "$RELEASE_DESTINATION" \
+            clean -quiet
+        rm -rf "$ARCHIVE_PATH" "$EXPORT_PATH" "${BUILD_DIR}/TokenTorch.zip"
+        echo "    Done."
+        echo ""
+    fi
+
+    mkdir -p "$BUILD_DIR"
+
+    echo "==> Archiving (Release)..."
+    xcodebuild archive \
+        -project "$PROJECT" \
+        -scheme "$SCHEME" \
+        -configuration Release \
+        -destination "$RELEASE_DESTINATION" \
+        -archivePath "$ARCHIVE_PATH" \
+        -quiet
+    echo "    Archive: ${ARCHIVE_PATH}"
     echo ""
 
-    echo "==> Submitting for notarization (this may take a few minutes)..."
-    xcrun notarytool submit "$ZIP_PATH" \
-        --keychain-profile "$NOTARIZE_PROFILE" \
-        --wait
+    echo "==> Exporting with Developer ID signing..."
+    rm -rf "$EXPORT_PATH"
+    xcodebuild -exportArchive \
+        -archivePath "$ARCHIVE_PATH" \
+        -exportPath "$EXPORT_PATH" \
+        -exportOptionsPlist "$EXPORT_PLIST" \
+        -quiet
+    echo "    App: ${EXPORT_PATH}/${APP_NAME}.app"
     echo ""
 
-    echo "==> Stapling notarization ticket..."
-    xcrun stapler staple "${EXPORT_PATH}/${APP_NAME}.app"
-    echo ""
+    if [ "$NOTARIZE" = true ]; then
+        check_notary_profile
 
-    echo "==> Verifying..."
-    spctl -a -vvv "${EXPORT_PATH}/${APP_NAME}.app" 2>&1 | head -5
-    echo ""
+        ZIP_PATH="${BUILD_DIR}/TokenTorch.zip"
 
-    rm -f "$ZIP_PATH"
+        echo "==> Creating zip for notarization..."
+        rm -f "$ZIP_PATH"
+        ditto -c -k --keepParent "${EXPORT_PATH}/${APP_NAME}.app" "$ZIP_PATH"
+        echo "    Zip: ${ZIP_PATH}"
+        echo ""
+
+        echo "==> Submitting for notarization (this may take a few minutes)..."
+        xcrun notarytool submit "$ZIP_PATH" \
+            --keychain-profile "$NOTARIZE_PROFILE" \
+            --wait
+        echo ""
+
+        echo "==> Stapling notarization ticket..."
+        xcrun stapler staple "${EXPORT_PATH}/${APP_NAME}.app"
+        echo ""
+
+        echo "==> Verifying..."
+        spctl -a -vvv "${EXPORT_PATH}/${APP_NAME}.app" 2>&1 | head -5
+        echo ""
+
+        rm -f "$ZIP_PATH"
+    fi
+
+    echo "==> Build complete: ${EXPORT_PATH}/${APP_NAME}.app"
+}
+
+require_xcode
+read_build_version
+
+echo "==> Token Torch ${VERSION} (${BUILD_NUMBER})"
+echo ""
+
+if [ "$RELEASE" = true ]; then
+    build_release
+else
+    build_debug
 fi
-
-echo "==> Build complete: ${EXPORT_PATH}/${APP_NAME}.app"

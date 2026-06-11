@@ -11,11 +11,13 @@ enum AppActions {
         NotificationCenter.default.post(name: openSettingsNotification, object: nil)
     }
 
+    @MainActor
     static func quit() {
         NSApplication.shared.terminate(nil)
     }
 }
 
+@MainActor
 extension AppActions {
     static func activateForSettings() {
         NSApplication.shared.setActivationPolicy(.regular)

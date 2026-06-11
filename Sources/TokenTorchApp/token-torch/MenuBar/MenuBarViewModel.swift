@@ -17,7 +17,9 @@ final class MenuBarViewModel {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.refresh(interactive: true)
+            Task { @MainActor in
+                self?.refresh(interactive: true)
+            }
         }
         scheduleRefresh()
     }

@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-10 (Configurable menu bar icon)
+Last updated: 2026-06-10 (build.sh debug default)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -37,7 +37,7 @@ When starting a new session, read this entire file and confirm you have understo
 
 ## Build and Development Commands
 
-Binary output: `.build/debug/token-torch-cli` (SPM) and `Sources/TokenTorchApp/.build/Products/Debug/Token Torch.app` (Xcode).
+Binary output: `.build/debug/token-torch-cli` (SPM), `./build.sh` → `Sources/TokenTorchApp/.build/Products/Debug/Token Torch.app` (Xcode Debug), and `./build.sh --release` → `.build/export/Token Torch.app`.
 
 ```bash
 # Swift Package (TokenTorchCore + token-torch-cli)
@@ -50,8 +50,8 @@ open Sources/TokenTorchApp/token-torch.xcodeproj
 cd Sources/TokenTorchApp && xcodebuild -scheme token-torch -configuration Debug build
 
 # Release archive + Developer ID export (from repo root)
-./build.sh
-./build.sh --clean --notarize   # requires Sources/TokenTorchApp/ExportOptions.plist + notarytool profile TokenTorch-Notarize
+./build.sh --release
+./build.sh --release --notarize   # requires Sources/TokenTorchApp/ExportOptions.plist + notarytool profile TokenTorch-Notarize (--release always cleans)
 ```
 
 ### Project-specific run examples
@@ -310,6 +310,12 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-06-10: build.sh defaults to Debug
+
+**What**: Root `build.sh` with no flags runs an Xcode Debug build to `Sources/TokenTorchApp/.build/Products/Debug/Token Torch.app`. Release archive/export/notarize requires `--release` (`--notarize` implies release). `--release` always cleans release artifacts first.
+
+**Why**: Local development should be the default; distribution builds are opt-in.
 
 ### 2026-06-10: Configurable menu bar icon
 

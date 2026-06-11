@@ -24,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupMainMenu()
     }
 
+    @MainActor
     private func setupMainMenu() {
         let appMenu = NSMenu()
         let appItem = NSMenuItem()

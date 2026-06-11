@@ -40,12 +40,12 @@ Binaries:
 From the repository root:
 
 ```bash
-./build.sh                  # archive + export to .build/export/
-./build.sh --clean          # clean release artifacts first
-./build.sh --notarize       # submit and staple (requires notarytool profile)
+./build.sh                  # debug build → Sources/TokenTorchApp/.build/Products/Debug/
+./build.sh --release        # clean, archive + export to .build/export/
+./build.sh --release --notarize   # clean, submit and staple (requires notarytool profile)
 ```
 
-If `xcodebuild` is missing, the script prints how to point `xcode-select` at Xcode (or use `DEVELOPER_DIR=… ./build.sh` once).
+If `xcodebuild` is missing, the script prints how to point `xcode-select` at Xcode (or use `DEVELOPER_DIR=… ./build.sh` once). `--notarize` requires `--release`.
 
 ## CLI
 
