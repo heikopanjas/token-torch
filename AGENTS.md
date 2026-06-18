@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-11 (Swift 6.2 toolchain pin)
+Last updated: 2026-06-18 (OpenAI cost aggregation)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -15,7 +15,7 @@ Run `/init-session` at the beginning of each new session, OR read this entire fi
 **Token Torch** is a macOS Swift application for monitoring **Anthropic** and **OpenAI** organization usage, plus **personal subscription quotas** for Claude Code, ChatGPT/Codex, Cursor, and GitHub Copilot. Anthropic uses `--list-workspaces` / `--workspace`; OpenAI uses `--list-projects` / `--project` (or `default` for null scope). Org-wide usage is the default when no scope flag is set.
 
 - **Anthropic**: token usage from Admin API; costs calculated from pricing docs.
-- **OpenAI**: completions token usage + native billed costs from `/organization/costs`.
+- **OpenAI**: completions token usage + native billed costs from `/organization/costs`, with input/output token cost line items aggregated into one model cost row.
 - **Personal subscriptions** (`--quota` on `claude`, `codex`, `cursor`, or `copilot`): rate limits and plan usage from reverse-engineered OAuth APIs (Claude/Codex/Cursor read local Keychain / auth files / Cursor SQLite on macOS) or GitHub Copilot via fine-grained PAT (Account: **Copilot requests**).
 
 ## Mission Statement
@@ -228,6 +228,8 @@ Costs summed per model, sorted descending. The primary amount is the user's **di
 Grand Total: €Z.ZZ ($W.WW)
 ```
 
+OpenAI native cost line items such as `chat-latest, input` and `chat-latest, output` are aggregated into one model cost row before display.
+
 ### Display Currency
 
 - `DisplayCurrency` (USD/EUR) + `CurrencyConverter` in `TokenTorchCore/Utilities/DisplayCurrency.swift` (pure; USD<->EUR via `Pricing.usdToEUR`, native passthrough for other source currencies).
@@ -312,6 +314,14 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-06-18: Aggregate OpenAI input/output costs by model
+
+**What**: OpenAI org billing now normalizes native `/organization/costs` line items such as `chat-latest, input` and `chat-latest, output` into one `chat-latest` cost row before summing. Non-token line items remain unchanged.
+
+**Why**: OpenAI reports separate input/output token cost line items per model, but Token Torch should show the combined model price in the menu and CLI.
+
+**How**: `OpenAIOrgProvider.costAggregationLabel(for:)`, `TokenTorchCLI.swift`, `README.md`, `AGENTS.md`, and focused tests. Version `4.2.14`.
 
 ### 2026-06-11: Pin Swift toolchain to 6.2
 

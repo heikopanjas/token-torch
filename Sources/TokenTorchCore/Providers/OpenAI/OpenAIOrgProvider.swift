@@ -131,7 +131,8 @@ public enum OpenAIOrgProvider {
             return pid == nil
         }
 
-        var usageURL = "\(baseURL)/organization/usage/completions?start_time=\(startUnix)&bucket_width=1d&group_by=project_id&group_by=model&limit=31"
+        var usageURL =
+            "\(baseURL)/organization/usage/completions?start_time=\(startUnix)&bucket_width=1d&group_by=project_id&group_by=model&limit=31"
         if let endUnix { usageURL += "&end_time=\(endUnix)" }
         if let filterProject {
             usageURL += "&project_ids[]=\(filterProject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? filterProject)"
@@ -199,7 +200,7 @@ public enum OpenAIOrgProvider {
                     for row in bucket.results where matches(row.projectID) {
                         let usd = row.amount?.value ?? 0
                         guard usd > 0, let line = row.lineItem else { continue }
-                        costTotals[line, default: 0] += usd
+                        costTotals[costAggregationLabel(for: line), default: 0] += usd
                     }
                 }
                 return (page.hasMore, page.nextPage)
@@ -220,5 +221,25 @@ public enum OpenAIOrgProvider {
         report.grandTotalUSD = grandUSD
         report.grandTotalEUR = grandUSD * Pricing.usdToEUR
         return report
+    }
+
+    static func costAggregationLabel(for lineItem: String) -> String {
+        let trimmed = lineItem.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let comma = trimmed.lastIndex(of: ",") else { return trimmed }
+
+        let model = String(trimmed[..<comma]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let suffix = String(trimmed[trimmed.index(after: comma)...])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: "-", with: " ")
+
+        guard model.isEmpty == false else { return trimmed }
+        let parts = suffix.split(separator: " ").map(String.init)
+        let tokenCostWords: Set<String> = ["audio", "cache", "cached", "input", "output", "text", "token", "tokens"]
+        let isTokenCost =
+            parts.contains { $0 == "input" || $0 == "output" }
+            && parts.allSatisfy { tokenCostWords.contains($0) }
+        return isTokenCost ? String(model) : trimmed
     }
 }

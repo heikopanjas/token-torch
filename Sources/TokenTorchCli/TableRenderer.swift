@@ -1,5 +1,5 @@
-import TokenTorchCore
 import Foundation
+import TokenTorchCore
 
 enum TableRenderer {
     private static let usageHeaders = [

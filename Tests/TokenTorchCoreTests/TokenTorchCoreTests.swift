@@ -351,6 +351,13 @@ import Testing
     #expect(amount.value == 0)
 }
 
+@Test func openAICostLineItemAggregatesTokenCostsByModel() {
+    #expect(OpenAIOrgProvider.costAggregationLabel(for: "chat-latest , input") == "chat-latest")
+    #expect(OpenAIOrgProvider.costAggregationLabel(for: "chat-latest, output") == "chat-latest")
+    #expect(OpenAIOrgProvider.costAggregationLabel(for: "gpt-4.1, cached input tokens") == "gpt-4.1")
+    #expect(OpenAIOrgProvider.costAggregationLabel(for: "web search calls") == "web search calls")
+}
+
 @Test func keychainResetTargetsOnlyTokenTorchServices() {
     #expect(TokenTorchKeychainMaintenance.isTokenTorchService("com.tokentorch.keys.claude.adminKey"))
     #expect(TokenTorchKeychainMaintenance.isTokenTorchService("com.tokentorch.vendor.cursor.oauth"))

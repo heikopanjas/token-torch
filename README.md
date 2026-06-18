@@ -9,7 +9,7 @@ Credentials stay on your Mac. Token Torch reads vendor OAuth and Admin keys **re
 | Provider | Org billing (Admin API) | Personal quota (`--quota`) |
 |----------|-------------------------|----------------------------|
 | **Anthropic** (`anthropic`, alias `claude`) | Token usage + model costs from pricing docs | Claude Code rate limits and plan usage |
-| **OpenAI** (`openai`, alias `codex`) | Completions usage + native billed costs | Codex / ChatGPT subscription limits |
+| **OpenAI** (`openai`, alias `codex`) | Completions usage + native billed costs aggregated by model | Codex / ChatGPT subscription limits |
 | **Cursor** (`cursor`) | Not available | Plan usage (Auto, API, total meters) |
 | **GitHub Copilot** (`copilot`) | Not available | AI Credits and monthly quotas via fine-grained PAT |
 
@@ -71,6 +71,8 @@ Requires an **Admin API key** (not a regular API key):
 - Anthropic: `-a` / `ANTHROPIC_ADMIN_KEY` — create at **Settings → Organization → API Keys** in the Anthropic Console
 - OpenAI: `-a` / `OPENAI_ADMIN_KEY`
 - CLI also reads keys saved by **Token Torch** in Keychain (`com.tokentorch.keys.<provider>.adminKey`)
+
+OpenAI native cost line items such as `chat-latest, input` and `chat-latest, output` are aggregated into one model cost row.
 
 ```bash
 # Current month (default date range)
