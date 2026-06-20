@@ -35,6 +35,7 @@
 		B0010100000000000000001A /* AdvancedSettingsCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001C /* AdvancedSettingsCopy.swift */; };
 		B0010100000000000000001B /* SettingsLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001D /* SettingsLayout.swift */; };
 		B0010100000000000000001C /* GeneralSettingsCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001E /* GeneralSettingsCopy.swift */; };
+		B0010100000000000000001D /* NetworkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001F /* NetworkManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -68,6 +69,7 @@
 		B0010200000000000000001C /* AdvancedSettingsCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettingsCopy.swift; sourceTree = "<group>"; };
 		B0010200000000000000001D /* SettingsLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsLayout.swift; sourceTree = "<group>"; };
 		B0010200000000000000001E /* GeneralSettingsCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsCopy.swift; sourceTree = "<group>"; };
+		B0010200000000000000001F /* NetworkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -137,6 +139,7 @@
 				B00102000000000000000010 /* MenuBuilder.swift */,
 				B00102000000000000000011 /* StatusItemController.swift */,
 				B00102000000000000000019 /* MenuBarStatusIcon.swift */,
+				B0010200000000000000001F /* NetworkManager.swift */,
 			);
 			path = MenuBar;
 			sourceTree = "<group>";
@@ -259,6 +262,7 @@
 				B0010100000000000000001A /* AdvancedSettingsCopy.swift in Sources */,
 				B0010100000000000000001B /* SettingsLayout.swift in Sources */,
 				B0010100000000000000001C /* GeneralSettingsCopy.swift in Sources */,
+				B0010100000000000000001D /* NetworkManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

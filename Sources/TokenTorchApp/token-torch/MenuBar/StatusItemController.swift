@@ -80,7 +80,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     // MARK: - Actions
 
     @objc private func refreshFromMenu() {
-        model.refresh()
+        model.refresh(interactive: true)
     }
 
     @objc private func openSettings() {

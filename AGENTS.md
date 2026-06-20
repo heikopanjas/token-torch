@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-18 (OpenAI cost aggregation)
+Last updated: 2026-06-20 (startup network readiness)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -241,6 +241,12 @@ OpenAI native cost line items such as `chat-latest, input` and `chat-latest, out
 - CLI: `-c/--currency` per subcommand (the CLI can't read the app's `UserDefaults`, so it defaults to system locale).
 - Source currencies fed to the converter: USD for Cursor / Anthropic org / OpenAI org / ChatGPT credits; `extra_usage.currency` for Claude credits.
 
+### Startup Network Readiness
+
+- Menu bar startup/timer refreshes are gated by an app-only `NetworkManager` in `Sources/TokenTorchApp/token-torch/MenuBar/NetworkManager.swift`.
+- The manager reuses the resilient `NWPathMonitor` / initial-status / connectivity-check pattern from Dashboard of Doom, but Token Torch provider requests still go through `TokenTorchCore/HTTP/HTTPClient.swift`.
+- Non-interactive refreshes queue while the network is unavailable and run once connectivity is confirmed; manual refreshes still execute immediately.
+
 ### Date Handling
 
 Flexible parsing via `DateRange.parseDateRange()`:
@@ -314,6 +320,14 @@ Load the `git-workflow` skill before committing.
 Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
 
 ## Recent Updates & Decisions
+
+### 2026-06-20: Defer startup refresh until network readiness
+
+**What**: Menu bar startup and timer refreshes now wait for app-level network readiness before calling providers. Added an app `NetworkManager` using the resilient `NWPathMonitor` and actual-connectivity check pattern from Dashboard of Doom; manual refreshes still run immediately. CLI version `4.2.15`.
+
+**Why**: Launch-at-login can run before macOS networking is ready, causing the initial provider fetch to fail even though the network appears moments later.
+
+**How**: `NetworkManager.swift`, `MenuBarViewModel.swift`, `project.pbxproj`, `TokenTorchCLI.swift`, and `AGENTS.md`.
 
 ### 2026-06-18: Aggregate OpenAI input/output costs by model
 
