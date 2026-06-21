@@ -18,6 +18,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menuBuilder.settingsTarget = self
         menuBuilder.refreshAction = #selector(refreshFromMenu)
         menuBuilder.openSettingsAction = #selector(openSettings)
+        menuBuilder.aboutAction = #selector(showAboutFromMenu)
         model.onUpdated = { [weak self] in
             self?.refreshOpenMenu()
         }
@@ -85,6 +86,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     @objc private func openSettings() {
         settingsOpener?.show()
+    }
+
+    @objc private func showAboutFromMenu() {
+        AppActions.showAbout()
     }
 }
 

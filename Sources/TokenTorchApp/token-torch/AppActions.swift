@@ -27,4 +27,10 @@ extension AppActions {
     static func deactivateAfterSettings() {
         NSApplication.shared.setActivationPolicy(.accessory)
     }
+
+    static func showAbout() {
+        NSApplication.shared.setActivationPolicy(.regular)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        NSApplication.shared.orderFrontStandardAboutPanel(nil)
+    }
 }

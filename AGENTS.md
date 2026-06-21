@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-21 (commit body bullet formatting)
+Last updated: 2026-06-21 (General settings pane height)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -247,7 +247,7 @@ OpenAI native cost line items such as `chat-latest, input` and `chat-latest, out
 - Menu bar: General tab popup, persisted in `ProviderPreferences.displayCurrency`; changing it posts `tokenTorchDisplayChanged` to rebuild the menu (no refetch).
 - Start at login: General tab **Start at login** checkbox; uses `SMAppService.mainApp` register/unregister (system-managed login item, not `ProviderPreferences`).
 - VAT / gross vs net: General tab **VAT rate (%)** and **Automatically deduct VAT** toggle, persisted as `ProviderPreferences.vatRatePercent` and `automaticallyDeductVAT`. Entering a positive rate saves on field blur (not just Enter), auto-enables deduction, and applies to plan list prices (`$20/mo`) via `DisplayPriceOptions.formatPlanPrice`. Other menu amounts use `DisplayPriceOptions` (vendor gross incl. VAT; deduct divides by `1 + rate/100`). Posts `tokenTorchDisplayChanged` and repopulates the cached menu immediately.
-- Menu bar icon: General tab **Menu bar icon** popup (`MenuBarIconProvider`: Anthropic, OpenAI, Cursor, Copilot); persisted in `ProviderPreferences.menuBarIcon` (default Cursor); posts `tokenTorchDisplayChanged` to update the status item.
+- Menu bar icon: General tab **Menu bar icon** popup (`MenuBarIconProvider`: `<automatic>`, Anthropic, Claude Code, Codex, OpenAI, Cursor, Copilot); **`<automatic>`** uses the PDF for the first **enabled** row in the Providers table; persisted in `ProviderPreferences.menuBarIcon` (default Cursor); posts `tokenTorchDisplayChanged` to update the status item (including when provider order or enable state changes while that option is selected).
 - CLI: `-c/--currency` per subcommand (the CLI can't read the app's `UserDefaults`, so it defaults to system locale).
 - Source currencies fed to the converter: USD for Cursor / Anthropic org / OpenAI org / ChatGPT credits; `extra_usage.currency` for Claude credits.
 
@@ -273,6 +273,12 @@ Flexible parsing via `DateRange.parseDateRange()`:
 ### Cursor quota meters
 
 Individual plans show `totalPercentUsed`, `autoPercentUsed`, and `apiPercentUsed` as separate non-additive pools. Subscription price (`$200/mo`) is separate from included usage credits.
+
+### About panel
+
+- **About…** lives in the status menu (`MenuBuilder.appendCommandItems`) and the app menu (`AppDelegate.setupMainMenu`), not in Settings.
+- Uses the standard macOS About panel via `AppActions.showAbout()` → `NSApplication.orderFrontStandardAboutPanel`; version/copyright come from `Info.plist` (`MARKETING_VERSION`, `NSHumanReadableCopyright`).
+- Status-menu About temporarily switches activation to `.regular` so the panel is key while the app is otherwise an accessory (`LSUIElement`).
 
 ## Dependencies
 
@@ -330,6 +336,68 @@ Load the `git-workflow` skill before committing. Commit message bodies are optio
 The root `VERSION` file is the release version and release tag source of truth (`v<version>`). `AppVersion.current` in `TokenTorchCore` must match `VERSION`; the CLI reads `AppVersion.current`, and app release builds pass `MARKETING_VERSION=$(cat VERSION)` to Xcode. Load the `semantic-versioning` skill before changing `VERSION` and keep version updates in the same commit as the behavior change.
 
 ## Recent Updates & Decisions
+
+### 2026-06-21: Shorter General settings pane
+
+**What**: `SettingsStyle.generalPaneHeight` reduced from 812 to 640 so the General tab content fits without excess empty space below the providers hint.
+
+**How**: `SettingsStyle.swift`.
+
+### 2026-06-21: Claude Code uses Claude star icon
+
+**What**: Claude Code subscription row, **Claude Code** menu bar icon picker option, and `<automatic>` when Claude Code is top row use `claude.pdf` (starburst). Removed `clawd.pdf` from the app bundle and all menu bar scaling for Claude Code.
+
+**Why**: Terminal/clawd mark was hard to size in the menu bar without clipping side arms; star matches usage menu headers.
+
+**How**: `MenuBarIconProvider.claudeCode`, `ProviderIcons.generalSettingsResourceName`, `MenuBarStatusIcon`, `project.pbxproj`, tests.
+
+### 2026-06-21: Claude Code in menu bar icon picker
+
+**What**: General tab **Menu bar icon** popup adds **Claude Code** (`claude.pdf`). Providers table and `<automatic>` use `claude.pdf` for the Claude Code subscription row.
+
+**Why**: Parity with the Codex fixed icon option; Claude Code terminal mark distinct from Anthropic org branding.
+
+**How**: `MenuBarIconProvider.claudeCode`, tests, `AGENTS.md`. Version `4.2.19`.
+
+### 2026-06-21: Codex in menu bar icon picker
+
+**What**: General tab **Menu bar icon** popup adds **Codex** (`codex.pdf`) as a fixed choice alongside `<automatic>`, Anthropic, OpenAI, Cursor, and Copilot.
+
+**Why**: Users who want the Codex mark in the status item without relying on `<automatic>` provider order.
+
+**How**: `MenuBarIconProvider.codex`, tests, `AGENTS.md`. Version `4.2.18`.
+
+### 2026-06-21: Codex icon from brandlogos.net
+
+**What**: Replaced `Pictures/codex.svg`/`codex.pdf` with the OpenAI Codex mark from [brandlogos.net](https://brandlogos.net/openai-codex-114434.html) (SVG source: `files.brandlogos.net/svg/KCGf0r4L58/OpenAI_Codex-logo-brandlogos-25a8d1.svg`). General-tab Providers table and menu bar icon picker still use `codex.pdf` for the Codex subscription row only.
+
+**Why**: User requested the brandlogos.net Codex artwork instead of the prior Lobe Icons mono mark.
+
+**How**: `Pictures/codex.svg`, `Pictures/codex.pdf`. Version `4.2.17`.
+
+### 2026-06-21: Codex icon in General settings only
+
+**What**: Added `Pictures/codex.pdf` (brandlogos.net OpenAI Codex mark). General-tab **Providers** table and **Menu bar icon** picker (including `<automatic>` when Codex is the top enabled row) use `codex.pdf` for the Codex subscription row. Usage menu headers, fixed **OpenAI** menu bar icon, and the OpenAI/Codex Settings toolbar tab still use `openai.pdf`.
+
+**Why**: Codex subscription should be visually distinct from OpenAI Platform org billing without changing the provider tab branding.
+
+**How**: `ProviderIcons.generalSettingsResourceName` / `generalSettingsImage`, `MenuBarStatusIcon`, `GeneralSettingsViewController`, `project.pbxproj`, `Pictures/codex.svg`/`codex.pdf`. Version `4.2.16`.
+
+### 2026-06-21: Menu bar icon follows top of provider list
+
+**What**: General tab **Menu bar icon** adds **`<automatic>`**. When selected, the status item uses the PDF for the first **enabled** row in the Providers table (`ProviderPreferences.topProviderSection`). Reordering or toggling Enabled updates the icon when this option is active.
+
+**Why**: Users who reorder providers to prioritize one brand want the menu bar icon to track that choice without picking a fixed logo.
+
+**How**: `MenuBarIconProvider.topOfProviderList`, `MenuBarStatusIcon`, `GeneralSettingsViewController`, `ProviderPreferences`, tests, `AGENTS.md`.
+
+### 2026-06-21: About panel in status and app menus
+
+**What**: Added **About Token Torch** to the status menu (grouped with Settings, separator before Quit) and the app menu (when Settings is open). `AppActions.showAbout()` activates the app and calls `orderFrontStandardAboutPanel`. `Info.plist` gains `NSHumanReadableCopyright`.
+
+**Why**: Menu bar utilities should expose About from the status menu users already use; the app menu provides the standard macOS path while Settings is frontmost. No Settings tab — About is product metadata, not configuration.
+
+**How**: `AppActions.swift`, `MenuBuilder.swift`, `StatusItemController.swift`, `AppDelegate.swift`, `Info.plist`, `AGENTS.md`.
 
 ### 2026-06-21: Require bullet formatting for commit bodies
 

@@ -134,10 +134,7 @@ final class GeneralSettingsViewController: NSViewController {
         y -= 4 + 26
         iconPopup = NSPopUpButton(frame: NSRect(x: x, y: y, width: controlW, height: 26), pullsDown: false)
         iconPopup.autoresizingMask = [.minYMargin, .width]
-        for provider in MenuBarIconProvider.allCases {
-            iconPopup.addItem(withTitle: provider.displayName)
-            iconPopup.lastItem?.image = MenuBarStatusIcon.previewImage(for: provider)
-        }
+        rebuildIconPopupItems()
         iconPopup.target = self
         iconPopup.action = #selector(iconChanged)
         view.addSubview(iconPopup)
@@ -220,9 +217,7 @@ final class GeneralSettingsViewController: NSViewController {
         }
         vatField.stringValue = formatVATRate(prefs.vatRatePercent)
         deductVATToggle.state = prefs.automaticallyDeductVAT ? .on : .off
-        if let index = MenuBarIconProvider.allCases.firstIndex(of: prefs.menuBarIcon) {
-            iconPopup.selectItem(at: index)
-        }
+        rebuildIconPopupItems(selecting: prefs.menuBarIcon)
         orderItems = prefs.orderedSections()
         orderTable.reloadData()
     }
@@ -327,6 +322,19 @@ final class GeneralSettingsViewController: NSViewController {
         return String(format: "%.1f", value)
     }
 
+    private func rebuildIconPopupItems(selecting selected: MenuBarIconProvider? = nil) {
+        let prefs = ProviderPreferencesStore.shared.load()
+        let current = selected ?? prefs.menuBarIcon
+        iconPopup.removeAllItems()
+        for provider in MenuBarIconProvider.allCases {
+            iconPopup.addItem(withTitle: provider.displayName)
+            iconPopup.lastItem?.image = MenuBarStatusIcon.previewImage(for: provider, preferences: prefs)
+        }
+        if let index = MenuBarIconProvider.allCases.firstIndex(of: current) {
+            iconPopup.selectItem(at: index)
+        }
+    }
+
     @objc private func iconChanged() {
         let index = iconPopup.indexOfSelectedItem
         guard MenuBarIconProvider.allCases.indices.contains(index) else { return }
@@ -340,6 +348,9 @@ final class GeneralSettingsViewController: NSViewController {
         var prefs = ProviderPreferencesStore.shared.load()
         prefs.setSectionOrder(orderItems)
         ProviderPreferencesStore.shared.save(prefs)
+        if prefs.menuBarIcon == .topOfProviderList {
+            rebuildIconPopupItems(selecting: .topOfProviderList)
+        }
         NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
     }
 
@@ -350,8 +361,12 @@ final class GeneralSettingsViewController: NSViewController {
         var prefs = ProviderPreferencesStore.shared.load()
         prefs.setSection(orderItems[row], enabled: enabled)
         ProviderPreferencesStore.shared.save(prefs)
+        if prefs.menuBarIcon == .topOfProviderList {
+            rebuildIconPopupItems(selecting: .topOfProviderList)
+        }
         if enabled {
             // Enabling needs fresh data (the last fetch omitted this view), so refetch.
+            NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
             NotificationCenter.default.post(name: AppActions.tokenTorchRefreshRequested, object: nil)
         }
         else {
@@ -387,7 +402,7 @@ extension GeneralSettingsViewController: NSTableViewDataSource, NSTableViewDeleg
     private func makeViewCell(_ section: ProviderSection) -> NSView {
         let cell = NSTableCellView()
         let imageView = NSImageView()
-        imageView.image = ProviderIcons.image(for: section, side: 16)
+        imageView.image = ProviderIcons.generalSettingsImage(for: section, side: 16)
         imageView.translatesAutoresizingMaskIntoConstraints = false
         cell.addSubview(imageView)
         cell.imageView = imageView

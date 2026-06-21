@@ -149,7 +149,7 @@ Set your **Development Team** in the target’s Signing & Capabilities before di
 
 **Settings** toolbar:
 
-- **General** — **Start at login**, refresh interval, display currency (USD/EUR), **VAT rate (%)**, **Automatically deduct VAT**, **Menu bar icon** (Anthropic, OpenAI, Cursor, Copilot), and a **Providers** table listing the six menu views (Claude Code, Anthropic API, Codex, OpenAI Platform, Cursor, Copilot): drag rows to reorder, use **Enabled** to turn each view on or off (enabling triggers a refresh; disabling is instant)
+- **General** — **Start at login**, refresh interval, display currency (USD/EUR), **VAT rate (%)**, **Automatically deduct VAT**, **Menu bar icon** (`<automatic>`, Anthropic, OpenAI, Cursor, Copilot), and a **Providers** table listing the six menu views (Claude Code, Anthropic API, Codex, OpenAI Platform, Cursor, Copilot): drag rows to reorder, use **Enabled** to turn each view on or off (enabling triggers a refresh; disabling is instant)
 - **Claude / Codex / Cursor** — reset imported subscription credentials (button with explanatory text); Claude and Codex tabs also include an Admin API key field with setup guidance
 - **Codex** — optional **Show additional model usage** (e.g. Codex Spark)
 - **Copilot** — GitHub Personal Access Token field with setup guidance (same grouped layout as Admin API keys on Claude/OpenAI)
