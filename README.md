@@ -53,7 +53,7 @@ If `xcodebuild` is missing, the script prints how to point `xcode-select` at Xco
 
 - `.github/workflows/build.yml` runs signed release builds on pushes and pull requests for `develop` and `feature/**`, uploads the exported app zip, and creates a GitHub prerelease on non-PR runs. Prerelease tags and zip files use `token-torch-build-<run>-<yyyymmdd-hhmmss>`.
 - `.github/workflows/release.yml` runs signed release builds, Apple notarization, stapling, verification, and artifact upload on pull requests to `main`. On pushes to `main`, it creates the `v$(cat VERSION)` GitHub release after notarization succeeds and refuses to overwrite an existing tag or release. Release zip files use `token-torch-v<version>`.
-- Both workflows generate `CHANGELOG.md` and `BILL_OF_MATERIALS.md`, upload them with the app artifact, and attach them to GitHub releases.
+- Both workflows generate `CHANGELOG.md` and `BILL_OF_MATERIALS.md`, include them inside the release zip, upload them with the app artifact, and attach them to GitHub releases.
 - Both workflows use the `macos-26` GitHub runner image because `Package.swift` requires Swift tools 6.2.
 - Standard GitHub actions are pinned to Node 24 compatible major versions to avoid runner deprecation warnings.
 

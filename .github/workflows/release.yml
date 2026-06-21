@@ -24,6 +24,7 @@ env:
   NOTARY_ZIP: .build/TokenTorch-notarization.zip
   CHANGELOG_PATH: .build/CHANGELOG.md
   BOM_PATH: .build/BILL_OF_MATERIALS.md
+  PACKAGE_DIR: .build/package
   DESTINATION: generic/platform=macOS
   NOTARY_PROFILE: TokenTorch-Notarize
 
@@ -95,7 +96,7 @@ jobs:
       - name: Clean Release Artifacts
         run: |
           set -euo pipefail
-          rm -rf "$ARCHIVE_PATH" "$EXPORT_PATH" "$NOTARY_ZIP" "$ARTIFACT_ZIP"
+          rm -rf "$ARCHIVE_PATH" "$EXPORT_PATH" "$NOTARY_ZIP" "$PACKAGE_DIR" "$ARTIFACT_ZIP"
           mkdir -p "$BUILD_DIR"
 
       - name: Archive Release App
@@ -163,12 +164,6 @@ jobs:
           set -euo pipefail
           spctl -a -vvv "$APP_PATH"
 
-      - name: Package Notarized App Artifact
-        run: |
-          set -euo pipefail
-          ditto -c -k --keepParent "$APP_PATH" "$ARTIFACT_ZIP"
-          ls -lh "$ARTIFACT_ZIP"
-
       - name: Generate Changelog And Bill Of Materials
         run: |
           set -euo pipefail
@@ -192,8 +187,6 @@ jobs:
           BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Contents/Info.plist")"
           BUNDLE_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Contents/Info.plist")"
           BUNDLE_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_PATH/Contents/Info.plist")"
-          ARTIFACT_SHA256="$(shasum -a 256 "$ARTIFACT_ZIP" | awk '{ print $1 }')"
-          ARTIFACT_SIZE="$(stat -f%z "$ARTIFACT_ZIP")"
           XCODE_VERSION="$(xcodebuild -version | tr '\n' ' ')"
           SWIFT_VERSION="$(swift --version | head -n 1)"
           MACOS_VERSION="$(sw_vers -productVersion)"
@@ -202,8 +195,9 @@ jobs:
             echo "# Bill Of Materials"
             echo
             echo "- artifact: $(basename "$ARTIFACT_ZIP")"
-            echo "- artifact size bytes: ${ARTIFACT_SIZE}"
-            echo "- artifact sha256: ${ARTIFACT_SHA256}"
+            echo "- included app: Token Torch.app"
+            echo "- included changelog: CHANGELOG.md"
+            echo "- included bill of materials: BILL_OF_MATERIALS.md"
             echo "- bundle identifier: ${BUNDLE_ID}"
             echo "- bundle version: ${BUNDLE_VERSION}"
             echo "- bundle build: ${BUNDLE_BUILD}"
@@ -219,6 +213,26 @@ jobs:
           } > "$BOM_PATH"
 
           ls -lh "$CHANGELOG_PATH" "$BOM_PATH"
+
+      - name: Package Notarized App Artifact
+        run: |
+          set -euo pipefail
+          rm -rf "$PACKAGE_DIR"
+          mkdir -p "$PACKAGE_DIR"
+          ditto "$APP_PATH" "${PACKAGE_DIR}/Token Torch.app"
+          cp "$CHANGELOG_PATH" "${PACKAGE_DIR}/CHANGELOG.md"
+          cp "$BOM_PATH" "${PACKAGE_DIR}/BILL_OF_MATERIALS.md"
+
+          ARTIFACT_ABSOLUTE="$(pwd)/$ARTIFACT_ZIP"
+          (
+            cd "$PACKAGE_DIR"
+            ditto -c -k --keepParent \
+              "Token Torch.app" \
+              "CHANGELOG.md" \
+              "BILL_OF_MATERIALS.md" \
+              "$ARTIFACT_ABSOLUTE"
+          )
+          ls -lh "$ARTIFACT_ZIP"
 
       - name: Upload Notarized App Artifact
         uses: actions/upload-artifact@v6
