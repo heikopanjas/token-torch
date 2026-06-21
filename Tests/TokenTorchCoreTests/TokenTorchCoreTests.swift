@@ -3,6 +3,15 @@ import Testing
 
 @testable import TokenTorchCore
 
+@Test func appVersionMatchesRootVersionFile() throws {
+    let versionURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent("VERSION")
+    let version = try String(contentsOf: versionURL, encoding: .utf8)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    #expect(AppVersion.current == version)
+}
+
 @Test func inclusiveEndToRFC3339() throws {
     let value = try DateRange.inclusiveEndToRFC3339(end: "2026-05-31")
     #expect(value == "2026-06-01T00:00:00Z")

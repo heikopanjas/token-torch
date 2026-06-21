@@ -11,7 +11,8 @@ DEBUG_DERIVED_DATA="${APP_DIR}/.build"
 DEBUG_APP="${DEBUG_DERIVED_DATA}/Products/Debug/${APP_NAME}.app"
 ARCHIVE_PATH="${BUILD_DIR}/${APP_NAME}.xcarchive"
 EXPORT_PATH="${BUILD_DIR}/export"
-EXPORT_PLIST="${APP_DIR}/ExportOptions.plist"
+EXPORT_PLIST="${APP_DIR}/exportOptions.plist"
+VERSION_FILE="${ROOT}/VERSION"
 NOTARIZE_PROFILE="${NOTARIZE_PROFILE:-TokenTorch-Notarize}"
 # Apple Silicon only — not a universal/Intel build. Architecture comes from Xcode
 # ARCHS=arm64 (project + target). Debug can pass arch= on -destination; release
@@ -49,8 +50,8 @@ Examples:
     $(basename "$0") --release            # Clean, archive, and export
     $(basename "$0") --release --notarize # Clean, archive, export, notarize, and staple
 
-Release builds require ${APP_DIR}/ExportOptions.plist with a valid Developer ID
-provisioning profile for com.panjas.tokentorch.
+Release builds require ${APP_DIR}/exportOptions.plist with Developer ID signing
+configured for com.panjas.tokentorch.
 
 Notarization (--notarize) requires a notarytool Keychain profile (default: ${NOTARIZE_PROFILE}).
 Create it once (app-specific password from appleid.apple.com):
@@ -124,6 +125,17 @@ require_xcode() {
 }
 
 read_build_version() {
+    if [ ! -f "$VERSION_FILE" ]; then
+        echo "Error: missing version file: ${VERSION_FILE}" >&2
+        exit 1
+    fi
+
+    VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
+    if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo "Error: ${VERSION_FILE} must contain a semantic version like 4.2.15" >&2
+        exit 1
+    fi
+
     local settings
     if ! settings="$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -showBuildSettings 2>&1)"; then
         echo "Error: failed to read build settings from ${PROJECT}" >&2
@@ -131,11 +143,10 @@ read_build_version() {
         exit 1
     fi
 
-    VERSION="$(echo "$settings" | awk '/MARKETING_VERSION/ { print $3; exit }')"
     BUILD_NUMBER="$(echo "$settings" | awk '/CURRENT_PROJECT_VERSION/ { print $3; exit }')"
 
-    if [ -z "$VERSION" ] || [ -z "$BUILD_NUMBER" ]; then
-        echo "Error: could not read MARKETING_VERSION or CURRENT_PROJECT_VERSION from ${PROJECT}" >&2
+    if [ -z "$BUILD_NUMBER" ]; then
+        echo "Error: could not read CURRENT_PROJECT_VERSION from ${PROJECT}" >&2
         exit 1
     fi
 }
@@ -178,6 +189,7 @@ build_debug() {
         -configuration Debug \
         -destination "$DEBUG_DESTINATION" \
         -derivedDataPath "$DEBUG_DERIVED_DATA" \
+        MARKETING_VERSION="$VERSION" \
         build -quiet
     echo "    App: ${DEBUG_APP}"
     echo ""
@@ -206,6 +218,7 @@ build_release() {
         -configuration Release \
         -destination "$RELEASE_DESTINATION" \
         -archivePath "$ARCHIVE_PATH" \
+        MARKETING_VERSION="$VERSION" \
         -quiet
     echo "    Archive: ${ARCHIVE_PATH}"
     echo ""
@@ -242,7 +255,7 @@ build_release() {
         echo ""
 
         echo "==> Verifying..."
-        spctl -a -vvv "${EXPORT_PATH}/${APP_NAME}.app" 2>&1 | head -5
+        spctl -a -vvv "${EXPORT_PATH}/${APP_NAME}.app"
         echo ""
 
         rm -f "$ZIP_PATH"

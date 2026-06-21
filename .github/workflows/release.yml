@@ -1,0 +1,194 @@
+name: Release
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PROJECT: Sources/TokenTorchApp/token-torch.xcodeproj
+  SCHEME: token-torch
+  APP_NAME: Token Torch
+  BUILD_DIR: .build
+  ARCHIVE_PATH: .build/Token Torch.xcarchive
+  EXPORT_PATH: .build/export
+  EXPORT_PLIST: Sources/TokenTorchApp/exportOptions.plist
+  APP_PATH: .build/export/Token Torch.app
+  NOTARY_ZIP: .build/TokenTorch-notarization.zip
+  ARTIFACT_ZIP: .build/TokenTorch-notarized.zip
+  DESTINATION: generic/platform=macOS
+  NOTARY_PROFILE: TokenTorch-Notarize
+
+jobs:
+  release:
+    name: Build And Notarize Release App
+    runs-on: macos-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show Xcode Version
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcode-select -p
+
+      - name: Read Version
+        run: |
+          set -euo pipefail
+          APP_VERSION="$(tr -d '[:space:]' < VERSION)"
+          if [[ ! "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "VERSION must contain a semantic version like 4.2.15" >&2
+            exit 1
+          fi
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+          echo "Building Token Torch $APP_VERSION (${GITHUB_RUN_NUMBER})"
+
+      - name: Import Developer ID Certificate
+        env:
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          CERTIFICATE_PATH="$RUNNER_TEMP/developer-id-application.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/token-torch-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+          printf '%s' "$APPLE_CERTIFICATE_P12_BASE64" | base64 -D > "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -F "$APPLE_SIGNING_IDENTITY"
+
+      - name: Clean Release Artifacts
+        run: |
+          set -euo pipefail
+          rm -rf "$ARCHIVE_PATH" "$EXPORT_PATH" "$NOTARY_ZIP" "$ARTIFACT_ZIP"
+          mkdir -p "$BUILD_DIR"
+
+      - name: Archive Release App
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          xcodebuild archive \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination "$DESTINATION" \
+            -archivePath "$ARCHIVE_PATH" \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
+            MARKETING_VERSION="$APP_VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH"
+
+      - name: Export Developer ID App
+        run: |
+          set -euo pipefail
+          rm -rf "$EXPORT_PATH"
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$EXPORT_PATH" \
+            -exportOptionsPlist "$EXPORT_PLIST"
+
+      - name: Create Notarization Zip
+        run: |
+          set -euo pipefail
+          ditto -c -k --keepParent "$APP_PATH" "$NOTARY_ZIP"
+          ls -lh "$NOTARY_ZIP"
+
+      - name: Store Notarization Credentials
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          xcrun notarytool store-credentials "$NOTARY_PROFILE" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --keychain "$KEYCHAIN_PATH"
+
+      - name: Submit For Notarization
+        run: |
+          set -euo pipefail
+          xcrun notarytool submit "$NOTARY_ZIP" \
+            --keychain-profile "$NOTARY_PROFILE" \
+            --keychain "$KEYCHAIN_PATH" \
+            --wait
+
+      - name: Staple Notarization Ticket
+        run: |
+          set -euo pipefail
+          xcrun stapler staple "$APP_PATH"
+
+      - name: Verify Notarized App
+        run: |
+          set -euo pipefail
+          spctl -a -vvv "$APP_PATH"
+
+      - name: Package Notarized App Artifact
+        run: |
+          set -euo pipefail
+          ditto -c -k --keepParent "$APP_PATH" "$ARTIFACT_ZIP"
+          ls -lh "$ARTIFACT_ZIP"
+
+      - name: Upload Notarized App Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: token-torch-${{ env.APP_VERSION }}-notarized
+          path: ${{ env.ARTIFACT_ZIP }}
+          if-no-files-found: error
+
+      - name: Create Release Tag
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          set -euo pipefail
+          TAG="v${APP_VERSION}"
+          git fetch --tags --force
+          if git rev-parse --verify --quiet "$TAG" >/dev/null; then
+            echo "Tag $TAG already exists; refusing to overwrite it." >&2
+            exit 1
+          fi
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      - name: Clean Up Signing Keychain
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -n "${KEYCHAIN_PATH:-}" ] && [ -f "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH"
+          fi

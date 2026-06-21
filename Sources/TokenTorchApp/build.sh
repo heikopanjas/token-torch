@@ -7,7 +7,8 @@ APP_NAME="Token Torch"
 BUILD_DIR="./build"
 ARCHIVE_PATH="${BUILD_DIR}/${APP_NAME}.xcarchive"
 EXPORT_PATH="${BUILD_DIR}/export"
-EXPORT_PLIST="ExportOptions.plist"
+EXPORT_PLIST="exportOptions.plist"
+VERSION_FILE="../../VERSION"
 NOTARIZE_PROFILE="${NOTARIZE_PROFILE:-TokenTorch-Notarize}"
 # Apple Silicon only — not a universal/Intel build. Architecture comes from Xcode
 # ARCHS=arm64 (project + target). generic/platform=macOS is required for archive
@@ -26,8 +27,8 @@ Usage: $(basename "$0") [OPTIONS]
 Build, export, and optionally notarize Token Torch for direct distribution (Developer ID).
 Apple Silicon (arm64) only — not a universal binary.
 
-Run from Sources/TokenTorchApp/. Requires ExportOptions.plist with a valid Developer ID
-provisioning profile for com.panjas.tokentorch.
+Run from Sources/TokenTorchApp/. Requires exportOptions.plist with Developer ID
+signing configured for com.panjas.tokentorch.
 
 Options:
     --clean       Clean build artifacts before building
@@ -62,8 +63,17 @@ for arg in "$@"; do
     esac
 done
 
-VERSION=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -showBuildSettings 2>/dev/null \
-    | awk '/MARKETING_VERSION/ { print $3; exit }')
+if [ ! -f "$VERSION_FILE" ]; then
+    echo "Error: missing version file: ${VERSION_FILE}" >&2
+    exit 1
+fi
+
+VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "Error: ${VERSION_FILE} must contain a semantic version like 4.2.15" >&2
+    exit 1
+fi
+
 BUILD_NUMBER=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -showBuildSettings 2>/dev/null \
     | awk '/CURRENT_PROJECT_VERSION/ { print $3; exit }')
 
@@ -89,6 +99,7 @@ xcodebuild archive \
     -configuration Release \
     -destination "$DESTINATION" \
     -archivePath "$ARCHIVE_PATH" \
+    MARKETING_VERSION="$VERSION" \
     -quiet
 echo "    Archive: ${ARCHIVE_PATH}"
 echo ""
@@ -144,7 +155,7 @@ if [ "$NOTARIZE" = true ]; then
     echo ""
 
     echo "==> Verifying..."
-    spctl -a -vvv "${EXPORT_PATH}/${APP_NAME}.app" 2>&1 | head -5
+    spctl -a -vvv "${EXPORT_PATH}/${APP_NAME}.app"
     echo ""
 
     rm -f "$ZIP_PATH"

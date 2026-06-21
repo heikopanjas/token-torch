@@ -37,6 +37,8 @@ Binaries:
 
 ### Release (Developer ID export)
 
+The release version lives in `VERSION` at the repository root. Local release builds and CI pass that value into the app `MARKETING_VERSION`; the CLI exposes the same value through `AppVersion.current`.
+
 From the repository root:
 
 ```bash
@@ -46,6 +48,22 @@ From the repository root:
 ```
 
 If `xcodebuild` is missing, the script prints how to point `xcode-select` at Xcode (or use `DEVELOPER_DIR=… ./build.sh` once). `--notarize` requires `--release`.
+
+### GitHub Actions
+
+- `.github/workflows/build.yml` runs signed release builds on pushes and pull requests for `develop` and `feature/**`, then uploads the exported app zip.
+- `.github/workflows/release.yml` runs signed release builds, Apple notarization, stapling, verification, and artifact upload on pull requests to `main`. On pushes to `main`, it creates `v$(cat VERSION)` after notarization succeeds and refuses to overwrite an existing tag.
+
+Required repository secrets:
+
+- `APPLE_CERTIFICATE_P12_BASE64` — base64 encoded Developer ID Application `.p12`.
+- `APPLE_CERTIFICATE_PASSWORD` — password for that `.p12`.
+- `APPLE_SIGNING_IDENTITY` — full Developer ID Application signing identity.
+- `APPLE_TEAM_ID` — Apple Developer Team ID.
+- `APPLE_ID` — Apple ID for notarization.
+- `APPLE_ID_PASSWORD` — app-specific password for `notarytool`.
+
+The workflows use `Sources/TokenTorchApp/exportOptions.plist` and import the certificate into a temporary keychain on the GitHub-hosted macOS runner.
 
 ## CLI
 

@@ -9,10 +9,7 @@
     <string>8J2G689FCZ</string>
     <key>signingStyle</key>
     <string>manual</string>
-    <key>provisioningProfiles</key>
-    <dict>
-      <key>com.panjas.tokentorch</key>
-      <string>Token Torch macOS</string>
-    </dict>
+    <key>signingCertificate</key>
+    <string>Developer ID Application</string>
   </dict>
 </plist>
