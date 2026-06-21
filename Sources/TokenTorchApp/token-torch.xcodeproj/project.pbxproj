@@ -398,9 +398,9 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 4.2.15;
 				ARCHS = arm64;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.panjas.token-torch";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.panjas.tokentorch";
 				PRODUCT_NAME = "Token Torch";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
@@ -430,9 +430,9 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 4.2.15;
 				ARCHS = arm64;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.panjas.token-torch";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.panjas.tokentorch";
 				PRODUCT_NAME = "Token Torch";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";

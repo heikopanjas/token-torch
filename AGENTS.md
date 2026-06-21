@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-20 (startup network readiness)
+Last updated: 2026-06-21 (commit body bullet formatting)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -51,8 +51,18 @@ cd Sources/TokenTorchApp && xcodebuild -scheme token-torch -configuration Debug 
 
 # Release archive + Developer ID export (from repo root)
 ./build.sh --release
-./build.sh --release --notarize   # requires Sources/TokenTorchApp/ExportOptions.plist + notarytool profile TokenTorch-Notarize (--release always cleans)
+./build.sh --release --notarize   # requires Sources/TokenTorchApp/exportOptions.plist + notarytool profile TokenTorch-Notarize (--release always cleans)
 ```
+
+### CI release workflows
+
+- `.github/workflows/build.yml`: signed Developer ID release build for pushes and pull requests on `develop` and `feature/**`; uploads the exported app zip and creates a GitHub prerelease on non-PR runs. Prerelease tags and zip files use `token-torch-build-<run>-<yyyymmdd-hhmmss>`.
+- `.github/workflows/release.yml`: signed Developer ID release build + Apple notarization for pull requests to `main`; on pushes to `main`, creates the `v$(cat VERSION)` GitHub release only after notarization succeeds and refuses to overwrite an existing tag or release. Release zip files use `token-torch-v<version>`.
+- Both workflows generate `CHANGELOG.md` and `BILL_OF_MATERIALS.md` and include them inside the release zip.
+- Both workflows use the `macos-26` GitHub runner image because `Package.swift` requires Swift tools 6.2.
+- Standard GitHub actions in these workflows use Node 24 compatible major versions (`actions/checkout@v6`, `actions/upload-artifact@v6`) to avoid runner deprecation warnings.
+- Required GitHub repository secrets: `APPLE_CERTIFICATE_P12_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_TEAM_ID`, `APPLE_ID`, and `APPLE_ID_PASSWORD`.
+- CI imports the Developer ID `.p12` into a temporary keychain and runs the archive, export, notarize, staple, verify, package, and upload commands as separate workflow steps for debuggable logs.
 
 ### Project-specific run examples
 
@@ -313,13 +323,29 @@ swift test
 
 ## Commit Protocol
 
-Load the `git-workflow` skill before committing.
+Load the `git-workflow` skill before committing. Commit message bodies are optional, but if a body is used, every body line must be a bullet point starting with `-`.
 
 ## Semantic Versioning
 
-Automatically bump **`token-torch-cli`** version in `TokenTorchCLI.swift` (`CommandConfiguration.version`) after every code change and include it in the same commit. Load the `semantic-versioning` skill for PATCH/MINOR/MAJOR rules.
+The root `VERSION` file is the release version and release tag source of truth (`v<version>`). `AppVersion.current` in `TokenTorchCore` must match `VERSION`; the CLI reads `AppVersion.current`, and app release builds pass `MARKETING_VERSION=$(cat VERSION)` to Xcode. Load the `semantic-versioning` skill before changing `VERSION` and keep version updates in the same commit as the behavior change.
 
 ## Recent Updates & Decisions
+
+### 2026-06-21: Require bullet formatting for commit bodies
+
+**What**: Commit message bodies remain optional, but if a body is used, every body line must be a bullet point starting with `-`. The `git-workflow` skill places this rule at the top of the commit protocol and updates examples accordingly.
+
+**Why**: Bullet-only bodies make longer commit messages consistently structured and easier to review while preserving concise body-less commits for simple changes.
+
+**How**: `AGENTS.md` and `.agents/skills/git-workflow/SKILL.md`.
+
+### 2026-06-21: GitHub Actions signed and notarized release workflows
+
+**What**: Added CI release conventions for `.github/workflows/build.yml` (signed Developer ID builds on `develop` / `feature/**`, with prereleases on non-PR runs named `token-torch-build-<run>-<yyyymmdd-hhmmss>`) and `.github/workflows/release.yml` (notarized builds for `main`, with `v$(cat VERSION)` GitHub release creation after successful notarization on pushes to `main`). Both workflows generate `CHANGELOG.md` and `BILL_OF_MATERIALS.md`, include them inside the release zip, run on `macos-26` for Swift tools 6.2, and use Node 24 compatible standard actions. Added root `VERSION` as the shared release version source; CLI version flows through `AppVersion.current`, app release builds pass `MARKETING_VERSION` from `VERSION`, and `exportOptions.plist` no longer requires a provisioning profile.
+
+**Why**: CI runners start without local signing state. Explicit workflow steps and repository secrets make certificate import, archive/export, notarization, stapling, verification, artifact upload, and release tag creation debuggable on first setup.
+
+**How**: `.github/workflows/build.yml`, `.github/workflows/release.yml`, `VERSION`, `AppVersion.swift`, `TokenTorchCLI.swift`, `exportOptions.plist`, build scripts, Xcode project signing/version settings, README, and AGENTS.
 
 ### 2026-06-20: Defer startup refresh until network readiness
 
