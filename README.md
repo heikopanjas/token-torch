@@ -51,9 +51,10 @@ If `xcodebuild` is missing, the script prints how to point `xcode-select` at Xco
 
 ### GitHub Actions
 
-- `.github/workflows/build.yml` runs signed release builds on pushes and pull requests for `develop` and `feature/**`, then uploads the exported app zip.
-- `.github/workflows/release.yml` runs signed release builds, Apple notarization, stapling, verification, and artifact upload on pull requests to `main`. On pushes to `main`, it creates `v$(cat VERSION)` after notarization succeeds and refuses to overwrite an existing tag.
+- `.github/workflows/build.yml` runs signed release builds on pushes and pull requests for `develop` and `feature/**`, uploads the exported app zip, and creates a GitHub prerelease on non-PR runs.
+- `.github/workflows/release.yml` runs signed release builds, Apple notarization, stapling, verification, and artifact upload on pull requests to `main`. On pushes to `main`, it creates the `v$(cat VERSION)` GitHub release after notarization succeeds and refuses to overwrite an existing tag or release.
 - Both workflows use the `macos-26` GitHub runner image because `Package.swift` requires Swift tools 6.2.
+- Standard GitHub actions are pinned to Node 24 compatible major versions to avoid runner deprecation warnings.
 
 Required repository secrets:
 

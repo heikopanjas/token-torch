@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   PROJECT: Sources/TokenTorchApp/token-torch.xcodeproj
@@ -34,7 +34,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Show Xcode Version
         run: |
@@ -127,11 +127,30 @@ jobs:
           ls -lh "$ARTIFACT_ZIP"
 
       - name: Upload App Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: token-torch-${{ env.APP_VERSION }}-build
           path: ${{ env.ARTIFACT_ZIP }}
           if-no-files-found: error
+
+      - name: Create GitHub Prerelease
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="v${APP_VERSION}-pre.${GITHUB_RUN_NUMBER}"
+          TITLE="Token Torch ${APP_VERSION} pre-release ${GITHUB_RUN_NUMBER}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Prerelease $TAG already exists; refusing to overwrite it." >&2
+            exit 1
+          fi
+          gh release create "$TAG" "$ARTIFACT_ZIP" \
+            --prerelease \
+            --latest=false \
+            --target "$GITHUB_SHA" \
+            --title "$TITLE" \
+            --notes "Signed prerelease build from ${GITHUB_REF_NAME}."
 
       - name: Clean Up Signing Keychain
         if: always()

@@ -56,9 +56,10 @@ cd Sources/TokenTorchApp && xcodebuild -scheme token-torch -configuration Debug 
 
 ### CI release workflows
 
-- `.github/workflows/build.yml`: signed Developer ID release build for pushes and pull requests on `develop` and `feature/**`; uploads the exported app zip.
-- `.github/workflows/release.yml`: signed Developer ID release build + Apple notarization for pull requests to `main`; on pushes to `main`, creates `v$(cat VERSION)` only after notarization succeeds and refuses to overwrite an existing tag.
+- `.github/workflows/build.yml`: signed Developer ID release build for pushes and pull requests on `develop` and `feature/**`; uploads the exported app zip and creates a GitHub prerelease on non-PR runs.
+- `.github/workflows/release.yml`: signed Developer ID release build + Apple notarization for pull requests to `main`; on pushes to `main`, creates the `v$(cat VERSION)` GitHub release only after notarization succeeds and refuses to overwrite an existing tag or release.
 - Both workflows use the `macos-26` GitHub runner image because `Package.swift` requires Swift tools 6.2.
+- Standard GitHub actions in these workflows use Node 24 compatible major versions (`actions/checkout@v6`, `actions/upload-artifact@v6`) to avoid runner deprecation warnings.
 - Required GitHub repository secrets: `APPLE_CERTIFICATE_P12_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_TEAM_ID`, `APPLE_ID`, and `APPLE_ID_PASSWORD`.
 - CI imports the Developer ID `.p12` into a temporary keychain and runs the archive, export, notarize, staple, verify, package, and upload commands as separate workflow steps for debuggable logs.
 
@@ -321,7 +322,7 @@ swift test
 
 ## Commit Protocol
 
-Load the `git-workflow` skill before committing. Commit message bodies are optional, but if a body is used, every body line must be a bullet point starting with `- `.
+Load the `git-workflow` skill before committing. Commit message bodies are optional, but if a body is used, every body line must be a bullet point starting with `-`.
 
 ## Semantic Versioning
 
@@ -331,7 +332,7 @@ The root `VERSION` file is the release version and release tag source of truth (
 
 ### 2026-06-21: Require bullet formatting for commit bodies
 
-**What**: Commit message bodies remain optional, but if a body is used, every body line must be a bullet point starting with `- `. The `git-workflow` skill places this rule at the top of the commit protocol and updates examples accordingly.
+**What**: Commit message bodies remain optional, but if a body is used, every body line must be a bullet point starting with `-`. The `git-workflow` skill places this rule at the top of the commit protocol and updates examples accordingly.
 
 **Why**: Bullet-only bodies make longer commit messages consistently structured and easier to review while preserving concise body-less commits for simple changes.
 
@@ -339,7 +340,7 @@ The root `VERSION` file is the release version and release tag source of truth (
 
 ### 2026-06-21: GitHub Actions signed and notarized release workflows
 
-**What**: Added CI release conventions for `.github/workflows/build.yml` (signed Developer ID builds on `develop` / `feature/**`) and `.github/workflows/release.yml` (notarized builds for `main`, with `v$(cat VERSION)` tag creation after successful notarization on pushes to `main`). Both workflows run on `macos-26` for Swift tools 6.2. Added root `VERSION` as the shared release version source; CLI version flows through `AppVersion.current`, app release builds pass `MARKETING_VERSION` from `VERSION`, and `exportOptions.plist` no longer requires a provisioning profile.
+**What**: Added CI release conventions for `.github/workflows/build.yml` (signed Developer ID builds on `develop` / `feature/**`, with prereleases on non-PR runs) and `.github/workflows/release.yml` (notarized builds for `main`, with `v$(cat VERSION)` GitHub release creation after successful notarization on pushes to `main`). Both workflows run on `macos-26` for Swift tools 6.2 and use Node 24 compatible standard actions. Added root `VERSION` as the shared release version source; CLI version flows through `AppVersion.current`, app release builds pass `MARKETING_VERSION` from `VERSION`, and `exportOptions.plist` no longer requires a provisioning profile.
 
 **Why**: CI runners start without local signing state. Explicit workflow steps and repository secrets make certificate import, archive/export, notarization, stapling, verification, artifact upload, and release tag creation debuggable on first setup.
 
