@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-21 (Claude Code menu bar icon option)
+Last updated: 2026-06-21 (General settings pane height)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -337,13 +337,27 @@ The root `VERSION` file is the release version and release tag source of truth (
 
 ## Recent Updates & Decisions
 
+### 2026-06-21: Shorter General settings pane
+
+**What**: `SettingsStyle.generalPaneHeight` reduced from 812 to 640 so the General tab content fits without excess empty space below the providers hint.
+
+**How**: `SettingsStyle.swift`.
+
+### 2026-06-21: Claude Code uses Claude star icon
+
+**What**: Claude Code subscription row, **Claude Code** menu bar icon picker option, and `<automatic>` when Claude Code is top row use `claude.pdf` (starburst). Removed `clawd.pdf` from the app bundle and all menu bar scaling for Claude Code.
+
+**Why**: Terminal/clawd mark was hard to size in the menu bar without clipping side arms; star matches usage menu headers.
+
+**How**: `MenuBarIconProvider.claudeCode`, `ProviderIcons.generalSettingsResourceName`, `MenuBarStatusIcon`, `project.pbxproj`, tests.
+
 ### 2026-06-21: Claude Code in menu bar icon picker
 
-**What**: General tab **Menu bar icon** popup adds **Claude Code** (`clawd.pdf`). Providers table and `<automatic>` use `clawd.pdf` for the Claude Code subscription row (usage menu headers still use `claude.pdf`).
+**What**: General tab **Menu bar icon** popup adds **Claude Code** (`claude.pdf`). Providers table and `<automatic>` use `claude.pdf` for the Claude Code subscription row.
 
 **Why**: Parity with the Codex fixed icon option; Claude Code terminal mark distinct from Anthropic org branding.
 
-**How**: `MenuBarIconProvider.claudeCode`, `ProviderIcons.generalSettingsResourceName`, bundled `clawd.pdf`, tests, `AGENTS.md`. Version `4.2.19`.
+**How**: `MenuBarIconProvider.claudeCode`, tests, `AGENTS.md`. Version `4.2.19`.
 
 ### 2026-06-21: Codex in menu bar icon picker
 

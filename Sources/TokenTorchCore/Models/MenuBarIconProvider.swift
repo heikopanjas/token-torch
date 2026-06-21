@@ -30,7 +30,7 @@ public enum MenuBarIconProvider: String, Codable, CaseIterable, Sendable, Identi
         switch self {
             case .topOfProviderList: nil
             case .anthropic: "anthropic"
-            case .claudeCode: "clawd"
+            case .claudeCode: "claude"
             case .codex: "codex"
             case .openai: "openai"
             case .cursor: "cursor"

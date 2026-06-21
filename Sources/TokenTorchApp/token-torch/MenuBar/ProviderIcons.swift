@@ -60,9 +60,8 @@ enum ProviderIcons {
     }
 
     /// General-tab provider list and menu bar icon picker (including `<automatic>`).
-    /// Claude Code / Codex subscription rows use `clawd.pdf` / `codex.pdf`; usage menu headers unchanged.
+    /// Codex subscription uses `codex.pdf`; usage menu headers unchanged.
     static func generalSettingsResourceName(for provider: ProviderID, kind: ProviderSectionKind) -> String {
-        if provider == .claude, kind == .subscription { return "clawd" }
         if provider == .codex, kind == .subscription { return "codex" }
         return resourceName(for: provider, kind: kind)
     }

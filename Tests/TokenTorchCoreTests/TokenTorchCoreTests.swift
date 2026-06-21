@@ -152,7 +152,7 @@ import Testing
 @Test func menuBarIconProviderMapsPdfResources() {
     #expect(MenuBarIconProvider.topOfProviderList.pdfResourceName == nil)
     #expect(MenuBarIconProvider.anthropic.pdfResourceName == "anthropic")
-    #expect(MenuBarIconProvider.claudeCode.pdfResourceName == "clawd")
+    #expect(MenuBarIconProvider.claudeCode.pdfResourceName == "claude")
     #expect(MenuBarIconProvider.codex.pdfResourceName == "codex")
     #expect(MenuBarIconProvider.openai.pdfResourceName == "openai")
     #expect(MenuBarIconProvider.cursor.pdfResourceName == "cursor")
