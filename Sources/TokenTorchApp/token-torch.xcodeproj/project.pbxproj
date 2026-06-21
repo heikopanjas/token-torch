@@ -29,6 +29,8 @@
 		B00101000000000000000014 /* SettingsStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000016 /* SettingsStyle.swift */; };
 		B00101000000000000000015 /* AdvancedSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000017 /* AdvancedSettingsViewController.swift */; };
 		B00101000000000000000016 /* githubcopilot.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000018 /* githubcopilot.pdf */; };
+		B00101000000000000000020 /* codex.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000020 /* codex.pdf */; };
+		B00101000000000000000021 /* clawd.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000021 /* clawd.pdf */; };
 		B00101000000000000000017 /* MenuBarStatusIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000019 /* MenuBarStatusIcon.swift */; };
 		B00101000000000000000018 /* LoginItemRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001A /* LoginItemRegistration.swift */; };
 		B00101000000000000000019 /* ProviderSettingsCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001B /* ProviderSettingsCopy.swift */; };
@@ -63,6 +65,8 @@
 		B00102000000000000000016 /* SettingsStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStyle.swift; sourceTree = "<group>"; };
 		B00102000000000000000017 /* AdvancedSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettingsViewController.swift; sourceTree = "<group>"; };
 		B00102000000000000000018 /* githubcopilot.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = githubcopilot.pdf; path = ../../Pictures/githubcopilot.pdf; sourceTree = SOURCE_ROOT; };
+		B00102000000000000000020 /* codex.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = codex.pdf; path = ../../Pictures/codex.pdf; sourceTree = SOURCE_ROOT; };
+		B00102000000000000000021 /* clawd.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = clawd.pdf; path = ../../Pictures/clawd.pdf; sourceTree = SOURCE_ROOT; };
 		B00102000000000000000019 /* MenuBarStatusIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarStatusIcon.swift; sourceTree = "<group>"; };
 		B0010200000000000000001A /* LoginItemRegistration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItemRegistration.swift; sourceTree = "<group>"; };
 		B0010200000000000000001B /* ProviderSettingsCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSettingsCopy.swift; sourceTree = "<group>"; };
@@ -124,6 +128,8 @@
 				B00102000000000000000008 /* cursor.pdf */,
 				B00102000000000000000009 /* anthropic.pdf */,
 				B00102000000000000000018 /* githubcopilot.pdf */,
+				B00102000000000000000020 /* codex.pdf */,
+				B00102000000000000000021 /* clawd.pdf */,
 			);
 			name = Pictures;
 			sourceTree = "<group>";
@@ -231,6 +237,8 @@
 				B00101000000000000000006 /* cursor.pdf in Resources */,
 				B00101000000000000000007 /* anthropic.pdf in Resources */,
 				B00101000000000000000016 /* githubcopilot.pdf in Resources */,
+				B00101000000000000000020 /* codex.pdf in Resources */,
+				B00101000000000000000021 /* clawd.pdf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

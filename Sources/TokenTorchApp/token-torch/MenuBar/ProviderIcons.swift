@@ -59,6 +59,14 @@ enum ProviderIcons {
         }
     }
 
+    /// General-tab provider list and menu bar icon picker (including `<automatic>`).
+    /// Claude Code / Codex subscription rows use `clawd.pdf` / `codex.pdf`; usage menu headers unchanged.
+    static func generalSettingsResourceName(for provider: ProviderID, kind: ProviderSectionKind) -> String {
+        if provider == .claude, kind == .subscription { return "clawd" }
+        if provider == .codex, kind == .subscription { return "codex" }
+        return resourceName(for: provider, kind: kind)
+    }
+
     static func resourceName(for provider: ProviderID, report: ProviderReport) -> String {
         resourceName(for: provider, kind: report.sectionKind)
     }
@@ -69,6 +77,10 @@ enum ProviderIcons {
 
     static func image(for section: ProviderSection, side: CGFloat = 18) -> NSImage? {
         pdfImage(named: resourceName(for: section.provider, kind: section.kind), side: side)
+    }
+
+    static func generalSettingsImage(for section: ProviderSection, side: CGFloat = 18) -> NSImage? {
+        pdfImage(named: generalSettingsResourceName(for: section.provider, kind: section.kind), side: side)
     }
 
     private static func pdfImage(named name: String, side: CGFloat) -> NSImage? {

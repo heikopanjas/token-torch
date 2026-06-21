@@ -150,10 +150,25 @@ import Testing
 }
 
 @Test func menuBarIconProviderMapsPdfResources() {
+    #expect(MenuBarIconProvider.topOfProviderList.pdfResourceName == nil)
     #expect(MenuBarIconProvider.anthropic.pdfResourceName == "anthropic")
+    #expect(MenuBarIconProvider.claudeCode.pdfResourceName == "clawd")
+    #expect(MenuBarIconProvider.codex.pdfResourceName == "codex")
     #expect(MenuBarIconProvider.openai.pdfResourceName == "openai")
     #expect(MenuBarIconProvider.cursor.pdfResourceName == "cursor")
     #expect(MenuBarIconProvider.copilot.pdfResourceName == "githubcopilot")
+}
+
+@Test func topProviderSectionUsesFirstEnabledRowInOrder() {
+    var prefs = ProviderPreferences()
+    prefs.setSectionOrder([
+        ProviderSection(provider: .copilot, kind: .subscription),
+        ProviderSection(provider: .claude, kind: .subscription)
+    ])
+    prefs.setSection(ProviderSection(provider: .copilot, kind: .subscription), enabled: true)
+    #expect(prefs.topProviderSection == ProviderSection(provider: .copilot, kind: .subscription))
+    prefs.setSection(ProviderSection(provider: .copilot, kind: .subscription), enabled: false)
+    #expect(prefs.topProviderSection == ProviderSection(provider: .claude, kind: .subscription))
 }
 
 @Test func providerSectionAllSectionsCoversSixMenuViews() {

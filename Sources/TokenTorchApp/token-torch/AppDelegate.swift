@@ -38,6 +38,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsItem.target = self
         appMenu.addItem(settingsItem)
 
+        let aboutItem = NSMenuItem(
+            title: "About…",
+            action: #selector(showAbout),
+            keyEquivalent: ""
+        )
+        aboutItem.target = self
+        appMenu.addItem(aboutItem)
+
         appMenu.addItem(.separator())
 
         let quitItem = NSMenuItem(
@@ -53,5 +61,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openSettings() {
         AppActions.requestOpenSettings()
+    }
+
+    @MainActor @objc private func showAbout() {
+        AppActions.showAbout()
     }
 }

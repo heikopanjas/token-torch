@@ -197,6 +197,11 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
     public func providerOrderIndex(of provider: ProviderID) -> Int {
         orderedSections().firstIndex { $0.provider == provider } ?? Int.max
     }
+
+    /// First enabled row in the General-tab Providers table (normalized order).
+    public var topProviderSection: ProviderSection? {
+        orderedSections().first { isSectionEnabled($0) }
+    }
 }
 
 public enum AppKeyKind: String, Sendable {

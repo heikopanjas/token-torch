@@ -6,6 +6,7 @@ final class MenuBuilder {
     weak var settingsTarget: AnyObject?
     var openSettingsAction: Selector?
     var refreshAction: Selector?
+    var aboutAction: Selector?
 
     func buildMenu(model: MenuBarViewModel) -> NSMenu {
         let menu = NSMenu()
@@ -217,6 +218,8 @@ final class MenuBuilder {
         refresh.isEnabled = !model.isLoading
         menu.addItem(refresh)
 
+        menu.addItem(.separator())
+
         let settings = NSMenuItem(
             title: "Settings…",
             action: openSettingsAction,
@@ -224,6 +227,16 @@ final class MenuBuilder {
         )
         settings.target = settingsTarget
         menu.addItem(settings)
+
+        let about = NSMenuItem(
+            title: "About…",
+            action: aboutAction,
+            keyEquivalent: ""
+        )
+        about.target = settingsTarget
+        menu.addItem(about)
+
+        menu.addItem(.separator())
 
         let quit = NSMenuItem(
             title: "Quit",
