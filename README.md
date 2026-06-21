@@ -53,6 +53,7 @@ If `xcodebuild` is missing, the script prints how to point `xcode-select` at Xco
 
 - `.github/workflows/build.yml` runs signed release builds on pushes and pull requests for `develop` and `feature/**`, then uploads the exported app zip.
 - `.github/workflows/release.yml` runs signed release builds, Apple notarization, stapling, verification, and artifact upload on pull requests to `main`. On pushes to `main`, it creates `v$(cat VERSION)` after notarization succeeds and refuses to overwrite an existing tag.
+- Both workflows use the `macos-26` GitHub runner image because `Package.swift` requires Swift tools 6.2.
 
 Required repository secrets:
 

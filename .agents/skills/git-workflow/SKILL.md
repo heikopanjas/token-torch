@@ -18,7 +18,7 @@ character limits, conventional commit types, and examples.
 
 - **NEVER commit automatically** - always wait for explicit confirmation
 - **IF A COMMIT MESSAGE HAS A BODY, EVERY BODY LINE MUST BE A BULLET**
-- **BODY BULLETS MUST START WITH `- `**
+- **BODY BULLETS MUST START WITH `-`**
 - **DO NOT write prose paragraphs in commit message bodies**
 
 Whenever asked to commit changes:
@@ -63,7 +63,7 @@ Follow these rules to prevent VSCode terminal crashes and ensure clean git histo
 
 - Add blank line after subject before body
 - Body text is optional for simple commits
-- Start every body line with `- `, except wrapped continuation lines
+- Start every body line with `-`, except wrapped continuation lines
 - Use lowercase text after each bullet marker
 - Wrap each body line at 72 characters maximum
 - Explain what and why, not how

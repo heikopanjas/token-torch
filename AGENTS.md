@@ -58,6 +58,7 @@ cd Sources/TokenTorchApp && xcodebuild -scheme token-torch -configuration Debug 
 
 - `.github/workflows/build.yml`: signed Developer ID release build for pushes and pull requests on `develop` and `feature/**`; uploads the exported app zip.
 - `.github/workflows/release.yml`: signed Developer ID release build + Apple notarization for pull requests to `main`; on pushes to `main`, creates `v$(cat VERSION)` only after notarization succeeds and refuses to overwrite an existing tag.
+- Both workflows use the `macos-26` GitHub runner image because `Package.swift` requires Swift tools 6.2.
 - Required GitHub repository secrets: `APPLE_CERTIFICATE_P12_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_TEAM_ID`, `APPLE_ID`, and `APPLE_ID_PASSWORD`.
 - CI imports the Developer ID `.p12` into a temporary keychain and runs the archive, export, notarize, staple, verify, package, and upload commands as separate workflow steps for debuggable logs.
 
@@ -338,7 +339,7 @@ The root `VERSION` file is the release version and release tag source of truth (
 
 ### 2026-06-21: GitHub Actions signed and notarized release workflows
 
-**What**: Added CI release conventions for `.github/workflows/build.yml` (signed Developer ID builds on `develop` / `feature/**`) and `.github/workflows/release.yml` (notarized builds for `main`, with `v$(cat VERSION)` tag creation after successful notarization on pushes to `main`). Added root `VERSION` as the shared release version source; CLI version flows through `AppVersion.current`, app release builds pass `MARKETING_VERSION` from `VERSION`, and `exportOptions.plist` no longer requires a provisioning profile.
+**What**: Added CI release conventions for `.github/workflows/build.yml` (signed Developer ID builds on `develop` / `feature/**`) and `.github/workflows/release.yml` (notarized builds for `main`, with `v$(cat VERSION)` tag creation after successful notarization on pushes to `main`). Both workflows run on `macos-26` for Swift tools 6.2. Added root `VERSION` as the shared release version source; CLI version flows through `AppVersion.current`, app release builds pass `MARKETING_VERSION` from `VERSION`, and `exportOptions.plist` no longer requires a provisioning profile.
 
 **Why**: CI runners start without local signing state. Explicit workflow steps and repository secrets make certificate import, archive/export, notarization, stapling, verification, artifact upload, and release tag creation debuggable on first setup.
 

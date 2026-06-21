@@ -29,7 +29,7 @@ env:
 jobs:
   build:
     name: Build Signed Release App
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 60
 
     steps:

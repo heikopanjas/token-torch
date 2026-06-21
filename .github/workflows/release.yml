@@ -29,7 +29,7 @@ env:
 jobs:
   release:
     name: Build And Notarize Release App
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 90
 
     steps:
