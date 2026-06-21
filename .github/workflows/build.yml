@@ -190,11 +190,7 @@ jobs:
           ARTIFACT_ABSOLUTE="$(pwd)/$ARTIFACT_ZIP"
           (
             cd "$PACKAGE_DIR"
-            ditto -c -k --keepParent \
-              "Token Torch.app" \
-              "CHANGELOG.md" \
-              "BILL_OF_MATERIALS.md" \
-              "$ARTIFACT_ABSOLUTE"
+            ditto -c -k . "$ARTIFACT_ABSOLUTE"
           )
           ls -lh "$ARTIFACT_ZIP"
 
