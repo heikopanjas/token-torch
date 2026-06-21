@@ -58,7 +58,7 @@ cd Sources/TokenTorchApp && xcodebuild -scheme token-torch -configuration Debug 
 
 - `.github/workflows/build.yml`: signed Developer ID release build for pushes and pull requests on `develop` and `feature/**`; uploads the exported app zip and creates a GitHub prerelease on non-PR runs. Prerelease tags and zip files use `token-torch-build-<run>-<yyyymmdd-hhmmss>`.
 - `.github/workflows/release.yml`: signed Developer ID release build + Apple notarization for pull requests to `main`; on pushes to `main`, creates the `v$(cat VERSION)` GitHub release only after notarization succeeds and refuses to overwrite an existing tag or release. Release zip files use `token-torch-v<version>`.
-- Both workflows generate `CHANGELOG.md` and `BILL_OF_MATERIALS.md`, include them inside the release zip, upload them with the app artifact, and attach them to GitHub releases.
+- Both workflows generate `CHANGELOG.md` and `BILL_OF_MATERIALS.md` and include them inside the release zip.
 - Both workflows use the `macos-26` GitHub runner image because `Package.swift` requires Swift tools 6.2.
 - Standard GitHub actions in these workflows use Node 24 compatible major versions (`actions/checkout@v6`, `actions/upload-artifact@v6`) to avoid runner deprecation warnings.
 - Required GitHub repository secrets: `APPLE_CERTIFICATE_P12_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_TEAM_ID`, `APPLE_ID`, and `APPLE_ID_PASSWORD`.
