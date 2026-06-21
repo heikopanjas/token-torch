@@ -23,7 +23,8 @@ env:
   EXPORT_PATH: .build/export
   EXPORT_PLIST: Sources/TokenTorchApp/exportOptions.plist
   APP_PATH: .build/export/Token Torch.app
-  ARTIFACT_ZIP: .build/TokenTorch-build.zip
+  CHANGELOG_PATH: .build/CHANGELOG.md
+  BOM_PATH: .build/BILL_OF_MATERIALS.md
   DESTINATION: generic/platform=macOS
 
 jobs:
@@ -35,6 +36,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: Show Xcode Version
         run: |
@@ -50,8 +53,12 @@ jobs:
             echo "VERSION must contain a semantic version like 4.2.15" >&2
             exit 1
           fi
+          BUILD_TIMESTAMP="$(date -u +%Y%m%d-%H%M%S)"
+          PRERELEASE_NAME="token-torch-build-${GITHUB_RUN_NUMBER}-${BUILD_TIMESTAMP}"
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
           echo "BUILD_NUMBER=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+          echo "PRERELEASE_NAME=$PRERELEASE_NAME" >> "$GITHUB_ENV"
+          echo "ARTIFACT_ZIP=.build/${PRERELEASE_NAME}.zip" >> "$GITHUB_ENV"
           echo "Building Token Torch $APP_VERSION (${GITHUB_RUN_NUMBER})"
 
       - name: Import Developer ID Certificate
@@ -126,11 +133,65 @@ jobs:
           ditto -c -k --keepParent "$APP_PATH" "$ARTIFACT_ZIP"
           ls -lh "$ARTIFACT_ZIP"
 
+      - name: Generate Changelog And Bill Of Materials
+        run: |
+          set -euo pipefail
+          PREVIOUS_TAG="$(git describe --tags --abbrev=0 --exclude "v${APP_VERSION}-pre.*" 2>/dev/null || true)"
+          {
+            echo "# Changelog"
+            echo
+            echo "- version: ${APP_VERSION}"
+            echo "- commit: ${GITHUB_SHA}"
+            echo "- branch: ${GITHUB_REF_NAME}"
+            echo
+            if [ -n "$PREVIOUS_TAG" ]; then
+              echo "## Changes since ${PREVIOUS_TAG}"
+              git log --no-merges --pretty='- %s (%h)' "${PREVIOUS_TAG}..HEAD"
+            else
+              echo "## Changes"
+              git log --no-merges --pretty='- %s (%h)' HEAD
+            fi
+          } > "$CHANGELOG_PATH"
+
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Contents/Info.plist")"
+          BUNDLE_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Contents/Info.plist")"
+          BUNDLE_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_PATH/Contents/Info.plist")"
+          ARTIFACT_SHA256="$(shasum -a 256 "$ARTIFACT_ZIP" | awk '{ print $1 }')"
+          ARTIFACT_SIZE="$(stat -f%z "$ARTIFACT_ZIP")"
+          XCODE_VERSION="$(xcodebuild -version | tr '\n' ' ')"
+          SWIFT_VERSION="$(swift --version | head -n 1)"
+          MACOS_VERSION="$(sw_vers -productVersion)"
+
+          {
+            echo "# Bill Of Materials"
+            echo
+            echo "- artifact: $(basename "$ARTIFACT_ZIP")"
+            echo "- artifact size bytes: ${ARTIFACT_SIZE}"
+            echo "- artifact sha256: ${ARTIFACT_SHA256}"
+            echo "- bundle identifier: ${BUNDLE_ID}"
+            echo "- bundle version: ${BUNDLE_VERSION}"
+            echo "- bundle build: ${BUNDLE_BUILD}"
+            echo "- source commit: ${GITHUB_SHA}"
+            echo "- source branch: ${GITHUB_REF_NAME}"
+            echo "- runner image: macos-26"
+            echo "- macos version: ${MACOS_VERSION}"
+            echo "- xcode version: ${XCODE_VERSION}"
+            echo "- swift version: ${SWIFT_VERSION}"
+            echo
+            echo "## Swift Package Dependencies"
+            swift package show-dependencies
+          } > "$BOM_PATH"
+
+          ls -lh "$CHANGELOG_PATH" "$BOM_PATH"
+
       - name: Upload App Artifact
         uses: actions/upload-artifact@v6
         with:
-          name: token-torch-${{ env.APP_VERSION }}-build
-          path: ${{ env.ARTIFACT_ZIP }}
+          name: ${{ env.PRERELEASE_NAME }}
+          path: |
+            ${{ env.ARTIFACT_ZIP }}
+            ${{ env.CHANGELOG_PATH }}
+            ${{ env.BOM_PATH }}
           if-no-files-found: error
 
       - name: Create GitHub Prerelease
@@ -139,18 +200,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG="v${APP_VERSION}-pre.${GITHUB_RUN_NUMBER}"
-          TITLE="Token Torch ${APP_VERSION} pre-release ${GITHUB_RUN_NUMBER}"
+          TAG="$PRERELEASE_NAME"
+          TITLE="$PRERELEASE_NAME"
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Prerelease $TAG already exists; refusing to overwrite it." >&2
             exit 1
           fi
-          gh release create "$TAG" "$ARTIFACT_ZIP" \
+          gh release create "$TAG" "$ARTIFACT_ZIP" "$CHANGELOG_PATH" "$BOM_PATH" \
             --prerelease \
             --latest=false \
             --target "$GITHUB_SHA" \
             --title "$TITLE" \
-            --notes "Signed prerelease build from ${GITHUB_REF_NAME}."
+            --notes-file "$CHANGELOG_PATH"
 
       - name: Clean Up Signing Keychain
         if: always()
