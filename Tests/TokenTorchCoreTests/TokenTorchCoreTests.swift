@@ -642,9 +642,11 @@ import Testing
     let items = CopilotQuotaLabels.displayItems(aiCredits!)
     #expect(
         items.map(\.label) == [
-            "Entitlement credits", "Remaining credits", "Percent remaining", "Overage"
+            "Entitlement credits", "Used credits", "Percent used", "Overage"
         ])
     #expect(items.first(where: { $0.label == "Entitlement credits" })?.value == "20000")
+    #expect(items.first(where: { $0.label == "Used credits" })?.value == "667")
+    #expect(items.first(where: { $0.label == "Percent used" })?.value == "3.4%")
     #expect(items.first(where: { $0.label == "Overage" })?.value == "enabled")
     #expect(CopilotQuotaLabels.groupCaption(aiCredits!) == nil)
 }
