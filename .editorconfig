@@ -13,10 +13,6 @@ trim_trailing_whitespace = true
 [*.swift]
 charset = utf-8
 
-# Swift package manifest
-[Package.swift]
-charset = utf-8
-
 # Xcode project files
 [*.{pbxproj,xcscheme,xcworkspacedata}]
 charset = utf-8

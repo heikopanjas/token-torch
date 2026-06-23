@@ -1,0 +1,835 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 60;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		B00101000000000000000001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000001 /* AppDelegate.swift */; };
+		B00101000000000000000002 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000002 /* Assets.xcassets */; };
+		B00101000000000000000004 /* claude.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000006 /* claude.pdf */; };
+		B00101000000000000000005 /* openai.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000007 /* openai.pdf */; };
+		B00101000000000000000006 /* cursor.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000008 /* cursor.pdf */; };
+		B00101000000000000000007 /* anthropic.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000009 /* anthropic.pdf */; };
+		B00101000000000000000008 /* AppActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000000A /* AppActions.swift */; };
+		B00101000000000000000009 /* MenuBarViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000000B /* MenuBarViewModel.swift */; };
+		B0010100000000000000000A /* MenuFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000000C /* MenuFormat.swift */; };
+		B0010100000000000000000B /* ProviderIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000000D /* ProviderIcons.swift */; };
+		B0010100000000000000000C /* ReportLabels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000000E /* ReportLabels.swift */; };
+		B0010100000000000000000D /* UsageMenuItemViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000000F /* UsageMenuItemViews.swift */; };
+		B0010100000000000000000E /* MenuBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000010 /* MenuBuilder.swift */; };
+		B0010100000000000000000F /* StatusItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000011 /* StatusItemController.swift */; };
+		B00101000000000000000010 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000012 /* SettingsWindowController.swift */; };
+		B00101000000000000000011 /* GeneralSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000013 /* GeneralSettingsViewController.swift */; };
+		B00101000000000000000012 /* ProviderSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000014 /* ProviderSettingsViewController.swift */; };
+		B00101000000000000000013 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000015 /* main.swift */; };
+		B00101000000000000000014 /* SettingsStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000016 /* SettingsStyle.swift */; };
+		B00101000000000000000015 /* AdvancedSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000017 /* AdvancedSettingsViewController.swift */; };
+		B00101000000000000000016 /* githubcopilot.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000018 /* githubcopilot.pdf */; };
+		B00101000000000000000020 /* codex.pdf in Resources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000020 /* codex.pdf */; };
+		B00101000000000000000017 /* MenuBarStatusIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000019 /* MenuBarStatusIcon.swift */; };
+		B00101000000000000000018 /* LoginItemRegistration.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001A /* LoginItemRegistration.swift */; };
+		B00101000000000000000019 /* ProviderSettingsCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001B /* ProviderSettingsCopy.swift */; };
+		B0010100000000000000001A /* AdvancedSettingsCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001C /* AdvancedSettingsCopy.swift */; };
+		B0010100000000000000001B /* SettingsLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001D /* SettingsLayout.swift */; };
+		B0010100000000000000001C /* GeneralSettingsCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001E /* GeneralSettingsCopy.swift */; };
+		B0010100000000000000001D /* NetworkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001F /* NetworkManager.swift */; };
+		C0040000000000000004 /* AppKeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000003 /* AppKeychainStore.swift */; };
+		C0040000000000000006 /* CredentialStoreMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000005 /* CredentialStoreMigration.swift */; };
+		C0040000000000000008 /* KeychainReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000007 /* KeychainReader.swift */; };
+		C0040000000000000010 /* TokenTorchKeychainMaintenance.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000009 /* TokenTorchKeychainMaintenance.swift */; };
+		C0040000000000000012 /* TokenTorchVendorCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000011 /* TokenTorchVendorCredentialStore.swift */; };
+		C0040000000000000014 /* VendorCredentialCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000013 /* VendorCredentialCache.swift */; };
+		C0040000000000000016 /* VendorCredentialImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000015 /* VendorCredentialImporter.swift */; };
+		C0040000000000000020 /* VendorCredentialsReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000019 /* VendorCredentialsReader.swift */; };
+		C0040000000000000023 /* HTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000022 /* HTTPClient.swift */; };
+		C0040000000000000026 /* MenuBarIconProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000025 /* MenuBarIconProvider.swift */; };
+		C0040000000000000028 /* OrgModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000027 /* OrgModels.swift */; };
+		C0040000000000000030 /* ProviderPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000029 /* ProviderPreferences.swift */; };
+		C0040000000000000032 /* ProviderReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000031 /* ProviderReport.swift */; };
+		C0040000000000000034 /* QuotaModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000033 /* QuotaModels.swift */; };
+		C0040000000000000038 /* AnthropicOrgProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000037 /* AnthropicOrgProvider.swift */; };
+		C0040000000000000041 /* ClaudeQuotaProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000040 /* ClaudeQuotaProvider.swift */; };
+		C0040000000000000044 /* CodexQuotaProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000043 /* CodexQuotaProvider.swift */; };
+		C0040000000000000047 /* CopilotQuotaProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000046 /* CopilotQuotaProvider.swift */; };
+		C0040000000000000050 /* CursorQuotaProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000049 /* CursorQuotaProvider.swift */; };
+		C0040000000000000053 /* OpenAIOrgProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000052 /* OpenAIOrgProvider.swift */; };
+		C0040000000000000056 /* UsageOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000055 /* UsageOrchestrator.swift */; };
+		C0040000000000000059 /* AppBrand.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000058 /* AppBrand.swift */; };
+		C0040000000000000061 /* AppVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000060 /* AppVersion.swift */; };
+		C0040000000000000063 /* CopilotQuotaLabels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000062 /* CopilotQuotaLabels.swift */; };
+		C0040000000000000065 /* DateRange.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000064 /* DateRange.swift */; };
+		C0040000000000000067 /* DisplayCurrency.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000066 /* DisplayCurrency.swift */; };
+		C0040000000000000069 /* DisplayPriceOptions.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000068 /* DisplayPriceOptions.swift */; };
+		C0040000000000000071 /* GitHubPersonalAccessToken.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000070 /* GitHubPersonalAccessToken.swift */; };
+		C0040000000000000073 /* JSONValue.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000072 /* JSONValue.swift */; };
+		C0040000000000000075 /* PlanBranding.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000074 /* PlanBranding.swift */; };
+		C0040000000000000077 /* Redaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000076 /* Redaction.swift */; };
+		C0040000000000000079 /* TokenTorchError.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000078 /* TokenTorchError.swift */; };
+		C0040000000000000081 /* TokenTorchLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000080 /* TokenTorchLog.swift */; };
+		C0040000000000000083 /* TokenTorchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000082 /* TokenTorchTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		B00102000000000000000001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		B00102000000000000000002 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B00102000000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B00102000000000000000004 /* token-torch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "token-torch.entitlements"; sourceTree = "<group>"; };
+		B00102000000000000000005 /* Token Torch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Token Torch.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B00102000000000000000006 /* claude.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = claude.pdf; path = pictures/claude.pdf; sourceTree = SOURCE_ROOT; };
+		B00102000000000000000007 /* openai.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = openai.pdf; path = pictures/openai.pdf; sourceTree = SOURCE_ROOT; };
+		B00102000000000000000008 /* cursor.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = cursor.pdf; path = pictures/cursor.pdf; sourceTree = SOURCE_ROOT; };
+		B00102000000000000000009 /* anthropic.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = anthropic.pdf; path = pictures/anthropic.pdf; sourceTree = SOURCE_ROOT; };
+		B0010200000000000000000A /* AppActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppActions.swift; sourceTree = "<group>"; };
+		B0010200000000000000000B /* MenuBarViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarViewModel.swift; sourceTree = "<group>"; };
+		B0010200000000000000000C /* MenuFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuFormat.swift; sourceTree = "<group>"; };
+		B0010200000000000000000D /* ProviderIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderIcons.swift; sourceTree = "<group>"; };
+		B0010200000000000000000E /* ReportLabels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportLabels.swift; sourceTree = "<group>"; };
+		B0010200000000000000000F /* UsageMenuItemViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageMenuItemViews.swift; sourceTree = "<group>"; };
+		B00102000000000000000010 /* MenuBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBuilder.swift; sourceTree = "<group>"; };
+		B00102000000000000000011 /* StatusItemController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusItemController.swift; sourceTree = "<group>"; };
+		B00102000000000000000012 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
+		B00102000000000000000013 /* GeneralSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsViewController.swift; sourceTree = "<group>"; };
+		B00102000000000000000014 /* ProviderSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSettingsViewController.swift; sourceTree = "<group>"; };
+		B00102000000000000000015 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		B00102000000000000000016 /* SettingsStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStyle.swift; sourceTree = "<group>"; };
+		B00102000000000000000017 /* AdvancedSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettingsViewController.swift; sourceTree = "<group>"; };
+		B00102000000000000000018 /* githubcopilot.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = githubcopilot.pdf; path = pictures/githubcopilot.pdf; sourceTree = SOURCE_ROOT; };
+		B00102000000000000000020 /* codex.pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; name = codex.pdf; path = pictures/codex.pdf; sourceTree = SOURCE_ROOT; };
+		B00102000000000000000019 /* MenuBarStatusIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarStatusIcon.swift; sourceTree = "<group>"; };
+		B0010200000000000000001A /* LoginItemRegistration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItemRegistration.swift; sourceTree = "<group>"; };
+		B0010200000000000000001B /* ProviderSettingsCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderSettingsCopy.swift; sourceTree = "<group>"; };
+		B0010200000000000000001C /* AdvancedSettingsCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettingsCopy.swift; sourceTree = "<group>"; };
+		B0010200000000000000001D /* SettingsLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsLayout.swift; sourceTree = "<group>"; };
+		B0010200000000000000001E /* GeneralSettingsCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsCopy.swift; sourceTree = "<group>"; };
+		B0010200000000000000001F /* NetworkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkManager.swift; sourceTree = "<group>"; };
+		C0030000000000000003 /* AppKeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppKeychainStore.swift; sourceTree = "<group>"; };
+		C0030000000000000005 /* CredentialStoreMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialStoreMigration.swift; sourceTree = "<group>"; };
+		C0030000000000000007 /* KeychainReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainReader.swift; sourceTree = "<group>"; };
+		C0030000000000000009 /* TokenTorchKeychainMaintenance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTorchKeychainMaintenance.swift; sourceTree = "<group>"; };
+		C0030000000000000011 /* TokenTorchVendorCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTorchVendorCredentialStore.swift; sourceTree = "<group>"; };
+		C0030000000000000013 /* VendorCredentialCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VendorCredentialCache.swift; sourceTree = "<group>"; };
+		C0030000000000000015 /* VendorCredentialImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VendorCredentialImporter.swift; sourceTree = "<group>"; };
+		C0030000000000000019 /* VendorCredentialsReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VendorCredentialsReader.swift; sourceTree = "<group>"; };
+		C0030000000000000022 /* HTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTTPClient.swift; sourceTree = "<group>"; };
+		C0030000000000000025 /* MenuBarIconProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIconProvider.swift; sourceTree = "<group>"; };
+		C0030000000000000027 /* OrgModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgModels.swift; sourceTree = "<group>"; };
+		C0030000000000000029 /* ProviderPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderPreferences.swift; sourceTree = "<group>"; };
+		C0030000000000000031 /* ProviderReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderReport.swift; sourceTree = "<group>"; };
+		C0030000000000000033 /* QuotaModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaModels.swift; sourceTree = "<group>"; };
+		C0030000000000000037 /* AnthropicOrgProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnthropicOrgProvider.swift; sourceTree = "<group>"; };
+		C0030000000000000040 /* ClaudeQuotaProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeQuotaProvider.swift; sourceTree = "<group>"; };
+		C0030000000000000043 /* CodexQuotaProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexQuotaProvider.swift; sourceTree = "<group>"; };
+		C0030000000000000046 /* CopilotQuotaProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopilotQuotaProvider.swift; sourceTree = "<group>"; };
+		C0030000000000000049 /* CursorQuotaProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorQuotaProvider.swift; sourceTree = "<group>"; };
+		C0030000000000000052 /* OpenAIOrgProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIOrgProvider.swift; sourceTree = "<group>"; };
+		C0030000000000000055 /* UsageOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageOrchestrator.swift; sourceTree = "<group>"; };
+		C0030000000000000058 /* AppBrand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBrand.swift; sourceTree = "<group>"; };
+		C0030000000000000060 /* AppVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppVersion.swift; sourceTree = "<group>"; };
+		C0030000000000000062 /* CopilotQuotaLabels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopilotQuotaLabels.swift; sourceTree = "<group>"; };
+		C0030000000000000064 /* DateRange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateRange.swift; sourceTree = "<group>"; };
+		C0030000000000000066 /* DisplayCurrency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayCurrency.swift; sourceTree = "<group>"; };
+		C0030000000000000068 /* DisplayPriceOptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayPriceOptions.swift; sourceTree = "<group>"; };
+		C0030000000000000070 /* GitHubPersonalAccessToken.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubPersonalAccessToken.swift; sourceTree = "<group>"; };
+		C0030000000000000072 /* JSONValue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONValue.swift; sourceTree = "<group>"; };
+		C0030000000000000074 /* PlanBranding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanBranding.swift; sourceTree = "<group>"; };
+		C0030000000000000076 /* Redaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Redaction.swift; sourceTree = "<group>"; };
+		C0030000000000000078 /* TokenTorchError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTorchError.swift; sourceTree = "<group>"; };
+		C0030000000000000080 /* TokenTorchLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTorchLog.swift; sourceTree = "<group>"; };
+		C0030000000000000082 /* TokenTorchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTorchTests.swift; sourceTree = "<group>"; };
+		C0050000000000000084 /* token-torchTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "token-torchTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		B00103000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+
+		C0080000000000000087 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		B00104000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				B00104000000000000000002 /* token-torch */,
+				C0020000000000000094 /* token-torchTests */,
+				B00104000000000000000004 /* pictures */,
+				B00104000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		B00104000000000000000002 /* token-torch */ = {
+			isa = PBXGroup;
+			children = (
+				C0020000000000000001 /* Core */,
+				B00102000000000000000015 /* main.swift */,
+				B00102000000000000000001 /* AppDelegate.swift */,
+				B0010200000000000000000A /* AppActions.swift */,
+				B00104000000000000000005 /* MenuBar */,
+				B00104000000000000000006 /* Settings */,
+				B00102000000000000000002 /* Assets.xcassets */,
+				B00102000000000000000003 /* Info.plist */,
+				B00102000000000000000004 /* token-torch.entitlements */,
+			);
+			path = "token-torch";
+			sourceTree = "<group>";
+		};
+		B00104000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B00102000000000000000005 /* Token Torch.app */,
+				C0050000000000000084 /* token-torchTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B00104000000000000000004 /* pictures */ = {
+			isa = PBXGroup;
+			children = (
+				B00102000000000000000006 /* claude.pdf */,
+				B00102000000000000000007 /* openai.pdf */,
+				B00102000000000000000008 /* cursor.pdf */,
+				B00102000000000000000009 /* anthropic.pdf */,
+				B00102000000000000000018 /* githubcopilot.pdf */,
+				B00102000000000000000020 /* codex.pdf */,
+			);
+			name = pictures;
+			sourceTree = "<group>";
+		};
+		B00104000000000000000005 /* MenuBar */ = {
+			isa = PBXGroup;
+			children = (
+				B0010200000000000000000B /* MenuBarViewModel.swift */,
+				B0010200000000000000000C /* MenuFormat.swift */,
+				B0010200000000000000000D /* ProviderIcons.swift */,
+				B0010200000000000000000E /* ReportLabels.swift */,
+				B0010200000000000000000F /* UsageMenuItemViews.swift */,
+				B00102000000000000000010 /* MenuBuilder.swift */,
+				B00102000000000000000011 /* StatusItemController.swift */,
+				B00102000000000000000019 /* MenuBarStatusIcon.swift */,
+				B0010200000000000000001F /* NetworkManager.swift */,
+			);
+			path = MenuBar;
+			sourceTree = "<group>";
+		};
+		B00104000000000000000006 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				B00102000000000000000012 /* SettingsWindowController.swift */,
+				B00102000000000000000016 /* SettingsStyle.swift */,
+				B0010200000000000000001D /* SettingsLayout.swift */,
+				B0010200000000000000001C /* AdvancedSettingsCopy.swift */,
+				B0010200000000000000001E /* GeneralSettingsCopy.swift */,
+				B00102000000000000000013 /* GeneralSettingsViewController.swift */,
+				B0010200000000000000001A /* LoginItemRegistration.swift */,
+				B0010200000000000000001B /* ProviderSettingsCopy.swift */,
+				B00102000000000000000014 /* ProviderSettingsViewController.swift */,
+				B00102000000000000000017 /* AdvancedSettingsViewController.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		C0020000000000000001 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				C0020000000000000002 /* Credentials */,
+				C0020000000000000021 /* HTTP */,
+				C0020000000000000024 /* Models */,
+				C0020000000000000035 /* Providers */,
+				C0020000000000000054 /* Services */,
+				C0020000000000000057 /* Utilities */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		C0020000000000000002 /* Credentials */ = {
+			isa = PBXGroup;
+			children = (
+				C0030000000000000003 /* AppKeychainStore.swift */,
+				C0030000000000000005 /* CredentialStoreMigration.swift */,
+				C0030000000000000007 /* KeychainReader.swift */,
+				C0030000000000000009 /* TokenTorchKeychainMaintenance.swift */,
+				C0030000000000000011 /* TokenTorchVendorCredentialStore.swift */,
+				C0030000000000000013 /* VendorCredentialCache.swift */,
+				C0030000000000000015 /* VendorCredentialImporter.swift */,
+				C0030000000000000019 /* VendorCredentialsReader.swift */,
+			);
+			path = Credentials;
+			sourceTree = "<group>";
+		};
+		C0020000000000000021 /* HTTP */ = {
+			isa = PBXGroup;
+			children = (
+				C0030000000000000022 /* HTTPClient.swift */,
+			);
+			path = HTTP;
+			sourceTree = "<group>";
+		};
+		C0020000000000000024 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				C0030000000000000025 /* MenuBarIconProvider.swift */,
+				C0030000000000000027 /* OrgModels.swift */,
+				C0030000000000000029 /* ProviderPreferences.swift */,
+				C0030000000000000031 /* ProviderReport.swift */,
+				C0030000000000000033 /* QuotaModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		C0020000000000000035 /* Providers */ = {
+			isa = PBXGroup;
+			children = (
+				C0020000000000000036 /* Anthropic */,
+				C0020000000000000039 /* Claude */,
+				C0020000000000000042 /* Codex */,
+				C0020000000000000045 /* Copilot */,
+				C0020000000000000048 /* Cursor */,
+				C0020000000000000051 /* OpenAI */,
+			);
+			path = Providers;
+			sourceTree = "<group>";
+		};
+		C0020000000000000054 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				C0030000000000000055 /* UsageOrchestrator.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		C0020000000000000057 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				C0030000000000000058 /* AppBrand.swift */,
+				C0030000000000000060 /* AppVersion.swift */,
+				C0030000000000000062 /* CopilotQuotaLabels.swift */,
+				C0030000000000000064 /* DateRange.swift */,
+				C0030000000000000066 /* DisplayCurrency.swift */,
+				C0030000000000000068 /* DisplayPriceOptions.swift */,
+				C0030000000000000070 /* GitHubPersonalAccessToken.swift */,
+				C0030000000000000072 /* JSONValue.swift */,
+				C0030000000000000074 /* PlanBranding.swift */,
+				C0030000000000000076 /* Redaction.swift */,
+				C0030000000000000078 /* TokenTorchError.swift */,
+				C0030000000000000080 /* TokenTorchLog.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		C0020000000000000036 /* Anthropic */ = {
+			isa = PBXGroup;
+			children = (
+				C0030000000000000037 /* AnthropicOrgProvider.swift */,
+			);
+			path = Anthropic;
+			sourceTree = "<group>";
+		};
+		C0020000000000000039 /* Claude */ = {
+			isa = PBXGroup;
+			children = (
+				C0030000000000000040 /* ClaudeQuotaProvider.swift */,
+			);
+			path = Claude;
+			sourceTree = "<group>";
+		};
+		C0020000000000000042 /* Codex */ = {
+			isa = PBXGroup;
+			children = (
+				C0030000000000000043 /* CodexQuotaProvider.swift */,
+			);
+			path = Codex;
+			sourceTree = "<group>";
+		};
+		C0020000000000000045 /* Copilot */ = {
+			isa = PBXGroup;
+			children = (
+				C0030000000000000046 /* CopilotQuotaProvider.swift */,
+			);
+			path = Copilot;
+			sourceTree = "<group>";
+		};
+		C0020000000000000048 /* Cursor */ = {
+			isa = PBXGroup;
+			children = (
+				C0030000000000000049 /* CursorQuotaProvider.swift */,
+			);
+			path = Cursor;
+			sourceTree = "<group>";
+		};
+		C0020000000000000051 /* OpenAI */ = {
+			isa = PBXGroup;
+			children = (
+				C0030000000000000052 /* OpenAIOrgProvider.swift */,
+			);
+			path = OpenAI;
+			sourceTree = "<group>";
+		};
+		C0020000000000000094 /* token-torchTests */ = {
+			isa = PBXGroup;
+			children = (
+				C0030000000000000082 /* TokenTorchTests.swift */,
+			);
+			path = "token-torch-tests";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		B00105000000000000000001 /* token-torch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B00108000000000000000002 /* Build configuration list for PBXNativeTarget "token-torch" */;
+			buildPhases = (
+				B00106000000000000000001 /* Sources */,
+				B00103000000000000000001 /* Frameworks */,
+				B00107000000000000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "token-torch";
+			productName = "token-torch";
+			productReference = B00102000000000000000005 /* Token Torch.app */;
+			productType = "com.apple.product-type.application";
+		};
+
+		C0060000000000000085 /* token-torchTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0090000000000000088 /* Build configuration list for PBXNativeTarget "token-torchTests" */;
+			buildPhases = (
+				C0070000000000000086 /* Sources */,
+				C0080000000000000087 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C00E0000000000000093 /* PBXTargetDependency */,
+			);
+			name = "token-torchTests";
+			productName = "token-torchTests";
+			productReference = C0050000000000000084 /* token-torchTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		B00109000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					B00105000000000000000001 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = B00108000000000000000001 /* Build configuration list for PBXProject "token-torch" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = B00104000000000000000001;
+			productRefGroup = B00104000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				B00105000000000000000001 /* token-torch */,
+				C0060000000000000085 /* token-torchTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		B00107000000000000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B00101000000000000000002 /* Assets.xcassets in Resources */,
+				B00101000000000000000004 /* claude.pdf in Resources */,
+				B00101000000000000000005 /* openai.pdf in Resources */,
+				B00101000000000000000006 /* cursor.pdf in Resources */,
+				B00101000000000000000007 /* anthropic.pdf in Resources */,
+				B00101000000000000000016 /* githubcopilot.pdf in Resources */,
+				B00101000000000000000020 /* codex.pdf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		B00106000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B00101000000000000000013 /* main.swift in Sources */,
+				B00101000000000000000001 /* AppDelegate.swift in Sources */,
+				B00101000000000000000008 /* AppActions.swift in Sources */,
+				B00101000000000000000009 /* MenuBarViewModel.swift in Sources */,
+				B0010100000000000000000A /* MenuFormat.swift in Sources */,
+				B0010100000000000000000B /* ProviderIcons.swift in Sources */,
+				B0010100000000000000000C /* ReportLabels.swift in Sources */,
+				B0010100000000000000000D /* UsageMenuItemViews.swift in Sources */,
+				B0010100000000000000000E /* MenuBuilder.swift in Sources */,
+				B0010100000000000000000F /* StatusItemController.swift in Sources */,
+				B00101000000000000000010 /* SettingsWindowController.swift in Sources */,
+				B00101000000000000000014 /* SettingsStyle.swift in Sources */,
+				B00101000000000000000011 /* GeneralSettingsViewController.swift in Sources */,
+				B00101000000000000000012 /* ProviderSettingsViewController.swift in Sources */,
+				B00101000000000000000015 /* AdvancedSettingsViewController.swift in Sources */,
+				B00101000000000000000017 /* MenuBarStatusIcon.swift in Sources */,
+				B00101000000000000000018 /* LoginItemRegistration.swift in Sources */,
+				B00101000000000000000019 /* ProviderSettingsCopy.swift in Sources */,
+				B0010100000000000000001A /* AdvancedSettingsCopy.swift in Sources */,
+				B0010100000000000000001B /* SettingsLayout.swift in Sources */,
+				B0010100000000000000001C /* GeneralSettingsCopy.swift in Sources */,
+				B0010100000000000000001D /* NetworkManager.swift in Sources */,
+				C0040000000000000004 /* AppKeychainStore.swift in Sources */,
+				C0040000000000000006 /* CredentialStoreMigration.swift in Sources */,
+				C0040000000000000008 /* KeychainReader.swift in Sources */,
+				C0040000000000000010 /* TokenTorchKeychainMaintenance.swift in Sources */,
+				C0040000000000000012 /* TokenTorchVendorCredentialStore.swift in Sources */,
+				C0040000000000000014 /* VendorCredentialCache.swift in Sources */,
+				C0040000000000000016 /* VendorCredentialImporter.swift in Sources */,
+				C0040000000000000020 /* VendorCredentialsReader.swift in Sources */,
+				C0040000000000000023 /* HTTPClient.swift in Sources */,
+				C0040000000000000026 /* MenuBarIconProvider.swift in Sources */,
+				C0040000000000000028 /* OrgModels.swift in Sources */,
+				C0040000000000000030 /* ProviderPreferences.swift in Sources */,
+				C0040000000000000032 /* ProviderReport.swift in Sources */,
+				C0040000000000000034 /* QuotaModels.swift in Sources */,
+				C0040000000000000038 /* AnthropicOrgProvider.swift in Sources */,
+				C0040000000000000041 /* ClaudeQuotaProvider.swift in Sources */,
+				C0040000000000000044 /* CodexQuotaProvider.swift in Sources */,
+				C0040000000000000047 /* CopilotQuotaProvider.swift in Sources */,
+				C0040000000000000050 /* CursorQuotaProvider.swift in Sources */,
+				C0040000000000000053 /* OpenAIOrgProvider.swift in Sources */,
+				C0040000000000000056 /* UsageOrchestrator.swift in Sources */,
+				C0040000000000000059 /* AppBrand.swift in Sources */,
+				C0040000000000000061 /* AppVersion.swift in Sources */,
+				C0040000000000000063 /* CopilotQuotaLabels.swift in Sources */,
+				C0040000000000000065 /* DateRange.swift in Sources */,
+				C0040000000000000067 /* DisplayCurrency.swift in Sources */,
+				C0040000000000000069 /* DisplayPriceOptions.swift in Sources */,
+				C0040000000000000071 /* GitHubPersonalAccessToken.swift in Sources */,
+				C0040000000000000073 /* JSONValue.swift in Sources */,
+				C0040000000000000075 /* PlanBranding.swift in Sources */,
+				C0040000000000000077 /* Redaction.swift in Sources */,
+				C0040000000000000079 /* TokenTorchError.swift in Sources */,
+				C0040000000000000081 /* TokenTorchLog.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+
+		C0070000000000000086 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C0040000000000000083 /* TokenTorchTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXContainerItemProxy section */
+
+		C00D0000000000000092 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B00109000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B00105000000000000000001;
+			remoteInfo = "token-torch";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXTargetDependency section */
+
+		C00E0000000000000093 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B00105000000000000000001 /* token-torch */;
+			targetProxy = C00D0000000000000092 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		B0010C000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				ARCHS = arm64;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		B0010C000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = s;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				ARCHS = arm64;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		B0010C000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "token-torch/token-torch.entitlements";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = 8J2G689FCZ;
+				ENABLE_DEBUG_DYLIB = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "token-torch/Info.plist";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 4.2.15;
+				ARCHS = arm64;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.panjas.tokentorch";
+				PRODUCT_NAME = "Token Torch";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lsqlite3",
+				);
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		B0010C000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "token-torch/token-torch.entitlements";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = 8J2G689FCZ;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "token-torch/Info.plist";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 4.2.15;
+				ARCHS = arm64;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.panjas.tokentorch";
+				PRODUCT_NAME = "Token Torch";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=macosx*]" = "";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lsqlite3",
+				);
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+
+		C00A0000000000000089 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = 8J2G689FCZ;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 5.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.panjas.tokentorchTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Token Torch.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Token Torch";
+			};
+			name = Debug;
+		};
+
+		C00B0000000000000090 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Developer ID Application";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				"DEVELOPMENT_TEAM[sdk=macosx*]" = 8J2G689FCZ;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 5.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.panjas.tokentorchTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 6.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Token Torch.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Token Torch";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		B00108000000000000000001 /* Build configuration list for PBXProject "token-torch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B0010C000000000000000001 /* Debug */,
+				B0010C000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B00108000000000000000002 /* Build configuration list for PBXNativeTarget "token-torch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B0010C000000000000000003 /* Debug */,
+				B0010C000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+
+		C0090000000000000088 /* Build configuration list for PBXNativeTarget "token-torchTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C00A0000000000000089 /* Debug */,
+				C00B0000000000000090 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+
+	};
+	rootObject = B00109000000000000000001 /* Project object */;
+}

@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-21 (General settings pane height)
+Last updated: 2026-06-23 (Rename token-torchTests → token-torch-tests)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -16,19 +16,18 @@ Run `/init-session` at the beginning of each new session, OR read this entire fi
 
 - **Anthropic**: token usage from Admin API; costs calculated from pricing docs.
 - **OpenAI**: completions token usage + native billed costs from `/organization/costs`, with input/output token cost line items aggregated into one model cost row.
-- **Personal subscriptions** (`--quota` on `claude`, `codex`, `cursor`, or `copilot`): rate limits and plan usage from reverse-engineered OAuth APIs (Claude/Codex/Cursor read local Keychain / auth files / Cursor SQLite on macOS) or GitHub Copilot via fine-grained PAT (Account: **Copilot requests**).
+- **Personal subscriptions**: rate limits and plan usage from reverse-engineered OAuth APIs (Claude/Codex/Cursor read local Keychain / auth files / Cursor SQLite on macOS) or GitHub Copilot via fine-grained PAT (Account: **Copilot requests**). Configured and viewed in the menu bar app only.
 
 ## Mission Statement
 
-**Token Torch** helps you see where your LLM usage goes — before the invoice or rate limit does. It unifies org billing (Anthropic and OpenAI Admin APIs) and personal plan quotas (Claude Code, Codex, Cursor, Copilot) into one native macOS experience: query from the terminal with **token-torch-cli**, or glance from the menu bar with **Token Torch**. Credentials stay on your Mac; Token Torch reads them read-only and never writes back to vendor tools.
+**Token Torch** helps you see where your LLM usage goes — before the invoice or rate limit does. It unifies org billing (Anthropic and OpenAI Admin APIs) and personal plan quotas (Claude Code, Codex, Cursor, Copilot) into one native macOS menu bar app. Credentials stay on your Mac; Token Torch reads them read-only and never writes back to vendor tools.
 
 ## Technology Stack
 
-- **Language:** Swift 6.2 (`swift-tools-version: 6.2` in `Package.swift`; Xcode `SWIFT_VERSION = 6.0` language mode)
+- **Language:** Swift 6.2 (Xcode `SWIFT_VERSION = 6.0` language mode)
 - **Platforms:** macOS 15+ (Apple Silicon / arm64)
-- **CLI:** ArgumentParser (`token-torch-cli`)
-- **App:** AppKit menu bar app (Xcode, `Token Torch.app`, bundle `com.panjas.tokentorch`) — `NSStatusItem` + `NSMenu` with custom-view usage items
-- **Package manager:** Swift Package Manager (`Package.swift` at repo root)
+- **App:** AppKit menu bar app (Xcode, `Token Torch.app`, bundle `com.panjas.tokentorch`) — `NSStatusItem` + `NSMenu` with custom-view usage items; domain logic lives under `token-torch/Core/`
+- **Build system:** Xcode (`token-torch.xcodeproj`)
 - **Version Control:** Git
 
 ## Session Protocol
@@ -37,21 +36,19 @@ When starting a new session, read this entire file and confirm you have understo
 
 ## Build and Development Commands
 
-Binary output: `.build/debug/token-torch-cli` (SPM), `./build.sh` → `Sources/TokenTorchApp/.build/Products/Debug/Token Torch.app` (Xcode Debug), and `./build.sh --release` → `.build/export/Token Torch.app`.
+Binary output: `./build.sh` → `.build/Products/Debug/Token Torch.app` (Xcode Debug), and `./build.sh --release` → `.build/export/Token Torch.app`.
 
 ```bash
-# Swift Package (TokenTorchCore + token-torch-cli)
-swift build
-swift test
-.build/debug/token-torch-cli anthropic --quota
-
 # Menu bar app
-open Sources/TokenTorchApp/token-torch.xcodeproj
-cd Sources/TokenTorchApp && xcodebuild -scheme token-torch -configuration Debug build
+open token-torch.xcodeproj
+xcodebuild -scheme token-torch -configuration Debug build
+
+# Unit tests
+xcodebuild test -scheme token-torch -configuration Debug -destination 'platform=macOS,arch=arm64'
 
 # Release archive + Developer ID export (from repo root)
 ./build.sh --release
-./build.sh --release --notarize   # requires Sources/TokenTorchApp/exportOptions.plist + notarytool profile TokenTorch-Notarize (--release always cleans)
+./build.sh --release --notarize   # requires exportOptions.plist + notarytool profile TokenTorch-Notarize (--release always cleans)
 ```
 
 ### CI release workflows
@@ -59,37 +56,15 @@ cd Sources/TokenTorchApp && xcodebuild -scheme token-torch -configuration Debug 
 - `.github/workflows/build.yml`: signed Developer ID release build for pushes and pull requests on `develop` and `feature/**`; uploads the exported app zip and creates a GitHub prerelease on non-PR runs. Prerelease tags and zip files use `token-torch-build-<run>-<yyyymmdd-hhmmss>`.
 - `.github/workflows/release.yml`: signed Developer ID release build + Apple notarization for pull requests to `main`; on pushes to `main`, creates the `v$(cat VERSION)` GitHub release only after notarization succeeds and refuses to overwrite an existing tag or release. Release zip files use `token-torch-v<version>`.
 - Both workflows generate `CHANGELOG.md` and `BILL_OF_MATERIALS.md` and include them inside the release zip.
-- Both workflows use the `macos-26` GitHub runner image because `Package.swift` requires Swift tools 6.2.
+- Both workflows run `xcodebuild test` on the `token-torchTests` target before archiving.
+- Both workflows use the `macos-26` GitHub runner image for the current Xcode/Swift toolchain.
 - Standard GitHub actions in these workflows use Node 24 compatible major versions (`actions/checkout@v6`, `actions/upload-artifact@v6`) to avoid runner deprecation warnings.
 - Required GitHub repository secrets: `APPLE_CERTIFICATE_P12_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_TEAM_ID`, `APPLE_ID`, and `APPLE_ID_PASSWORD`.
 - CI imports the Developer ID `.p12` into a temporary keychain and runs the archive, export, notarize, staple, verify, package, and upload commands as separate workflow steps for debuggable logs.
 
 ### Project-specific run examples
 
-```bash
-# Anthropic org usage (defaults to current month)
-.build/debug/token-torch-cli anthropic
-
-# OpenAI org usage
-.build/debug/token-torch-cli openai
-
-# List workspaces / projects
-.build/debug/token-torch-cli anthropic --list-workspaces
-.build/debug/token-torch-cli openai --list-projects
-
-# Workspace-scoped usage
-.build/debug/token-torch-cli anthropic --workspace default
-.build/debug/token-torch-cli openai --project proj_abc
-
-# With Admin API key flag
-.build/debug/token-torch-cli anthropic -a YOUR_ADMIN_API_KEY -s 2026-05
-
-# Personal subscription quotas (macOS local OAuth; no Admin key)
-.build/debug/token-torch-cli claude --quota
-.build/debug/token-torch-cli codex --quota
-.build/debug/token-torch-cli cursor --quota
-.build/debug/token-torch-cli copilot --quota
-```
+Org billing and subscription quota are configured in **Settings** (Admin API keys on provider tabs; Copilot PAT on Copilot tab). Usage is shown in the menu bar app only.
 
 ## Configuration
 
@@ -99,16 +74,15 @@ cd Sources/TokenTorchApp && xcodebuild -scheme token-torch -configuration Debug 
 
 **Admin API Key** (required for org billing only):
 
-- Anthropic: `-a` / `ANTHROPIC_ADMIN_KEY` on `token-torch-cli anthropic` (not needed with `--quota`)
-- OpenAI: `-a` / `OPENAI_ADMIN_KEY` on `token-torch-cli openai` (not needed with `--quota`)
-- Menu bar: saved via Settings → `AppKeychainStore` (`com.tokentorch.keys.<provider>.adminKey`)
+- Anthropic: Settings → Claude tab Admin API key (`com.tokentorch.keys.anthropic.adminKey`)
+- OpenAI: Settings → Codex tab Admin API key (`com.tokentorch.keys.openai.adminKey`)
 
 **Personal subscription quota** uses local OAuth credentials (macOS):
 
 - Claude Code: Keychain `Claude Code-credentials` → `~/.claude/.credentials.json`
 - ChatGPT/Codex: `~/.codex/auth.json` (or `CODEX_HOME`, `~/.config/codex`, Keychain `Codex Auth`)
 - Cursor: `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb` → Keychain `cursor-access-token`
-- GitHub Copilot: fine-grained PAT with Account **Copilot requests** permission, pasted in Settings → `AppKeychainStore` (`com.tokentorch.keys.copilot.personalAccessToken`); CLI `-t` / `GITHUB_TOKEN` / `COPILOT_TOKEN`. Classic `ghp_` / `read:user` tokens are rejected (HTTP 401).
+- GitHub Copilot: fine-grained PAT with Account **Copilot requests** permission, pasted in Settings → `AppKeychainStore` (`com.tokentorch.keys.copilot.personalAccessToken`). Classic `ghp_` / `read:user` tokens are rejected (HTTP 401).
 
 These APIs are undocumented and may change; reference: [OpenUsage provider docs](https://github.com/robinebers/openusage/tree/main/docs/providers).
 
@@ -159,30 +133,23 @@ When initializing a session or analyzing the workspace, refer to instruction fil
 
 | Target | Role |
 |--------|------|
-| **TokenTorchCore** | Domain models, HTTP, credentials, quota + org providers, `UsageOrchestrator`. No terminal output. |
-| **token-torch-cli** | ArgumentParser CLI (target `TokenTorchCli`); terminal formatting in `Sources/TokenTorchCli/` |
-| **Token Torch** | AppKit menu bar app (Xcode, `Sources/TokenTorchApp/`); links **TokenTorchCore** local package |
+| **Token Torch** | AppKit menu bar app; compiles AppKit UI and **Core** sources (domain models, HTTP, credentials, quota + org providers, `UsageOrchestrator`) in one target |
+| **token-torchTests** | Xcode unit tests (`token-torch-tests/`) |
 
-UI targets never call vendor URLs directly — only `UsageOrchestrator` and settings stores. All CLI stdout/stderr formatting lives in the **`token-torch-cli` executable target**, not TokenTorchCore (menu bar UI is AppKit under `Sources/TokenTorchApp/token-torch/`).
+UI code never calls vendor URLs directly — only `UsageOrchestrator` and settings stores. Menu bar UI is AppKit under `token-torch/`; Core logic lives under `token-torch/Core/`.
 
 ### Directory layout
 
 ```
-Package.swift
-Sources/
-├── TokenTorchCore/
-│   ├── Credentials/       # Keychain, vendor import, Token Torch-owned copies
-│   ├── HTTP/              # Shared HTTP client
-│   ├── Models/            # Quota, org usage, preferences, reports
-│   ├── Providers/         # Anthropic, OpenAI, Claude, Codex, Cursor
-│   ├── Services/          # UsageOrchestrator
-│   └── Utilities/         # AppBrand, DateRange, Redaction, TokenTorchError, CredentialStoreMigration
-├── TokenTorchCli/         # TokenTorchCLI, TerminalDisplay, TableRenderer, PageProgress
-└── TokenTorchApp/         # Xcode project + menu bar app sources
-    ├── token-torch.xcodeproj
-    └── token-torch/       # main.swift, AppDelegate.swift, MenuBar/, Settings/, assets
-Tests/TokenTorchCoreTests/
-Pictures/                  # Provider icon PDFs (referenced by Xcode)
+token-torch/
+├── Core/                  # Credentials, HTTP, Models, Providers, Services, Utilities
+├── MenuBar/
+└── Settings/
+token-torch-tests/
+token-torch.xcodeproj
+pictures/                  # Provider icon PDFs (referenced by Xcode)
+exportOptions.plist        # Developer ID export (release builds)
+VERSION                    # Release version source of truth
 ```
 
 ### Credential stores
@@ -193,23 +160,11 @@ Pictures/                  # Provider icon PDFs (referenced by Xcode)
 | `TokenTorchVendorCredentialStore` | Token Torch-owned OAuth copies (`com.tokentorch.vendor.*`) for silent menu bar refresh |
 | `AppKeychainStore` | User-entered Admin keys (`com.tokentorch.keys.<provider>.adminKey`); Copilot PAT (`com.tokentorch.keys.copilot.personalAccessToken`) |
 
-**Strategies** (`VendorCredentialStrategy`):
+**Strategies** (`VendorCredentialImporter`):
 
-- `directVendorRead` — **token-torch-cli** reads vendor Keychain/files directly
-- `tokenTorchOwnedCopy` — **Token Torch** reads Token Torch-owned Keychain copy after one-time import
+- Menu bar app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider; routine quota refresh reads only the Token Torch copy
 
-### CLI structure (`TokenTorchCLI.swift`)
-
-- Top-level `--version` / `-V` (version in `CommandConfiguration`)
-- Subcommands: `anthropic` (alias `claude`), `openai` (alias `codex`), `cursor`, `copilot`
-- Anthropic: `-a`, `--quota`, `--list-workspaces`, `--workspace`, `-s`, `-e`
-- OpenAI: `-a`, `--quota`, `--list-projects`, `--project`, `-s`, `-e`
-- Cursor: `--quota` only (no org Admin API; default prints unavailability notice)
-- Copilot: `-t`, `--quota` only (fine-grained GitHub PAT with Copilot requests; default prints unavailability notice)
-- All subcommands: `-c/--currency` (USD/EUR; defaults to system locale) via shared `CurrencyOptions` `@OptionGroup`
-- Modes: org usage (default + Admin key), personal subscription quota (`--quota`)
-
-### Key TokenTorchCore modules
+### Key Core modules (`token-torch/Core/`)
 
 - `AnthropicOrgProvider` / `OpenAIOrgProvider` — Admin API usage, workspaces/projects, pagination
 - `ClaudeQuotaProvider` / `CodexQuotaProvider` / `CursorQuotaProvider` / `CopilotQuotaProvider` — subscription quota APIs
@@ -242,19 +197,18 @@ OpenAI native cost line items such as `chat-latest, input` and `chat-latest, out
 
 ### Display Currency
 
-- `DisplayCurrency` (USD/EUR) + `CurrencyConverter` in `TokenTorchCore/Utilities/DisplayCurrency.swift` (pure; USD<->EUR via `Pricing.usdToEUR`, native passthrough for other source currencies).
+- `DisplayCurrency` (USD/EUR) + `CurrencyConverter` in `token-torch/Core/Utilities/DisplayCurrency.swift` (pure; USD<->EUR via `Pricing.usdToEUR`, native passthrough for other source currencies).
 - Default = `Locale.current.currency` mapped to USD/EUR (`.systemDefault`, USD fallback).
 - Menu bar: General tab popup, persisted in `ProviderPreferences.displayCurrency`; changing it posts `tokenTorchDisplayChanged` to rebuild the menu (no refetch).
 - Start at login: General tab **Start at login** checkbox; uses `SMAppService.mainApp` register/unregister (system-managed login item, not `ProviderPreferences`).
 - VAT / gross vs net: General tab **VAT rate (%)** and **Automatically deduct VAT** toggle, persisted as `ProviderPreferences.vatRatePercent` and `automaticallyDeductVAT`. Entering a positive rate saves on field blur (not just Enter), auto-enables deduction, and applies to plan list prices (`$20/mo`) via `DisplayPriceOptions.formatPlanPrice`. Other menu amounts use `DisplayPriceOptions` (vendor gross incl. VAT; deduct divides by `1 + rate/100`). Posts `tokenTorchDisplayChanged` and repopulates the cached menu immediately.
 - Menu bar icon: General tab **Menu bar icon** popup (`MenuBarIconProvider`: `<automatic>`, Anthropic, Claude Code, Codex, OpenAI, Cursor, Copilot); **`<automatic>`** uses the PDF for the first **enabled** row in the Providers table; persisted in `ProviderPreferences.menuBarIcon` (default Cursor); posts `tokenTorchDisplayChanged` to update the status item (including when provider order or enable state changes while that option is selected).
-- CLI: `-c/--currency` per subcommand (the CLI can't read the app's `UserDefaults`, so it defaults to system locale).
 - Source currencies fed to the converter: USD for Cursor / Anthropic org / OpenAI org / ChatGPT credits; `extra_usage.currency` for Claude credits.
 
 ### Startup Network Readiness
 
-- Menu bar startup/timer refreshes are gated by an app-only `NetworkManager` in `Sources/TokenTorchApp/token-torch/MenuBar/NetworkManager.swift`.
-- The manager reuses the resilient `NWPathMonitor` / initial-status / connectivity-check pattern from Dashboard of Doom, but Token Torch provider requests still go through `TokenTorchCore/HTTP/HTTPClient.swift`.
+- Menu bar startup/timer refreshes are gated by an app-only `NetworkManager` in `token-torch/MenuBar/NetworkManager.swift`.
+- The manager reuses the resilient `NWPathMonitor` / initial-status / connectivity-check pattern from Dashboard of Doom, but Token Torch provider requests still go through `token-torch/Core/HTTP/HTTPClient.swift`.
 - Non-interactive refreshes queue while the network is unavailable and run once connectivity is confirmed; manual refreshes still execute immediately.
 
 ### Date Handling
@@ -267,8 +221,7 @@ Flexible parsing via `DateRange.parseDateRange()`:
 
 ### Pagination
 
-- Automatic paginated Admin API fetches
-- In-place stderr braille spinner (`⠋ Fetching...`) via `PageProgress`, cleared on completion
+- Automatic paginated Admin API fetches in org providers
 
 ### Cursor quota meters
 
@@ -282,18 +235,17 @@ Individual plans show `totalPercentUsed`, `autoPercentUsed`, and `apiPercentUsed
 
 ## Dependencies
 
-- **swift-argument-parser** (1.5+): CLI parsing
-- **sqlite3** (system): read-only Cursor token lookup
-- **TokenTorchCore** has no third-party HTTP dependency beyond Foundation URLSession
+- **sqlite3** (system): read-only Cursor token lookup; linked via `OTHER_LDFLAGS = -lsqlite3` on the app target
+- Core code has no third-party HTTP dependency beyond Foundation URLSession
 
 ## Best Practices
 
 ### Development Guidelines
 
-- Keep **TokenTorchCore** free of print/colors/tables — display belongs in `token-torch-cli` or Token Torch app
+- Keep **Core** free of AppKit — UI belongs in `token-torch/MenuBar/` and `token-torch/Settings/`
 - Keep modules focused on single responsibilities
 - Use `async`/`await` for network and orchestration
-- Test mappers, dates, and redaction offline in `TokenTorchCoreTests`
+- Test mappers, dates, and redaction offline in `token-torch-tests`
 
 ### Security & Safety
 
@@ -307,10 +259,10 @@ Individual plans show `totalPercentUsed`, `autoPercentUsed`, and `apiPercentUsed
 ### Testing
 
 ```bash
-swift test
+xcodebuild test -scheme token-torch -configuration Debug -destination 'platform=macOS,arch=arm64'
 ```
 
-- 15+ unit tests in `TokenTorchCoreTests` (dates, mappers, redaction, credential guards, Keychain round-trip)
+- 55+ unit tests in `token-torch-tests` (dates, mappers, redaction, credential guards, Keychain round-trip)
 - Live quota tests require macOS vendor logins
 - No separate display snapshot test target
 
@@ -325,7 +277,7 @@ swift test
 - Swift 6.2, macOS 15+ APIs
 - Prefer `Sendable` and actor isolation where appropriate
 - Public APIs documented with `///` when non-obvious
-- Match existing naming and file organization under `Sources/TokenTorchCore/`
+- Match existing naming and file organization under `token-torch/Core/`
 
 ## Commit Protocol
 
@@ -333,9 +285,69 @@ Load the `git-workflow` skill before committing. Commit message bodies are optio
 
 ## Semantic Versioning
 
-The root `VERSION` file is the release version and release tag source of truth (`v<version>`). `AppVersion.current` in `TokenTorchCore` must match `VERSION`; the CLI reads `AppVersion.current`, and app release builds pass `MARKETING_VERSION=$(cat VERSION)` to Xcode. Load the `semantic-versioning` skill before changing `VERSION` and keep version updates in the same commit as the behavior change.
+The root `VERSION` file is the release version and release tag source of truth (`v<version>`). `AppVersion.current` in `token-torch/Core/Utilities/AppVersion.swift` must match `VERSION`; app release builds pass `MARKETING_VERSION=$(cat VERSION)` to Xcode. Load the `semantic-versioning` skill before changing `VERSION` and keep version updates in the same commit as the behavior change.
 
 ## Recent Updates & Decisions
+
+### 2026-06-23: Rename test directory to token-torch-tests
+
+**What**: Renamed `token-torchTests/` to `token-torch-tests/`. Updated `project.pbxproj` group path and active doc layout sections. Xcode test target name remains `token-torchTests`.
+
+**Why**: Kebab-case folder name matches common repo conventions; target/bundle names unchanged.
+
+**How**: `mv token-torchTests token-torch-tests`, `project.pbxproj`, README, AGENTS.
+
+### 2026-06-23: Flatten app layout to repository root
+
+**What**: Moved `TokenTorch/token-torch/`, `token-torch.xcodeproj`, `token-torchTests/`, and `exportOptions.plist` to the repository root and removed the `TokenTorch/` wrapper directory. Updated Xcode PDF paths (`pictures/`), `build.sh`, CI workflows, `buildServer.json`, README, and AGENTS.
+
+**Why**: The extra directory added no value once SPM and CLI were gone; the repo root is the app project.
+
+**How**: `mv TokenTorch/* .`, `project.pbxproj`, `build.sh`, workflows, docs.
+
+### 2026-06-23: Rename Pictures to pictures
+
+**What**: Renamed repo-root `Pictures/` to `pictures/`. Updated Xcode `project.pbxproj` PDF paths (`../pictures/`) and active doc layout sections.
+
+**Why**: Lowercase folder name matches common repo conventions; PDFs load by bundle filename, not folder path.
+
+**How**: Two-step `git mv` (macOS case-insensitive FS), `project.pbxproj`, README, AGENTS.
+
+### 2026-06-23: Remove TokenTorch/.gitignore
+
+**What**: Deleted `TokenTorch/.gitignore`. Its patterns (`build/`, `DerivedData/`, `*.xcuserstate`) live in the root `.gitignore` alongside existing `.build/` and `xcuserdata/`.
+
+**Why**: Single repo-level ignore file; nested `.gitignore` was redundant after flattening the layout.
+
+### 2026-06-23: Remove duplicate TokenTorch/build.sh
+
+**What**: Deleted `TokenTorch/build.sh`. Release archive, export, and notarization use root `./build.sh --release` only.
+
+**Why**: The in-project script duplicated root `build.sh` (release-only, different output paths) and was no longer referenced by docs or CI.
+
+### 2026-06-23: Rename app directory to TokenTorch
+
+**What**: Renamed `TokenTorchApp/` to `TokenTorch/` at the repository root. Updated root and CI build scripts, `buildServer.json`, README, and AGENTS.
+
+**Why**: Shorter, clearer name now that the folder is the sole app source tree.
+
+**How**: `mv TokenTorchApp TokenTorch`, path updates in `build.sh`, workflows, docs.
+
+### 2026-06-23: Flatten repo layout (TokenTorchApp at root)
+
+**What**: Moved `Sources/TokenTorchApp/` to `TokenTorchApp/` at the repository root and removed the `Sources/` folder. Updated Xcode PDF paths (`../Pictures/`), root and CI build scripts, `buildServer.json`, README, and AGENTS.
+
+**Why**: After removing SPM and CLI, a `Sources/` wrapper added no value; the app project is the sole source tree.
+
+**How**: `mv Sources/TokenTorchApp .`, `project.pbxproj`, `build.sh`, workflows, docs.
+
+### 2026-06-23: App-only monolith (remove SPM package and CLI)
+
+**What**: Removed root `Package.swift`, `TokenTorchCore` SPM library, and `token-torch-cli`. Moved Core sources into the Xcode app target under `token-torch/Core/`. Migrated unit tests to `token-torchTests` Xcode target. Removed `VendorCredentialStrategy` / CLI direct-vendor read path.
+
+**Why**: Single shipping surface is the menu bar app; maintaining a separate package and CLI duplicated build paths and docs.
+
+**How**: `Sources/TokenTorchApp/token-torch/Core/`, `token-torchTests/`, `project.pbxproj`, deleted `Sources/TokenTorchCli/` and `Tests/`, CI BOM, README, AGENTS. Version `5.0.0`.
 
 ### 2026-06-21: Shorter General settings pane
 

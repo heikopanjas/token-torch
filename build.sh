@@ -2,17 +2,15 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-APP_DIR="${ROOT}/Sources/TokenTorchApp"
-PROJECT="${APP_DIR}/token-torch.xcodeproj"
+PROJECT="${ROOT}/token-torch.xcodeproj"
 SCHEME="token-torch"
 APP_NAME="Token Torch"
 BUILD_DIR="${ROOT}/.build"
-DEBUG_DERIVED_DATA="${APP_DIR}/.build"
-DEBUG_BUILD_DIR="${APP_DIR}/Build"
-DEBUG_APP="${DEBUG_BUILD_DIR}/Products/Debug/${APP_NAME}.app"
+DEBUG_DERIVED_DATA="${ROOT}/.build"
+DEBUG_APP="${ROOT}/.build/Products/Debug/${APP_NAME}.app"
 ARCHIVE_PATH="${BUILD_DIR}/${APP_NAME}.xcarchive"
 EXPORT_PATH="${BUILD_DIR}/export"
-EXPORT_PLIST="${APP_DIR}/exportOptions.plist"
+EXPORT_PLIST="${ROOT}/exportOptions.plist"
 VERSION_FILE="${ROOT}/VERSION"
 NOTARIZE_PROFILE="${NOTARIZE_PROFILE:-TokenTorch-Notarize}"
 # Apple Silicon only — not a universal/Intel build. Architecture comes from Xcode
@@ -51,7 +49,7 @@ Examples:
     $(basename "$0") --release            # Clean, archive, and export
     $(basename "$0") --release --notarize # Clean, archive, export, notarize, and staple
 
-Release builds require ${APP_DIR}/exportOptions.plist with Developer ID signing
+Release builds require exportOptions.plist at the repository root with Developer ID signing
 configured for com.panjas.tokentorch.
 
 Notarization (--notarize) requires a notarytool Keychain profile (default: ${NOTARIZE_PROFILE}).
