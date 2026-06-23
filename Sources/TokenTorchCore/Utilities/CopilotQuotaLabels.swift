@@ -8,11 +8,19 @@ public enum CopilotQuotaLabels {
         if let entitlement = window.entitlement {
             rows.append(QuotaNote(label: "Entitlement credits", value: String(entitlement)))
         }
-        if let remaining = window.remaining {
-            rows.append(QuotaNote(label: "Remaining credits", value: String(remaining)))
+        // Used credits (prefer exact computation when possible)
+        if let entitlement = window.entitlement, let remaining = window.remaining {
+            let used = max(0, entitlement - remaining)
+            rows.append(QuotaNote(label: "Used credits", value: String(used)))
         }
+        else if let entitlement = window.entitlement, let percentRemaining = window.percentRemaining {
+            let used = Int((Double(entitlement) * (100.0 - percentRemaining) / 100.0).rounded())
+            rows.append(QuotaNote(label: "Used credits", value: String(used)))
+        }
+        // Percent used (only when a percent was previously available)
         if let percentRemaining = window.percentRemaining {
-            rows.append(QuotaNote(label: "Percent remaining", value: "\(formatNumber(percentRemaining))%"))
+            let usedPercent = 100.0 - percentRemaining
+            rows.append(QuotaNote(label: "Percent used", value: "\(formatNumber(usedPercent))%"))
         }
         return rows
     }
