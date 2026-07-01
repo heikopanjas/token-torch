@@ -36,6 +36,8 @@
 		B0010100000000000000001B /* SettingsLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001D /* SettingsLayout.swift */; };
 		B0010100000000000000001C /* GeneralSettingsCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001E /* GeneralSettingsCopy.swift */; };
 		B0010100000000000000001D /* NetworkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001F /* NetworkManager.swift */; };
+		B00101000000000000000021 /* InfoSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000021 /* InfoSettingsViewController.swift */; };
+		B00101000000000000000022 /* InfoSettingsCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000022 /* InfoSettingsCopy.swift */; };
 		C0040000000000000004 /* AppKeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000003 /* AppKeychainStore.swift */; };
 		C0040000000000000006 /* CredentialStoreMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000005 /* CredentialStoreMigration.swift */; };
 		C0040000000000000008 /* KeychainReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000007 /* KeychainReader.swift */; };
@@ -70,6 +72,7 @@
 		C0040000000000000079 /* TokenTorchError.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000078 /* TokenTorchError.swift */; };
 		C0040000000000000081 /* TokenTorchLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000080 /* TokenTorchLog.swift */; };
 		C0040000000000000083 /* TokenTorchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000082 /* TokenTorchTests.swift */; };
+		C004000000000000008A /* VendorCredentialSourceInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000008A /* VendorCredentialSourceInfo.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -105,6 +108,8 @@
 		B0010200000000000000001D /* SettingsLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsLayout.swift; sourceTree = "<group>"; };
 		B0010200000000000000001E /* GeneralSettingsCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsCopy.swift; sourceTree = "<group>"; };
 		B0010200000000000000001F /* NetworkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkManager.swift; sourceTree = "<group>"; };
+		B00102000000000000000021 /* InfoSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoSettingsViewController.swift; sourceTree = "<group>"; };
+		B00102000000000000000022 /* InfoSettingsCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoSettingsCopy.swift; sourceTree = "<group>"; };
 		C0030000000000000003 /* AppKeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppKeychainStore.swift; sourceTree = "<group>"; };
 		C0030000000000000005 /* CredentialStoreMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialStoreMigration.swift; sourceTree = "<group>"; };
 		C0030000000000000007 /* KeychainReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainReader.swift; sourceTree = "<group>"; };
@@ -139,6 +144,7 @@
 		C0030000000000000078 /* TokenTorchError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTorchError.swift; sourceTree = "<group>"; };
 		C0030000000000000080 /* TokenTorchLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTorchLog.swift; sourceTree = "<group>"; };
 		C0030000000000000082 /* TokenTorchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTorchTests.swift; sourceTree = "<group>"; };
+		C003000000000000008A /* VendorCredentialSourceInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VendorCredentialSourceInfo.swift; sourceTree = "<group>"; };
 		C0050000000000000084 /* token-torchTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "token-torchTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -233,7 +239,9 @@
 				B0010200000000000000001D /* SettingsLayout.swift */,
 				B0010200000000000000001C /* AdvancedSettingsCopy.swift */,
 				B0010200000000000000001E /* GeneralSettingsCopy.swift */,
+				B00102000000000000000022 /* InfoSettingsCopy.swift */,
 				B00102000000000000000013 /* GeneralSettingsViewController.swift */,
+				B00102000000000000000021 /* InfoSettingsViewController.swift */,
 				B0010200000000000000001A /* LoginItemRegistration.swift */,
 				B0010200000000000000001B /* ProviderSettingsCopy.swift */,
 				B00102000000000000000014 /* ProviderSettingsViewController.swift */,
@@ -265,6 +273,7 @@
 				C0030000000000000011 /* TokenTorchVendorCredentialStore.swift */,
 				C0030000000000000013 /* VendorCredentialCache.swift */,
 				C0030000000000000015 /* VendorCredentialImporter.swift */,
+				C003000000000000008A /* VendorCredentialSourceInfo.swift */,
 				C0030000000000000019 /* VendorCredentialsReader.swift */,
 			);
 			path = Credentials;
@@ -502,6 +511,8 @@
 				B0010100000000000000001B /* SettingsLayout.swift in Sources */,
 				B0010100000000000000001C /* GeneralSettingsCopy.swift in Sources */,
 				B0010100000000000000001D /* NetworkManager.swift in Sources */,
+				B00101000000000000000021 /* InfoSettingsViewController.swift in Sources */,
+				B00101000000000000000022 /* InfoSettingsCopy.swift in Sources */,
 				C0040000000000000004 /* AppKeychainStore.swift in Sources */,
 				C0040000000000000006 /* CredentialStoreMigration.swift in Sources */,
 				C0040000000000000008 /* KeychainReader.swift in Sources */,
@@ -509,6 +520,7 @@
 				C0040000000000000012 /* TokenTorchVendorCredentialStore.swift in Sources */,
 				C0040000000000000014 /* VendorCredentialCache.swift in Sources */,
 				C0040000000000000016 /* VendorCredentialImporter.swift in Sources */,
+				C004000000000000008A /* VendorCredentialSourceInfo.swift in Sources */,
 				C0040000000000000020 /* VendorCredentialsReader.swift in Sources */,
 				C0040000000000000023 /* HTTPClient.swift in Sources */,
 				C0040000000000000026 /* MenuBarIconProvider.swift in Sources */,
@@ -699,7 +711,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 4.2.15;
+				MARKETING_VERSION = 5.1.0;
 				ARCHS = arm64;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.panjas.tokentorch";
 				PRODUCT_NAME = "Token Torch";
@@ -736,7 +748,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 4.2.15;
+				MARKETING_VERSION = 5.1.0;
 				ARCHS = arm64;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.panjas.tokentorch";
 				PRODUCT_NAME = "Token Torch";
@@ -765,7 +777,7 @@
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = 8J2G689FCZ;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 5.0.0;
+				MARKETING_VERSION = 5.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.panjas.tokentorchTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
@@ -787,7 +799,7 @@
 				"DEVELOPMENT_TEAM[sdk=macosx*]" = 8J2G689FCZ;
 				GENERATE_INFOPLIST_FILE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
-				MARKETING_VERSION = 5.0.0;
+				MARKETING_VERSION = 5.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.panjas.tokentorchTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;

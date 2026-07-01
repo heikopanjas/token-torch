@@ -388,3 +388,177 @@ public enum VendorCredentialsReader {
         return value.isEmpty ? nil : value
     }
 }
+
+extension VendorCredentialsReader {
+    static func vendorCredentialSourceInfo(
+        preferences: ProviderPreferences = ProviderPreferencesStore.shared.load()
+    )
+        -> [VendorCredentialSourceInfo]
+    {
+        var sources: [VendorCredentialSourceInfo] = []
+
+        for provider in [ProviderID.claude, .codex, .cursor] where preferences.flags(for: provider).subscriptionQuotaEnabled {
+            guard tokenTorchCopyExists(provider: provider) else { continue }
+            if let source = VendorCredentialImportSourceStore.load(provider: provider) {
+                sources.append(contentsOf: sourceInfo(provider: provider, source: source))
+            }
+            else {
+                sources.append(contentsOf: legacyTokenTorchCopySource(provider: provider))
+            }
+        }
+
+        return sources
+    }
+
+    static func sourceInfo(provider: ProviderID, source: CredentialSource) -> [VendorCredentialSourceInfo] {
+        switch source {
+            case .claudeKeychain(let service):
+                return keychainSources(provider: provider, title: "Claude Code OAuth Keychain", service: service)
+            case .claudeFile(let url):
+                return presentFileSource(provider: provider, title: "Claude Code credentials file", url: url)
+            case .codexFile(let url):
+                return presentFileSource(provider: provider, title: "Codex auth file", url: url)
+            case .codexKeychain:
+                return keychainSources(provider: provider, title: "Codex OAuth Keychain", service: codexKeychain)
+            case .cursorSqlite:
+                return presentSQLiteSource(provider: provider, title: "Cursor state database", url: cursorStateDBPath())
+            case .cursorKeychain:
+                return keychainSources(provider: provider, title: "Cursor access token Keychain", service: "cursor-access-token")
+                    + keychainSources(provider: provider, title: "Cursor refresh token Keychain", service: "cursor-refresh-token")
+            case .tokenTorchCopy:
+                return legacyTokenTorchCopySource(provider: provider)
+        }
+    }
+
+    private static func legacyTokenTorchCopySource(provider: ProviderID) -> [VendorCredentialSourceInfo] {
+        keychainSources(
+            provider: provider,
+            title: "\(provider.displayName) imported source not recorded",
+            service: TokenTorchVendorCredentialStore.service(for: provider),
+            extraDetails: [
+                .init(
+                    label: "Imported source",
+                    value: "Not recorded by this stored copy. Reset subscription credentials to re-import source metadata."
+                )
+            ]
+        )
+    }
+
+    private static func tokenTorchCopyExists(provider: ProviderID) -> Bool {
+        KeychainReader.genericPasswordMetadata(service: TokenTorchVendorCredentialStore.service(for: provider))
+            .items
+            .isEmpty == false
+    }
+
+    private static func presentFileSource(provider: ProviderID, title: String, url: URL) -> [VendorCredentialSourceInfo] {
+        guard FileManager.default.fileExists(atPath: url.path) else { return [] }
+        return [fileSource(provider: provider, title: title, url: url)]
+    }
+
+    private static func presentSQLiteSource(provider: ProviderID, title: String, url: URL) -> [VendorCredentialSourceInfo] {
+        guard FileManager.default.fileExists(atPath: url.path) else { return [] }
+        return [sqliteSource(provider: provider, title: title, url: url)]
+    }
+
+    private static func fileSource(provider: ProviderID, title: String, url: URL) -> VendorCredentialSourceInfo {
+        let fileManager = FileManager.default
+        let exists = fileManager.fileExists(atPath: url.path)
+        let readable = exists && fileManager.isReadableFile(atPath: url.path)
+        return VendorCredentialSourceInfo(
+            provider: provider,
+            title: title,
+            kind: .file,
+            status: exists ? (readable ? "Present" : "Present, not readable") : "Missing",
+            details: [
+                .init(label: "Path", value: url.path),
+                .init(label: "Exists", value: yesNo(exists)),
+                .init(label: "Readable", value: yesNo(readable)),
+                .init(label: "Secret values", value: "Not read or displayed")
+            ]
+        )
+    }
+
+    private static func sqliteSource(provider: ProviderID, title: String, url: URL) -> VendorCredentialSourceInfo {
+        let fileManager = FileManager.default
+        let exists = fileManager.fileExists(atPath: url.path)
+        let readable = exists && fileManager.isReadableFile(atPath: url.path)
+        return VendorCredentialSourceInfo(
+            provider: provider,
+            title: title,
+            kind: .sqlite,
+            status: exists ? (readable ? "Present" : "Present, not readable") : "Missing",
+            details: [
+                .init(label: "Path", value: url.path),
+                .init(label: "Exists", value: yesNo(exists)),
+                .init(label: "Readable", value: yesNo(readable)),
+                .init(label: "Keys used", value: "cursorAuth/accessToken, cursorAuth/refreshToken, cursorAuth/stripeMembershipType"),
+                .init(label: "Secret values", value: "Not read or displayed")
+            ]
+        )
+    }
+
+    private static func keychainSources(
+        provider: ProviderID,
+        title: String,
+        service: String,
+        extraDetails: [VendorCredentialSourceInfo.Detail] = []
+    ) -> [VendorCredentialSourceInfo] {
+        let result = KeychainReader.genericPasswordMetadata(service: service)
+        guard result.items.isEmpty == false else {
+            return []
+        }
+
+        return result.items.enumerated().map { index, item in
+            VendorCredentialSourceInfo(
+                provider: provider,
+                title: "\(title) item \(index + 1)",
+                kind: .keychain,
+                status: "Present",
+                details: keychainDetails(item: item, queryStatus: result.statusLabel, extraDetails: extraDetails)
+            )
+        }
+    }
+
+    private static func keychainDetails(
+        item: KeychainGenericPasswordMetadata,
+        queryStatus: String,
+        extraDetails: [VendorCredentialSourceInfo.Detail]
+    ) -> [VendorCredentialSourceInfo.Detail] {
+        var details: [VendorCredentialSourceInfo.Detail] = [
+            .init(label: "Service", value: item.service),
+            .init(label: "Account", value: item.account ?? "<none>"),
+            .init(label: "Query", value: queryStatus),
+            .init(label: "Secret values", value: "Not read or displayed")
+        ]
+        details.append(contentsOf: extraDetails)
+        appendDetail("Label", item.label, to: &details)
+        appendDetail("Description", item.itemDescription, to: &details)
+        appendDetail("Comment", item.comment, to: &details)
+        appendDetail("Created", formattedDate(item.createdAt), to: &details)
+        appendDetail("Modified", formattedDate(item.modifiedAt), to: &details)
+        appendDetail("Accessible", item.accessible, to: &details)
+        appendDetail("Access group", item.accessGroup, to: &details)
+        if let synchronizable = item.synchronizable {
+            details.append(.init(label: "Synchronizable", value: yesNo(synchronizable)))
+        }
+        return details
+    }
+
+    private static func appendDetail(
+        _ label: String,
+        _ value: String?,
+        to details: inout [VendorCredentialSourceInfo.Detail]
+    ) {
+        guard let value, value.isEmpty == false else { return }
+        details.append(.init(label: label, value: value))
+    }
+
+    private static func formattedDate(_ date: Date?) -> String? {
+        guard let date else { return nil }
+        return ISO8601DateFormatter().string(from: date)
+    }
+
+    private static func yesNo(_ value: Bool) -> String {
+        value ? "Yes" : "No"
+    }
+}

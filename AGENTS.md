@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-06-23 (Rename token-torchTests → token-torch-tests)
+Last updated: 2026-07-01 (Settings Info tab for vendor credential metadata)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -163,6 +163,7 @@ VERSION                    # Release version source of truth
 **Strategies** (`VendorCredentialImporter`):
 
 - Menu bar app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider; routine quota refresh reads only the Token Torch copy
+- Settings **Info** tab lists vendor credential source metadata for transparency. It shows enabled subscription providers that have a Token Torch-owned credential copy and the non-secret vendor source recorded at import time; it must never display raw token/API-key values.
 
 ### Key Core modules (`token-torch/Core/`)
 
@@ -172,6 +173,7 @@ VERSION                    # Release version source of truth
 - `DateRange` — flexible date parsing, RFC 3339, inclusive end boundaries
 - `Redaction` — secret redaction for user-visible output
 - `KeychainReader` — all Keychain I/O via Security framework (no `security` CLI subprocess)
+- `VendorCredentialSourceInfo` / `VendorCredentialImportSourceStore` / `VendorCredentialsReader.vendorCredentialSourceInfo()` — metadata-only source inventory for Settings Info tab; filters to enabled providers with Token Torch-owned credential copies, reads non-secret import-source metadata, and uses Keychain attributes-only queries with UI skipped. Advanced Keychain reset must clear both `VendorCredentialCache` and `VendorCredentialImportSourceStore` so the following interactive refresh truly re-imports vendor credentials.
 
 Anthropic usage requests pass `group_by[]=model&group_by[]=workspace_id` for per-model cost calculation.
 
@@ -288,6 +290,30 @@ Load the `git-workflow` skill before committing. Commit message bodies are optio
 The root `VERSION` file is the release version and release tag source of truth (`v<version>`). `AppVersion.current` in `token-torch/Core/Utilities/AppVersion.swift` must match `VERSION`; app release builds pass `MARKETING_VERSION=$(cat VERSION)` to Xcode. Load the `semantic-versioning` skill before changing `VERSION` and keep version updates in the same commit as the behavior change.
 
 ## Recent Updates & Decisions
+
+### 2026-07-01: Settings Info tab for vendor credential metadata
+
+**What**: Added a Settings **Info** tab that lists the vendor source recorded when each enabled subscription credential was imported. It reports metadata for Claude Code, Codex, and Cursor file/SQLite/Keychain sources, keeps non-secret source metadata in `VendorCredentialImportSourceStore`, and explicitly marks secret values as not displayed.
+
+**Why**: Users need transparent visibility into which vendor credential stores Token Torch inspects without exposing tokens or touching vendor-owned credentials.
+
+**How**: `VendorCredentialSourceInfo`, metadata-only `KeychainReader.genericPasswordMetadata`, `VendorCredentialsReader.vendorCredentialSourceInfo()`, `InfoSettingsViewController`, `InfoSettingsCopy`, `SettingsWindowController`, README, tests. Version `5.1.0`.
+
+### 2026-07-01: Advanced reset clears vendor credential cache
+
+**What**: Advanced **Reset Keychain…** now invalidates the in-process vendor credential cache and clears non-secret import-source metadata after deleting Token Torch-owned Keychain items.
+
+**Why**: Without clearing the cache, the immediate interactive refresh after reset reused cached OAuth sessions and skipped re-importing/saving fresh Token Torch-owned copies, leaving providers empty after restart.
+
+**How**: `TokenTorchKeychainMaintenance.resetTokenTorchKeychain()`, `VendorCredentialImportSourceStore.deleteAll()`, tests.
+
+### 2026-07-01: Claude preflight re-import on stale copy
+
+**What**: Claude Code quota fetches now attempt one read-only re-import from Claude Code before making the usage request when the Token Torch-owned copy is already stale or expired.
+
+**Why**: Claude Code can rotate its vendor Keychain token while Token Torch still has an expired copy. If Token Torch already has permission to read the Claude Code item, it should refresh its own copy automatically instead of requiring manual reset.
+
+**How**: `QuotaHTTP.usableSession(...)`, `ClaudeQuotaProvider.fetch(interactive:)`, tests.
 
 ### 2026-06-23: Rename test directory to token-torch-tests
 

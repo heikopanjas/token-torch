@@ -63,6 +63,7 @@ Menu bar app (Xcode): `Token Torch.app`, code signing, `LSUIElement` for menu-ba
 - **Codex** — optional **Show additional model usage** (e.g. Codex Spark)
 - **Copilot** — GitHub Personal Access Token field with setup guidance
 - **Advanced** — **Reset Keychain…** deletes all Token Torch-owned Keychain items (`com.tokentorch.*`); vendor logins are not touched
+- **Info** — metadata-only view of the vendor source recorded when each enabled subscription credential was imported; Keychain secret values are never displayed
 
 The app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider so routine refresh does not re-prompt macOS for vendor Keychain access. On first launch after upgrading from **burn**, `CredentialStoreMigration` copies legacy `com.burn.*` Keychain entries.
 

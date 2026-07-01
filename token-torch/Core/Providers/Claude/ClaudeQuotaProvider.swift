@@ -5,11 +5,15 @@ public enum ClaudeQuotaProvider {
     private static let client = HTTPClient()
 
     public static func fetch(interactive: Bool = false) async throws -> SubscriptionQuotaReport {
-        let session = try VendorCredentialsReader.loadClaudeSession()
-        try QuotaHTTP.requireUsableSession(session, provider: "Claude Code", vendorAction: "Re-login with Claude Code (/login).")
         let reauth: () throws -> OAuthSession = {
             try VendorCredentialImporter.reimportAfterAuthFailure(provider: .claude, interactive: interactive)
         }
+        let session = try QuotaHTTP.usableSession(
+            try VendorCredentialsReader.loadClaudeSession(),
+            provider: "Claude Code",
+            vendorAction: "Re-login with Claude Code (/login).",
+            reauthenticate: reauth
+        )
         do {
             return try await QuotaHTTP.fetchWithAuthRecovery(
                 provider: "Claude Code",

@@ -15,6 +15,9 @@ public enum TokenTorchKeychainMaintenance {
     /// Deletes every Token Torch-owned Keychain item, returning the number removed.
     @discardableResult
     public static func resetTokenTorchKeychain() -> Int {
-        KeychainReader.deleteItems(withServicePrefix: AppBrand.keychainServicePrefix)
+        let deleted = KeychainReader.deleteItems(withServicePrefix: AppBrand.keychainServicePrefix)
+        VendorCredentialCache.invalidateAll()
+        VendorCredentialImportSourceStore.deleteAll()
+        return deleted
     }
 }

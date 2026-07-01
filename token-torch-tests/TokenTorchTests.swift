@@ -122,6 +122,51 @@ import Testing
     #expect(!prefs.automaticallyDeductVAT)
 }
 
+@Test func vendorCredentialSourceInfoIsMetadataOnly() {
+    let sources = VendorCredentialsReader.sourceInfo(
+        provider: .claude,
+        source: .claudeFile(FileManager.default.temporaryDirectory)
+    )
+    #expect(sources.count == 1)
+    #expect(sources.first?.provider == .claude)
+    #expect(!sources.contains { $0.title.contains("Token Torch") })
+    #expect(
+        sources.allSatisfy { source in
+            source.details.contains {
+                $0.label == "Secret values" && $0.value == "Not read or displayed"
+            }
+        })
+}
+
+@Test func vendorCredentialImportSourceStoreRoundTripsSourceMetadata() throws {
+    let suiteName = "tokentorch.tests.importSource.\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suiteName))
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+
+    let source = CredentialSource.claudeKeychain(service: "Claude Code-credentials-test")
+    VendorCredentialImportSourceStore.save(source, provider: .claude, defaults: defaults)
+    #expect(VendorCredentialImportSourceStore.load(provider: .claude, defaults: defaults) == source)
+
+    VendorCredentialImportSourceStore.delete(provider: .claude, defaults: defaults)
+    #expect(VendorCredentialImportSourceStore.load(provider: .claude, defaults: defaults) == nil)
+}
+
+@Test func vendorCredentialImportSourceStoreDeleteAllRemovesEveryProvider() throws {
+    let suiteName = "tokentorch.tests.importSource.deleteAll.\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suiteName))
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+
+    VendorCredentialImportSourceStore.save(.claudeKeychain(service: "claude"), provider: .claude, defaults: defaults)
+    VendorCredentialImportSourceStore.save(.codexKeychain, provider: .codex, defaults: defaults)
+    VendorCredentialImportSourceStore.save(.cursorSqlite, provider: .cursor, defaults: defaults)
+
+    VendorCredentialImportSourceStore.deleteAll(defaults: defaults)
+
+    #expect(VendorCredentialImportSourceStore.load(provider: .claude, defaults: defaults) == nil)
+    #expect(VendorCredentialImportSourceStore.load(provider: .codex, defaults: defaults) == nil)
+    #expect(VendorCredentialImportSourceStore.load(provider: .cursor, defaults: defaults) == nil)
+}
+
 @Test func currencyConverterConvertsBetweenUsdAndEur() {
     let toEUR = CurrencyConverter.convert(amount: 100, from: "USD", to: .eur)
     #expect(toEUR.code == "EUR")
@@ -475,6 +520,66 @@ import Testing
         source: .tokenTorchCopy
     )
     try QuotaHTTP.requireUsableSession(session, provider: "Claude Code", vendorAction: "Re-login with Claude Code (/login).")
+}
+
+@Test func usableSessionKeepsUsableSessionWithoutReimporting() throws {
+    let session = OAuthSession(
+        accessToken: "access",
+        refreshToken: "refresh",
+        expiresAt: nil,
+        accountID: nil,
+        subscriptionType: nil,
+        rateLimitTier: nil,
+        source: .tokenTorchCopy
+    )
+    var reimported = false
+
+    let resolved = try QuotaHTTP.usableSession(
+        session,
+        provider: "Claude Code",
+        vendorAction: "Re-login with Claude Code (/login)."
+    ) {
+        reimported = true
+        return session
+    }
+
+    #expect(resolved.accessToken == "access")
+    #expect(reimported == false)
+}
+
+@Test func usableSessionReimportsExpiredSessionBeforeRequest() throws {
+    let expired = OAuthSession(
+        accessToken: "old",
+        refreshToken: "old-refresh",
+        expiresAt: 1,
+        accountID: nil,
+        subscriptionType: nil,
+        rateLimitTier: nil,
+        source: .tokenTorchCopy
+    )
+    let fresh = OAuthSession(
+        accessToken: "new",
+        refreshToken: "new-refresh",
+        expiresAt: nil,
+        accountID: nil,
+        subscriptionType: nil,
+        rateLimitTier: nil,
+        source: .claudeKeychain(service: "Claude Code-credentials-test")
+    )
+    var reimportCount = 0
+
+    let resolved = try QuotaHTTP.usableSession(
+        expired,
+        provider: "Claude Code",
+        vendorAction: "Re-login with Claude Code (/login)."
+    ) {
+        reimportCount += 1
+        return fresh
+    }
+
+    #expect(resolved.accessToken == "new")
+    #expect(resolved.source == .claudeKeychain(service: "Claude Code-credentials-test"))
+    #expect(reimportCount == 1)
 }
 
 @Test func needsAuthorizationErrorMentionsProviderAndRefresh() {
