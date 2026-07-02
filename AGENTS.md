@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-07-02 (Cursor value rows display toggle)
+Last updated: 2026-07-02 (Claude Code delegated repair)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -164,11 +164,13 @@ VERSION                    # Release version source of truth
 
 - Menu bar app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider; routine quota refresh reads only the Token Torch copy
 - Settings **Info** tab lists vendor credential source metadata for transparency. It shows enabled subscription providers that have a Token Torch-owned credential copy and the non-secret vendor source recorded at import time; it must never display raw token/API-key values.
+- Claude Code user-initiated repair is a narrow exception to the no-subprocess Keychain rule: it may check no-prompt Claude sources and run a timeout-bound `/usr/bin/security find-generic-password` read for Claude Code credentials after an explicit user action, then save only Token Torch's own copy. It must never run during startup/timer refreshes, must never print token values, and must never use Claude Code's `refreshToken` against Anthropic's OAuth refresh endpoint.
 
 ### Key Core modules (`token-torch/Core/`)
 
 - `AnthropicOrgProvider` / `OpenAIOrgProvider` — Admin API usage, workspaces/projects, pagination
 - `ClaudeQuotaProvider` / `CodexQuotaProvider` / `CursorQuotaProvider` / `CopilotQuotaProvider` — subscription quota APIs
+- `ClaudeCredentialRepair` — Claude Code-only user-initiated repair path; checks no-prompt Claude sources, reads updated Claude Code OAuth JSON via timeout-bound `/usr/bin/security`, asks `claude` to touch its own auth path, stores only the Token Torch-owned copy, and keeps background refreshes prompt-free
 - `UsageOrchestrator` — parallel fetch across enabled providers (menu bar)
 - `DateRange` — flexible date parsing, RFC 3339, inclusive end boundaries
 - `Redaction` — secret redaction for user-visible output
@@ -257,7 +259,7 @@ Cursor's `Total usage value` and `Bonus` rows are display-only value-framing fie
 - Never print API keys in terminal output or error messages
 - All user-visible errors pass through `Redaction.redactSecrets()`
 - Use Anthropic Admin API keys only for org billing; regular API keys return 401
-- **Quota credentials are read-only**: never write, refresh, or persist to vendor Keychain entries, auth files, or Cursor `state.vscdb`; token refresh is left to Claude Code, Codex CLI, and Cursor IDE
+- **Quota credentials are read-only**: never write, refresh, or persist to vendor Keychain entries, auth files, or Cursor `state.vscdb`; token refresh is left to Claude Code, Codex CLI, and Cursor IDE. The Claude repair path may read Claude Code's Keychain item via `/usr/bin/security` only after explicit user action, but must not write vendor storage or consume Claude Code's refresh token.
 - Always require explicit human confirmation before commits
 
 ### Testing
@@ -292,6 +294,14 @@ Load the `git-workflow` skill before committing. Commit message bodies are optio
 The root `VERSION` file is the release version and release tag source of truth (`v<version>`). `AppVersion.current` in `token-torch/Core/Utilities/AppVersion.swift` must match `VERSION`; app release builds pass `MARKETING_VERSION=$(cat VERSION)` to Xcode. Load the `semantic-versioning` skill before changing `VERSION` and keep version updates in the same commit as the behavior change.
 
 ## Recent Updates & Decisions
+
+### 2026-07-02: Claude Code delegated repair
+
+**What**: Added a Claude Code-only user-initiated repair path that avoids the shared interactive Keychain importer during manual Claude refresh. It can ask the `claude` CLI to touch its own auth path, poll no-prompt Claude sources for a changed Claude Code access token, read updated Claude Code OAuth JSON from credentials files or a timeout-bound `/usr/bin/security` command, and save a fresh Token Torch-owned copy.
+
+**Why**: Claude Code may refresh or recreate its own Keychain item, which can invalidate Token Torch's prior Access Control permission and trigger repeated password prompts. Reading through the security CLI after explicit user action reduces prompts while preserving the rule that Token Torch never writes vendor-owned credentials or consumes Claude Code's refresh token.
+
+**How**: `ClaudeCredentialRepair`, Claude-only `UsageOrchestrator` interactive bypass, `ClaudeQuotaProvider.fetch(interactive:)`, Claude Settings repair path, README, tests. Version `5.3.0`.
 
 ### 2026-07-02: Cursor value rows display toggle
 

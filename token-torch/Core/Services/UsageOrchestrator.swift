@@ -85,7 +85,7 @@ public struct UsageOrchestrator: Sendable {
     }
 
     private func subscriptionReport(provider: ProviderID, interactive: Bool) async -> ProviderReport {
-        if provider != .copilot {
+        if provider != .copilot, !(provider == .claude && interactive) {
             do {
                 try VendorCredentialImporter.ensureImported(
                     provider: provider,

@@ -54,6 +54,7 @@
 		C0040000000000000034 /* QuotaModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000033 /* QuotaModels.swift */; };
 		C0040000000000000038 /* AnthropicOrgProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000037 /* AnthropicOrgProvider.swift */; };
 		C0040000000000000041 /* ClaudeQuotaProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000040 /* ClaudeQuotaProvider.swift */; };
+		C004000000000000008B /* ClaudeCredentialRepair.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000008B /* ClaudeCredentialRepair.swift */; };
 		C0040000000000000044 /* CodexQuotaProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000043 /* CodexQuotaProvider.swift */; };
 		C0040000000000000047 /* CopilotQuotaProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000046 /* CopilotQuotaProvider.swift */; };
 		C0040000000000000050 /* CursorQuotaProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000049 /* CursorQuotaProvider.swift */; };
@@ -126,6 +127,7 @@
 		C0030000000000000033 /* QuotaModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaModels.swift; sourceTree = "<group>"; };
 		C0030000000000000037 /* AnthropicOrgProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnthropicOrgProvider.swift; sourceTree = "<group>"; };
 		C0030000000000000040 /* ClaudeQuotaProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeQuotaProvider.swift; sourceTree = "<group>"; };
+		C003000000000000008B /* ClaudeCredentialRepair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCredentialRepair.swift; sourceTree = "<group>"; };
 		C0030000000000000043 /* CodexQuotaProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexQuotaProvider.swift; sourceTree = "<group>"; };
 		C0030000000000000046 /* CopilotQuotaProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopilotQuotaProvider.swift; sourceTree = "<group>"; };
 		C0030000000000000049 /* CursorQuotaProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorQuotaProvider.swift; sourceTree = "<group>"; };
@@ -351,6 +353,7 @@
 			isa = PBXGroup;
 			children = (
 				C0030000000000000040 /* ClaudeQuotaProvider.swift */,
+				C003000000000000008B /* ClaudeCredentialRepair.swift */,
 			);
 			path = Claude;
 			sourceTree = "<group>";
@@ -530,6 +533,7 @@
 				C0040000000000000034 /* QuotaModels.swift in Sources */,
 				C0040000000000000038 /* AnthropicOrgProvider.swift in Sources */,
 				C0040000000000000041 /* ClaudeQuotaProvider.swift in Sources */,
+				C004000000000000008B /* ClaudeCredentialRepair.swift in Sources */,
 				C0040000000000000044 /* CodexQuotaProvider.swift in Sources */,
 				C0040000000000000047 /* CopilotQuotaProvider.swift in Sources */,
 				C0040000000000000050 /* CursorQuotaProvider.swift in Sources */,

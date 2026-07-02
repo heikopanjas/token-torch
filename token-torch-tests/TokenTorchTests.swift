@@ -90,6 +90,47 @@ import Testing
     #expect(report.credits?.utilizationPercent == 6.54)
 }
 
+@Test func parseClaudeSecurityCLICredentialJSON() throws {
+    let json = """
+        {
+          "claudeAiOauth": {
+            "accessToken": "access-token",
+            "refreshToken": "refresh-token",
+            "expiresAt": 1778993947349,
+            "rateLimitTier": "default_claude_ai",
+            "subscriptionType": "pro"
+          }
+        }
+        """
+
+    let session = try ClaudeCredentialRepair.parseClaudeCredentialJSON(json, service: "Claude Code-credentials")
+
+    #expect(session.accessToken == "access-token")
+    #expect(session.refreshToken == "refresh-token")
+    #expect(session.expiresAt == 1_778_993_947_349)
+    #expect(session.rateLimitTier == "default_claude_ai")
+    #expect(session.subscriptionType == "pro")
+    #expect(session.source == .claudeKeychain(service: "Claude Code-credentials"))
+}
+
+@Test func claudeAccessTokenFingerprintDoesNotExposeToken() {
+    let session = OAuthSession(
+        accessToken: "secret-access-token",
+        refreshToken: "secret-refresh-token",
+        expiresAt: nil,
+        accountID: nil,
+        subscriptionType: nil,
+        rateLimitTier: nil,
+        source: .claudeKeychain(service: "Claude Code-credentials")
+    )
+
+    let fingerprint = ClaudeCredentialRepair.accessTokenFingerprint(session)
+
+    #expect(fingerprint != nil)
+    #expect(fingerprint != "secret-access-token")
+    #expect(fingerprint?.count == 64)
+}
+
 @Test func displayPriceOptionsAppliesVATDeduction() {
     let gross = DisplayPriceOptions(currency: .eur, vatRatePercent: 19, automaticallyDeductVAT: false)
     #expect(gross.amountForDisplay(grossAmount: 119) == 119)

@@ -267,6 +267,11 @@ final class ProviderSettingsViewController: NSViewController {
 
     @objc private func resetCredentials() {
         let subscriptionEnabled = preferences.load().flags(for: provider).subscriptionQuotaEnabled
+        if provider == .claude, subscriptionEnabled {
+            repairClaudeCredentials()
+            return
+        }
+
         do {
             if subscriptionEnabled {
                 try VendorCredentialImporter.resetAndReimport(
@@ -284,6 +289,23 @@ final class ProviderSettingsViewController: NSViewController {
         }
         catch {
             statusLabel.stringValue = Redaction.redactSecrets(error.localizedDescription)
+        }
+    }
+
+    private func repairClaudeCredentials() {
+        statusLabel.stringValue = "Repairing Claude Code credentials…"
+        resetButton.isEnabled = false
+        Task {
+            defer { resetButton.isEnabled = true }
+            do {
+                let baseline = try? VendorCredentialsReader.loadClaudeSession()
+                _ = try await ClaudeCredentialRepair.repairAndImport(baseline: baseline)
+                statusLabel.stringValue = "Claude Code credentials repaired and imported."
+                NotificationCenter.default.post(name: AppActions.tokenTorchRefreshRequested, object: nil)
+            }
+            catch {
+                statusLabel.stringValue = Redaction.redactSecrets(error.localizedDescription)
+            }
         }
     }
 }
