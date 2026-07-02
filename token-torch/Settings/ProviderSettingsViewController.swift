@@ -14,6 +14,8 @@ final class ProviderSettingsViewController: NSViewController {
     private var tokenHintLabel: NSTextField!
     private var additionalUsageToggle: NSButton?
     private var additionalUsageHintLabel: NSTextField?
+    private var cursorValueRowsToggle: NSButton?
+    private var cursorValueRowsHintLabel: NSTextField?
     private var tokenLabel: NSTextField!
     private var tokenField: NSSecureTextField!
     private var saveTokenButton: NSButton!
@@ -163,6 +165,26 @@ final class ProviderSettingsViewController: NSViewController {
             additionalUsageHintLabel = usageHint
         }
 
+        if provider == .cursor {
+            y -= Self.sectionGap + 22
+            let toggle = NSButton(
+                checkboxWithTitle: "Hide Total usage value and Bonus",
+                target: self,
+                action: #selector(cursorValueRowsChanged)
+            )
+            toggle.frame = NSRect(x: x, y: y, width: controlW, height: 22)
+            toggle.autoresizingMask = [.minYMargin, .width]
+            view.addSubview(toggle)
+            cursorValueRowsToggle = toggle
+
+            let valueRowsHint = SettingsLayout.makeHintLabel(ProviderSettingsCopy.cursorValueRowsHint())
+            let valueRowsHintHeight = SettingsLayout.measuredHintHeight(valueRowsHint, width: controlW)
+            y -= SettingsLayout.groupedControlGap + valueRowsHintHeight
+            valueRowsHint.frame = NSRect(x: x, y: y, width: controlW, height: valueRowsHintHeight)
+            view.addSubview(valueRowsHint)
+            cursorValueRowsHintLabel = valueRowsHint
+        }
+
         y -= 16 + 16
         statusLabel = NSTextField(labelWithString: "")
         statusLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
@@ -174,13 +196,22 @@ final class ProviderSettingsViewController: NSViewController {
 
     override func viewWillAppear() {
         super.viewWillAppear()
-        additionalUsageToggle?.state = preferences.load().showAdditionalModelUsage ? .on : .off
+        let prefs = preferences.load()
+        additionalUsageToggle?.state = prefs.showAdditionalModelUsage ? .on : .off
+        cursorValueRowsToggle?.state = prefs.hideCursorUsageValueAndBonus ? .on : .off
         loadKeys()
     }
 
     @objc private func additionalUsageChanged() {
         var prefs = preferences.load()
         prefs.showAdditionalModelUsage = additionalUsageToggle?.state == .on
+        preferences.save(prefs)
+        NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
+    }
+
+    @objc private func cursorValueRowsChanged() {
+        var prefs = preferences.load()
+        prefs.hideCursorUsageValueAndBonus = cursorValueRowsToggle?.state == .on
         preferences.save(prefs)
         NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
     }

@@ -33,6 +33,7 @@ public enum VendorCredentialImporter {
 
     public static func reset(provider: ProviderID) throws {
         try TokenTorchVendorCredentialStore.delete(provider: provider)
+        VendorCredentialImportSourceStore.delete(provider: provider)
         VendorCredentialCache.invalidate(provider: provider)
     }
 
@@ -66,9 +67,10 @@ public enum VendorCredentialImporter {
             accountID: imported.accountID,
             subscriptionType: imported.subscriptionType,
             rateLimitTier: imported.rateLimitTier,
-            source: .tokenTorchCopy
+            source: imported.source
         )
         try TokenTorchVendorCredentialStore.save(provider: provider, session: session)
+        VendorCredentialImportSourceStore.save(imported.source, provider: provider)
         VendorCredentialCache.store(session, for: provider)
         return session
     }

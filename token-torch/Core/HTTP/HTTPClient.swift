@@ -42,6 +42,30 @@ public enum QuotaHTTP {
         }
     }
 
+    public static func usableSession(
+        _ session: OAuthSession,
+        provider: String,
+        vendorAction: String,
+        reauthenticate: () throws -> OAuthSession
+    ) throws -> OAuthSession {
+        guard !VendorCredentialsReader.sessionIsUsable(session) else {
+            return session
+        }
+
+        do {
+            let newSession = try reauthenticate()
+            try requireUsableSession(newSession, provider: provider, vendorAction: vendorAction)
+            return newSession
+        }
+        catch {
+            throw VendorCredentialsReader.quotaSessionExpired(
+                provider: provider,
+                session: session,
+                vendorAction: vendorAction
+            )
+        }
+    }
+
     public static func fetchWithAuthRecovery(
         provider: String,
         session: OAuthSession,

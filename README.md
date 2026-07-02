@@ -61,8 +61,10 @@ Menu bar app (Xcode): `Token Torch.app`, code signing, `LSUIElement` for menu-ba
 - **General** — **Start at login**, refresh interval, display currency (USD/EUR), **VAT rate (%)**, **Automatically deduct VAT**, **Menu bar icon**, and a **Providers** table for the six menu views (Claude Code, Anthropic API, Codex, OpenAI Platform, Cursor, Copilot): drag rows to reorder, use **Enabled** to turn each view on or off
 - **Claude / Codex / Cursor** — reset imported subscription credentials; Claude and Codex tabs also include an Admin API key field
 - **Codex** — optional **Show additional model usage** (e.g. Codex Spark)
+- **Cursor** — optional **Hide Total usage value and Bonus** to suppress Cursor's opaque value-framing rows while keeping quota meters and Credits visible
 - **Copilot** — GitHub Personal Access Token field with setup guidance
 - **Advanced** — **Reset Keychain…** deletes all Token Torch-owned Keychain items (`com.tokentorch.*`); vendor logins are not touched
+- **Info** — metadata-only view of the vendor source recorded when each enabled subscription credential was imported; Keychain secret values are never displayed
 
 The app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider so routine refresh does not re-prompt macOS for vendor Keychain access. On first launch after upgrading from **burn**, `CredentialStoreMigration` copies legacy `com.burn.*` Keychain entries.
 

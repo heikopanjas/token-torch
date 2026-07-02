@@ -1,4 +1,3 @@
-
 /// Provider-tab explanatory copy for subscription reset and org Admin API keys.
 enum ProviderSettingsCopy {
     static func resetHint(for provider: ProviderID) -> String {
@@ -32,6 +31,10 @@ enum ProviderSettingsCopy {
 
     static func additionalModelUsageHint() -> String {
         "When enabled, shows extra per-model rate limits (e.g. Codex Spark) in the Codex menu view. Off by default to keep the menu concise."
+    }
+
+    static func cursorValueRowsHint() -> String {
+        "When enabled, hides Cursor's estimated Total usage value and Bonus rows. The quota meters and Credits row remain visible so the menu focuses on actionable usage limits."
     }
 
     static func personalAccessTokenHint() -> String {
