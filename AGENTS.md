@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-07-01 (Settings Info tab for vendor credential metadata)
+Last updated: 2026-07-02 (Cursor value rows display toggle)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -229,6 +229,8 @@ Flexible parsing via `DateRange.parseDateRange()`:
 
 Individual plans show `totalPercentUsed`, `autoPercentUsed`, and `apiPercentUsed` as separate non-additive pools. Subscription price (`$200/mo`) is separate from included usage credits.
 
+Cursor's `Total usage value` and `Bonus` rows are display-only value-framing fields from Cursor's private usage API. Users can hide both from the Cursor Settings tab via `ProviderPreferences.hideCursorUsageValueAndBonus`; hiding them posts `tokenTorchDisplayChanged` and must not refetch or discard the raw decoded values.
+
 ### About panel
 
 - **About…** lives in the status menu (`MenuBuilder.appendCommandItems`) and the app menu (`AppDelegate.setupMainMenu`), not in Settings.
@@ -290,6 +292,14 @@ Load the `git-workflow` skill before committing. Commit message bodies are optio
 The root `VERSION` file is the release version and release tag source of truth (`v<version>`). `AppVersion.current` in `token-torch/Core/Utilities/AppVersion.swift` must match `VERSION`; app release builds pass `MARKETING_VERSION=$(cat VERSION)` to Xcode. Load the `semantic-versioning` skill before changing `VERSION` and keep version updates in the same commit as the behavior change.
 
 ## Recent Updates & Decisions
+
+### 2026-07-02: Cursor value rows display toggle
+
+**What**: Added a Cursor Settings checkbox to hide the Cursor menu's `Total usage value` and `Bonus` rows while leaving billing cycle, quota meters, and Credits visible.
+
+**Why**: Cursor's value-framing fields are opaque and difficult for users to independently verify, so they should be optional display rows rather than unavoidable quota information.
+
+**How**: `ProviderPreferences.hideCursorUsageValueAndBonus`, Cursor provider settings checkbox and hint, `MenuBuilder.appendCursorSubscription` display gate, README, tests. Version `5.2.0`.
 
 ### 2026-07-01: Settings Info tab for vendor credential metadata
 

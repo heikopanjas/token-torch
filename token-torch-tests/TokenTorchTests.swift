@@ -201,6 +201,15 @@ import Testing
     #expect(prefs.refreshIntervalMinutes == 20)
     #expect(prefs.displayCurrency == DisplayCurrency.systemDefault)
     #expect(prefs.menuBarIcon == .cursor)
+    #expect(!prefs.hideCursorUsageValueAndBonus)
+}
+
+@Test func providerPreferencesCursorValueRowsSettingRoundTripsThroughCoding() throws {
+    var prefs = ProviderPreferences()
+    prefs.hideCursorUsageValueAndBonus = true
+    let data = try JSONEncoder().encode(prefs)
+    let decoded = try JSONDecoder().decode(ProviderPreferences.self, from: data)
+    #expect(decoded.hideCursorUsageValueAndBonus)
 }
 
 @Test func menuBarIconProviderMapsPdfResources() {

@@ -117,7 +117,9 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             SettingsStyle.generalPaneHeight,
             SettingsStyle.infoPaneHeight,
             SettingsStyle.providerQuotaOnlyPaneHeight,
-            SettingsStyle.providerPaneHeight
+            SettingsStyle.providerPaneHeight,
+            SettingsStyle.copilotPaneHeight,
+            SettingsStyle.advancedPaneHeight
         )
     }
 

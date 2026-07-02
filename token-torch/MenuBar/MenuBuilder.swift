@@ -21,6 +21,7 @@ final class MenuBuilder {
         let prefs = ProviderPreferencesStore.shared.load()
         let pricing = DisplayPriceOptions(preferences: prefs)
         let showAdditional = prefs.showAdditionalModelUsage
+        let hideCursorValueRows = prefs.hideCursorUsageValueAndBonus
 
         guard prefs.hasAnyEnabledProvider else {
             menu.addItem(UsageMenuItemViews.emptyState())
@@ -48,7 +49,14 @@ final class MenuBuilder {
                 if index > 0 {
                     menu.addItem(.separator())
                 }
-                appendReport(to: menu, provider: section.provider, report: section.report, pricing: pricing, showAdditional: showAdditional)
+                appendReport(
+                    to: menu,
+                    provider: section.provider,
+                    report: section.report,
+                    pricing: pricing,
+                    showAdditional: showAdditional,
+                    hideCursorValueRows: hideCursorValueRows
+                )
             }
         }
 
@@ -61,7 +69,14 @@ final class MenuBuilder {
         appendCommandItems(to: menu, model: model)
     }
 
-    private func appendReport(to menu: NSMenu, provider: ProviderID, report: ProviderReport, pricing: DisplayPriceOptions, showAdditional: Bool) {
+    private func appendReport(
+        to menu: NSMenu,
+        provider: ProviderID,
+        report: ProviderReport,
+        pricing: DisplayPriceOptions,
+        showAdditional: Bool,
+        hideCursorValueRows: Bool
+    ) {
         let trailing: String? = {
             if case .subscription(let quota) = report {
                 return ReportLabels.planSummary(quota, pricing: pricing)
@@ -78,7 +93,12 @@ final class MenuBuilder {
         switch report {
             case .subscription(let quota):
                 if quota.provider == "Cursor" {
-                    appendCursorSubscription(to: menu, quota: quota, pricing: pricing)
+                    appendCursorSubscription(
+                        to: menu,
+                        quota: quota,
+                        pricing: pricing,
+                        hideValueRows: hideCursorValueRows
+                    )
                 }
                 else {
                     if quota.provider == "Copilot",
@@ -134,7 +154,12 @@ final class MenuBuilder {
         }
     }
 
-    private func appendCursorSubscription(to menu: NSMenu, quota: SubscriptionQuotaReport, pricing: DisplayPriceOptions) {
+    private func appendCursorSubscription(
+        to menu: NSMenu,
+        quota: SubscriptionQuotaReport,
+        pricing: DisplayPriceOptions,
+        hideValueRows: Bool
+    ) {
         if let start = quota.billingCycleStart, let end = quota.billingCycleEnd {
             menu.addItem(
                 UsageMenuItemViews.caption(
@@ -157,18 +182,20 @@ final class MenuBuilder {
                 menu.addItem(item)
             }
         }
-        if let total = quota.totalSpendCents {
-            menu.addItem(
-                UsageMenuItemViews.costRow(
-                    label: "Total usage value",
-                    value: pricing.formatMinorUnits(total, from: "USD")))
-        }
-        if let bonus = quota.bonusSpendCents, bonus > 0 {
-            menu.addItem(
-                UsageMenuItemViews.costRow(
-                    label: "Bonus",
-                    value: pricing.formatMinorUnits(bonus, from: "USD"),
-                    caption: "Free usage beyond what you've purchased"))
+        if !hideValueRows {
+            if let total = quota.totalSpendCents {
+                menu.addItem(
+                    UsageMenuItemViews.costRow(
+                        label: "Total usage value",
+                        value: pricing.formatMinorUnits(total, from: "USD")))
+            }
+            if let bonus = quota.bonusSpendCents, bonus > 0 {
+                menu.addItem(
+                    UsageMenuItemViews.costRow(
+                        label: "Bonus",
+                        value: pricing.formatMinorUnits(bonus, from: "USD"),
+                        caption: "Free usage beyond what you've purchased"))
+            }
         }
         if let credits = ReportLabels.cursorCreditsLabel(quota, pricing: pricing) {
             menu.addItem(UsageMenuItemViews.costRow(label: "Credits", value: credits))

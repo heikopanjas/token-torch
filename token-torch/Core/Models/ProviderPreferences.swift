@@ -79,6 +79,8 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
     public var automaticallyDeductVAT: Bool
     /// When true, the menu also lists per-model extra rate limits (e.g. Codex Spark). Default off.
     public var showAdditionalModelUsage: Bool
+    /// When true, hide Cursor's opaque value-framing rows (Total usage value and Bonus). Default off.
+    public var hideCursorUsageValueAndBonus: Bool
     /// User-chosen order of the six menu views (provider + subscription/org). Normalize via `orderedSections()`.
     public var sectionOrder: [ProviderSection]
     /// Menu bar status item icon (Anthropic, OpenAI, Cursor, or Copilot PDF).
@@ -94,6 +96,7 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         vatRatePercent: Double = 0,
         automaticallyDeductVAT: Bool = false,
         showAdditionalModelUsage: Bool = false,
+        hideCursorUsageValueAndBonus: Bool = false,
         sectionOrder: [ProviderSection] = ProviderSection.allSections,
         menuBarIcon: MenuBarIconProvider = .cursor
     ) {
@@ -106,6 +109,7 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         self.vatRatePercent = DisplayPriceOptions.normalizeVATRate(vatRatePercent)
         self.automaticallyDeductVAT = automaticallyDeductVAT
         self.showAdditionalModelUsage = showAdditionalModelUsage
+        self.hideCursorUsageValueAndBonus = hideCursorUsageValueAndBonus
         self.sectionOrder = sectionOrder
         self.menuBarIcon = menuBarIcon
     }
@@ -127,6 +131,8 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         )
         automaticallyDeductVAT = try container.decodeIfPresent(Bool.self, forKey: .automaticallyDeductVAT) ?? false
         showAdditionalModelUsage = try container.decodeIfPresent(Bool.self, forKey: .showAdditionalModelUsage) ?? false
+        hideCursorUsageValueAndBonus =
+            try container.decodeIfPresent(Bool.self, forKey: .hideCursorUsageValueAndBonus) ?? false
         sectionOrder = try container.decodeIfPresent([ProviderSection].self, forKey: .sectionOrder) ?? ProviderSection.allSections
         menuBarIcon = try container.decodeIfPresent(MenuBarIconProvider.self, forKey: .menuBarIcon) ?? .cursor
     }
