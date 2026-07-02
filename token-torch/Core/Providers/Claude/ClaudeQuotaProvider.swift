@@ -5,6 +5,10 @@ public enum ClaudeQuotaProvider {
     private static let client = HTTPClient()
 
     public static func fetch(interactive: Bool = false) async throws -> SubscriptionQuotaReport {
+        if interactive {
+            return try await fetchUserInitiated()
+        }
+
         let reauth: () throws -> OAuthSession = {
             try VendorCredentialImporter.reimportAfterAuthFailure(provider: .claude, interactive: interactive)
         }
@@ -31,6 +35,31 @@ public enum ClaudeQuotaProvider {
             }
             throw error
         }
+    }
+
+    private static func fetchUserInitiated() async throws -> SubscriptionQuotaReport {
+        let session = try await userInitiatedSession()
+        do {
+            return try await fetchUsage(session: session)
+        }
+        catch {
+            if QuotaHTTP.isQuotaAuthError(error, policy: .strict) {
+                let repaired = try await ClaudeCredentialRepair.repairAndImport(baseline: session)
+                return try await fetchUsage(session: repaired)
+            }
+            if QuotaHTTP.isQuotaRateLimitError(error) {
+                return try await recoverRateLimit(session: session)
+            }
+            throw error
+        }
+    }
+
+    private static func userInitiatedSession() async throws -> OAuthSession {
+        let stored = try? VendorCredentialsReader.loadClaudeSession()
+        if let stored, VendorCredentialsReader.sessionIsUsable(stored) {
+            return stored
+        }
+        return try await ClaudeCredentialRepair.repairAndImport(baseline: stored)
     }
 
     private static func recoverRateLimit(session: OAuthSession) async throws -> SubscriptionQuotaReport {
