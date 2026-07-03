@@ -480,6 +480,28 @@ import Testing
     #expect(report.planPrice == "$100/mo")
 }
 
+@Test func mapCodexCreditBalanceUsesCreditUnits() throws {
+    let json = """
+        {"plan_type":"pro",
+        "rate_limit":{"primary_window":{"used_percent":0,"reset_at":1780254481},"secondary_window":{"used_percent":0,"reset_at":1780841281}},
+        "credits":{"has_credits":true,"unlimited":false,"overage_limit_reached":false,"balance":"250"},
+        "spend_control":{"reached":false,"individual_limit":null}}
+        """
+    let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
+    let report = CodexQuotaProvider.mapUsage(response)
+    let credits = try #require(report.credits)
+    #expect(credits.currency == CreditsInfo.creditUnitsCurrency)
+    #expect(credits.balanceUSD == nil)
+    #expect(credits.balanceCredits == 250)
+
+    let label = try #require(
+        ReportLabels.codexCreditsLabel(
+            credits,
+            pricing: DisplayPriceOptions(currency: .usd)
+        ))
+    #expect(label == "$10.00 · 250 credits")
+}
+
 @Test func mapChatGptSurfacesNotesAndAdditionalWindows() throws {
     let json = """
         {"user_id":"user-x","account_id":"acc","email":"a@b.com","plan_type":"prolite",
@@ -498,6 +520,19 @@ import Testing
     #expect(!report.windows.contains { $0.label.contains("Spark") })
     // D7: healthy state hides the boolean status notes entirely.
     #expect(report.notes.isEmpty)
+}
+
+@Test func mapCodexSurfacesRateLimitResetCreditCount() throws {
+    let json = """
+        {"plan_type":"plus",
+        "rate_limit":{"allowed":true,"limit_reached":false,"primary_window":{"used_percent":0,"reset_at":1780254481},"secondary_window":{"used_percent":0,"reset_at":1780841281}},
+        "credits":{"has_credits":false,"unlimited":false,"overage_limit_reached":false,"balance":"0"},
+        "spend_control":{"reached":false,"individual_limit":null},
+        "rate_limit_reset_credits":{"available_count":2}}
+        """
+    let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
+    let report = CodexQuotaProvider.mapUsage(response)
+    #expect(report.notes.contains { $0.label == "Rate limit resets" && $0.value == "2 available" })
 }
 
 @Test func mapChatGptSurfacesStatusNotesOnlyWhenLimited() throws {

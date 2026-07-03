@@ -1,4 +1,3 @@
-
 enum ReportLabels {
     static func heading(provider: ProviderID, report: ProviderReport) -> String {
         heading(provider: provider, kind: report.sectionKind)
@@ -68,5 +67,17 @@ enum ReportLabels {
         let pct = credits.utilizationPercent ?? QuotaHelpers.creditUsedPercent(usedCents: credits.usedCents, limitCents: credits.limitCents)
         let pctText = pct.map { String(format: " (%.0f%% used)", $0) } ?? ""
         return "\(used)/\(limit)\(pctText)"
+    }
+
+    /// Codex `credits.balance` is a credit count. Display its fixed USD equivalent alongside the units.
+    static func codexCreditsLabel(_ credits: CreditsInfo, pricing: DisplayPriceOptions) -> String? {
+        guard let balance = credits.balanceCredits, balance >= 0 else { return nil }
+        let wholeCredits = Int(balance.rounded(.down))
+        let amount = pricing.formatConverted(
+            amount: Double(wholeCredits) * CodexQuotaProvider.creditUSDValue,
+            from: "USD"
+        )
+        let unit = wholeCredits == 1 ? "credit" : "credits"
+        return "\(amount) · \(wholeCredits) \(unit)"
     }
 }

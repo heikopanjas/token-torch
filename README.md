@@ -61,7 +61,7 @@ Menu bar app (Xcode): `Token Torch.app`, code signing, `LSUIElement` for menu-ba
 - **General** — **Start at login**, refresh interval, display currency (USD/EUR), **VAT rate (%)**, **Automatically deduct VAT**, **Menu bar icon**, and a **Providers** table for the six menu views (Claude Code, Anthropic API, Codex, OpenAI Platform, Cursor, Copilot): drag rows to reorder, use **Enabled** to turn each view on or off
 - **Claude / Codex / Cursor** — reset imported subscription credentials; Claude repair can ask Claude Code to update its own login, then re-import the updated token into Token Torch; Claude and Codex tabs also include an Admin API key field
 - **Claude** — optional **Automatically repair credentials in the background** (off by default; when on, repair also runs on startup/timer refreshes, which may launch the `claude` CLI and prompt for Keychain access — manual Refresh always repairs on auth failure) and an optional **Claude CLI path** (point at the `claude` executable when it is not found on the login PATH; leave blank to auto-detect)
-- **Codex** — optional **Show additional model usage** (e.g. Codex Spark)
+- **Codex** — optional **Show additional model usage** (e.g. Codex Spark); extra usage credits are shown as credit units with their fixed USD equivalent (`$0.04` per credit), and available rate-limit reset credits appear when the API reports them
 - **Cursor** — optional **Show Total usage value and Bonus** (off by default) to reveal Cursor's opaque value-framing rows; quota meters and Credits are always shown
 - **Copilot** — GitHub Personal Access Token field with setup guidance
 - **Advanced** — **Reset Keychain…** deletes all Token Torch-owned Keychain items (`com.tokentorch.*`); vendor logins are not touched
