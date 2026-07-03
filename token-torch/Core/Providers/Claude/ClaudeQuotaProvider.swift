@@ -4,9 +4,14 @@ public enum ClaudeQuotaProvider {
     private static let retryDelays: [UInt64] = [2, 5, 10]
     private static let client = HTTPClient()
 
-    public static func fetch(interactive: Bool = false) async throws -> SubscriptionQuotaReport {
-        if interactive {
-            return try await fetchUserInitiated()
+    public static func fetch(
+        interactive: Bool = false,
+        automaticRepairEnabled: Bool = false,
+        claudeExecutablePath: String? = nil
+    ) async throws -> SubscriptionQuotaReport {
+        // Manual Refresh always repairs on auth failure; automatic refresh only when opted in.
+        if interactive || automaticRepairEnabled {
+            return try await fetchWithRepair(claudeExecutablePath: claudeExecutablePath)
         }
 
         let reauth: () throws -> OAuthSession = {
@@ -37,14 +42,17 @@ public enum ClaudeQuotaProvider {
         }
     }
 
-    private static func fetchUserInitiated() async throws -> SubscriptionQuotaReport {
-        let session = try await userInitiatedSession()
+    private static func fetchWithRepair(claudeExecutablePath: String?) async throws -> SubscriptionQuotaReport {
+        let session = try await repairableSession(claudeExecutablePath: claudeExecutablePath)
         do {
             return try await fetchUsage(session: session)
         }
         catch {
             if QuotaHTTP.isQuotaAuthError(error, policy: .strict) {
-                let repaired = try await ClaudeCredentialRepair.repairAndImport(baseline: session)
+                let repaired = try await ClaudeCredentialRepair.repairAndImport(
+                    baseline: session,
+                    claudeExecutablePath: claudeExecutablePath
+                )
                 return try await fetchUsage(session: repaired)
             }
             if QuotaHTTP.isQuotaRateLimitError(error) {
@@ -54,12 +62,15 @@ public enum ClaudeQuotaProvider {
         }
     }
 
-    private static func userInitiatedSession() async throws -> OAuthSession {
+    private static func repairableSession(claudeExecutablePath: String?) async throws -> OAuthSession {
         let stored = try? VendorCredentialsReader.loadClaudeSession()
         if let stored, VendorCredentialsReader.sessionIsUsable(stored) {
             return stored
         }
-        return try await ClaudeCredentialRepair.repairAndImport(baseline: stored)
+        return try await ClaudeCredentialRepair.repairAndImport(
+            baseline: stored,
+            claudeExecutablePath: claudeExecutablePath
+        )
     }
 
     private static func recoverRateLimit(session: OAuthSession) async throws -> SubscriptionQuotaReport {

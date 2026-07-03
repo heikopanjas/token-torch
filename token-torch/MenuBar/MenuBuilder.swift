@@ -21,7 +21,7 @@ final class MenuBuilder {
         let prefs = ProviderPreferencesStore.shared.load()
         let pricing = DisplayPriceOptions(preferences: prefs)
         let showAdditional = prefs.showAdditionalModelUsage
-        let hideCursorValueRows = prefs.hideCursorUsageValueAndBonus
+        let showCursorValueRows = prefs.showCursorUsageValueAndBonus
 
         guard prefs.hasAnyEnabledProvider else {
             menu.addItem(UsageMenuItemViews.emptyState())
@@ -55,7 +55,7 @@ final class MenuBuilder {
                     report: section.report,
                     pricing: pricing,
                     showAdditional: showAdditional,
-                    hideCursorValueRows: hideCursorValueRows
+                    showCursorValueRows: showCursorValueRows
                 )
             }
         }
@@ -75,7 +75,7 @@ final class MenuBuilder {
         report: ProviderReport,
         pricing: DisplayPriceOptions,
         showAdditional: Bool,
-        hideCursorValueRows: Bool
+        showCursorValueRows: Bool
     ) {
         let trailing: String? = {
             if case .subscription(let quota) = report {
@@ -97,7 +97,7 @@ final class MenuBuilder {
                         to: menu,
                         quota: quota,
                         pricing: pricing,
-                        hideValueRows: hideCursorValueRows
+                        showValueRows: showCursorValueRows
                     )
                 }
                 else {
@@ -158,7 +158,7 @@ final class MenuBuilder {
         to menu: NSMenu,
         quota: SubscriptionQuotaReport,
         pricing: DisplayPriceOptions,
-        hideValueRows: Bool
+        showValueRows: Bool
     ) {
         if let start = quota.billingCycleStart, let end = quota.billingCycleEnd {
             menu.addItem(
@@ -182,7 +182,7 @@ final class MenuBuilder {
                 menu.addItem(item)
             }
         }
-        if !hideValueRows {
+        if showValueRows {
             if let total = quota.totalSpendCents {
                 menu.addItem(
                     UsageMenuItemViews.costRow(

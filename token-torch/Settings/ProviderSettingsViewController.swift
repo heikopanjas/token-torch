@@ -16,6 +16,8 @@ final class ProviderSettingsViewController: NSViewController {
     private var additionalUsageHintLabel: NSTextField?
     private var cursorValueRowsToggle: NSButton?
     private var cursorValueRowsHintLabel: NSTextField?
+    private var automaticRepairToggle: NSButton?
+    private var claudeCLIPathField: NSTextField?
     private var tokenLabel: NSTextField!
     private var tokenField: NSSecureTextField!
     private var saveTokenButton: NSButton!
@@ -39,7 +41,7 @@ final class ProviderSettingsViewController: NSViewController {
         switch provider {
             case .codex: SettingsStyle.providerPaneHeight + 40
             case .copilot: SettingsStyle.copilotPaneHeight
-            case .claude: SettingsStyle.providerPaneHeight
+            case .claude: SettingsStyle.claudePaneHeight
             case .cursor: SettingsStyle.providerQuotaOnlyPaneHeight
         }
     }
@@ -75,6 +77,54 @@ final class ProviderSettingsViewController: NSViewController {
             y -= SettingsLayout.groupedControlGap + resetHintHeight
             resetHintLabel.frame = NSRect(x: x, y: y, width: controlW, height: resetHintHeight)
             view.addSubview(resetHintLabel)
+        }
+
+        if provider == .claude {
+            y -= Self.sectionGap + 22
+            let repairToggle = NSButton(
+                checkboxWithTitle: "Automatically repair credentials in the background",
+                target: self,
+                action: #selector(automaticRepairChanged)
+            )
+            repairToggle.frame = NSRect(x: x, y: y, width: controlW, height: 22)
+            repairToggle.autoresizingMask = [.minYMargin, .width]
+            view.addSubview(repairToggle)
+            automaticRepairToggle = repairToggle
+
+            let repairHint = SettingsLayout.makeHintLabel(ProviderSettingsCopy.claudeAutomaticRepairHint())
+            let repairHintHeight = SettingsLayout.measuredHintHeight(repairHint, width: controlW)
+            y -= SettingsLayout.groupedControlGap + repairHintHeight
+            repairHint.frame = NSRect(x: x, y: y, width: controlW, height: repairHintHeight)
+            view.addSubview(repairHint)
+
+            y -= Self.sectionGap + 16
+            let pathLabel = NSTextField(labelWithString: "Claude CLI path")
+            pathLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
+            pathLabel.autoresizingMask = [.minYMargin, .width]
+            view.addSubview(pathLabel)
+
+            let pathHint = SettingsLayout.makeHintLabel(ProviderSettingsCopy.claudeCLIPathHint())
+            let pathHintHeight = SettingsLayout.measuredHintHeight(pathHint, width: controlW)
+            y -= 4 + pathHintHeight
+            pathHint.frame = NSRect(x: x, y: y, width: controlW, height: pathHintHeight)
+            view.addSubview(pathHint)
+
+            y -= SettingsLayout.groupedControlGap + 22
+            let browseWidth: CGFloat = 88
+            let pathField = NSTextField(
+                frame: NSRect(x: x, y: y, width: controlW - browseWidth - 8, height: 22)
+            )
+            pathField.placeholderString = "/opt/homebrew/bin/claude"
+            pathField.autoresizingMask = [.minYMargin, .width]
+            pathField.delegate = self
+            view.addSubview(pathField)
+            claudeCLIPathField = pathField
+
+            let browseButton = NSButton(title: "Browse…", target: self, action: #selector(browseClaudeCLIPath))
+            browseButton.bezelStyle = .rounded
+            browseButton.frame = NSRect(x: w - x - browseWidth, y: y, width: browseWidth, height: 22)
+            browseButton.autoresizingMask = [.minYMargin, .minXMargin]
+            view.addSubview(browseButton)
         }
 
         if usesPersonalAccessToken {
@@ -168,7 +218,7 @@ final class ProviderSettingsViewController: NSViewController {
         if provider == .cursor {
             y -= Self.sectionGap + 22
             let toggle = NSButton(
-                checkboxWithTitle: "Hide Total usage value and Bonus",
+                checkboxWithTitle: "Show Total usage value and Bonus",
                 target: self,
                 action: #selector(cursorValueRowsChanged)
             )
@@ -198,8 +248,15 @@ final class ProviderSettingsViewController: NSViewController {
         super.viewWillAppear()
         let prefs = preferences.load()
         additionalUsageToggle?.state = prefs.showAdditionalModelUsage ? .on : .off
-        cursorValueRowsToggle?.state = prefs.hideCursorUsageValueAndBonus ? .on : .off
+        cursorValueRowsToggle?.state = prefs.showCursorUsageValueAndBonus ? .on : .off
+        automaticRepairToggle?.state = prefs.claudeAutomaticRepair ? .on : .off
+        claudeCLIPathField?.stringValue = prefs.claudeCLIPath ?? ""
         loadKeys()
+    }
+
+    override func viewWillDisappear() {
+        super.viewWillDisappear()
+        saveClaudeCLIPath()
     }
 
     @objc private func additionalUsageChanged() {
@@ -211,9 +268,38 @@ final class ProviderSettingsViewController: NSViewController {
 
     @objc private func cursorValueRowsChanged() {
         var prefs = preferences.load()
-        prefs.hideCursorUsageValueAndBonus = cursorValueRowsToggle?.state == .on
+        prefs.showCursorUsageValueAndBonus = cursorValueRowsToggle?.state == .on
         preferences.save(prefs)
         NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
+    }
+
+    @objc private func automaticRepairChanged() {
+        var prefs = preferences.load()
+        prefs.claudeAutomaticRepair = automaticRepairToggle?.state == .on
+        preferences.save(prefs)
+    }
+
+    @objc private func browseClaudeCLIPath() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.showsHiddenFiles = true
+        panel.treatsFilePackagesAsDirectories = true
+        panel.prompt = "Choose"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        claudeCLIPathField?.stringValue = url.path
+        saveClaudeCLIPath()
+    }
+
+    private func saveClaudeCLIPath() {
+        guard let claudeCLIPathField else { return }
+        let trimmed = claudeCLIPathField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        let newValue = trimmed.isEmpty ? nil : trimmed
+        var prefs = preferences.load()
+        guard prefs.claudeCLIPath != newValue else { return }
+        prefs.claudeCLIPath = newValue
+        preferences.save(prefs)
     }
 
     private func loadKeys() {
@@ -299,7 +385,10 @@ final class ProviderSettingsViewController: NSViewController {
             defer { resetButton.isEnabled = true }
             do {
                 let baseline = try? VendorCredentialsReader.loadClaudeSession()
-                _ = try await ClaudeCredentialRepair.repairAndImport(baseline: baseline)
+                _ = try await ClaudeCredentialRepair.repairAndImport(
+                    baseline: baseline,
+                    claudeExecutablePath: preferences.load().claudeCLIPath
+                )
                 statusLabel.stringValue = "Claude Code credentials repaired and imported."
                 NotificationCenter.default.post(name: AppActions.tokenTorchRefreshRequested, object: nil)
             }
@@ -307,5 +396,12 @@ final class ProviderSettingsViewController: NSViewController {
                 statusLabel.stringValue = Redaction.redactSecrets(error.localizedDescription)
             }
         }
+    }
+}
+
+extension ProviderSettingsViewController: NSTextFieldDelegate {
+    func controlTextDidEndEditing(_ obj: Notification) {
+        guard let field = obj.object as? NSTextField, field === claudeCLIPathField else { return }
+        saveClaudeCLIPath()
     }
 }
