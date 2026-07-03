@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-07-03 (Claude automatic repair silent import fallback)
+Last updated: 2026-07-03 (Codex credit unit display)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -199,6 +199,8 @@ Grand Total: €Z.ZZ ($W.WW)
 
 OpenAI native cost line items such as `chat-latest, input` and `chat-latest, output` are aggregated into one model cost row before display.
 
+Codex `/wham/usage` `credits.balance` is a credit-unit balance, not dollars. Display Codex extra usage as the fixed USD equivalent at `$0.04` per credit plus the whole credit count (for example `$10.00 · 250 credits`), and surface `rate_limit_reset_credits.available_count` as available rate-limit resets when nonzero.
+
 ### Display Currency
 
 - `DisplayCurrency` (USD/EUR) + `CurrencyConverter` in `token-torch/Core/Utilities/DisplayCurrency.swift` (pure; USD<->EUR via `Pricing.usdToEUR`, native passthrough for other source currencies).
@@ -294,6 +296,14 @@ Load the `git-workflow` skill before committing. Commit message bodies are optio
 The root `VERSION` file is the release version and release tag source of truth (`v<version>`). `AppVersion.current` in `token-torch/Core/Utilities/AppVersion.swift` must match `VERSION`; app release builds pass `MARKETING_VERSION=$(cat VERSION)` to Xcode. Load the `semantic-versioning` skill before changing `VERSION` and keep version updates in the same commit as the behavior change.
 
 ## Recent Updates & Decisions
+
+### 2026-07-03: Fix Codex credit unit display
+
+**What**: Codex extra usage now treats `/wham/usage` `credits.balance` as remaining credit units instead of USD. The menu row is labeled **Extra usage** and displays the fixed USD equivalent at `$0.04` per credit alongside the whole credit count. Token Torch also surfaces `rate_limit_reset_credits.available_count` as a rate-limit reset note when the API reports available resets.
+
+**Why**: A Codex credit balance of `250` was incorrectly shown as `$250.00`; public Codex/OpenUsage references describe the value as credits, equivalent to about `$10.00` at the fixed conversion rate.
+
+**How**: `CodexQuotaProvider` stores `balanceCredits`, decodes `rate_limit_reset_credits`, `ReportLabels` formats Codex credits separately from monetary credit rows, `MenuBuilder` uses the Codex-specific **Extra usage** title, README documents the display, and tests cover credit mapping plus reset-count notes. Version `5.5.2`.
 
 ### 2026-07-03: Fix Claude automatic repair silent import fallback
 

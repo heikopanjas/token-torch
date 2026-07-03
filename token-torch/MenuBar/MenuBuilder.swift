@@ -131,8 +131,10 @@ final class MenuBuilder {
                     for note in quota.notes {
                         menu.addItem(UsageMenuItemViews.costRow(label: note.label, value: note.value))
                     }
-                    if let credits = quota.credits, let label = ReportLabels.creditsLabel(credits, pricing: pricing) {
-                        let creditsTitle = quota.provider == "Copilot" ? "AI Credits" : "On-demand credits"
+                    if let credits = quota.credits,
+                        let label = creditsLabel(for: quota, credits: credits, pricing: pricing)
+                    {
+                        let creditsTitle = creditsTitle(for: quota)
                         menu.addItem(UsageMenuItemViews.costRow(label: creditsTitle, value: label))
                     }
                 }
@@ -143,6 +145,25 @@ final class MenuBuilder {
             case .error(_, let mode, let message):
                 menu.addItem(UsageMenuItemViews.errorRow(mode: mode, message: message))
         }
+    }
+
+    private func creditsTitle(for quota: SubscriptionQuotaReport) -> String {
+        switch quota.provider {
+            case "Codex": "Extra usage"
+            case "Copilot": "AI Credits"
+            default: "On-demand credits"
+        }
+    }
+
+    private func creditsLabel(
+        for quota: SubscriptionQuotaReport,
+        credits: CreditsInfo,
+        pricing: DisplayPriceOptions
+    ) -> String? {
+        if quota.provider == "Codex" {
+            return ReportLabels.codexCreditsLabel(credits, pricing: pricing)
+        }
+        return ReportLabels.creditsLabel(credits, pricing: pricing)
     }
 
     private func appendCopilotWindow(to menu: NSMenu, window: QuotaWindow) {

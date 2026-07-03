@@ -1,6 +1,8 @@
 import Foundation
 
 public enum CodexQuotaProvider {
+    static let creditUSDValue = 0.04
+
     private static let client = HTTPClient()
 
     public static func fetch(interactive: Bool = false) async throws -> SubscriptionQuotaReport {
@@ -93,6 +95,14 @@ public enum CodexQuotaProvider {
         }
     }
 
+    struct RateLimitResetCredits: Decodable {
+        let availableCount: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case availableCount = "available_count"
+        }
+    }
+
     enum BalanceValue: Decodable {
         case double(Double)
         case string(String)
@@ -129,6 +139,7 @@ public enum CodexQuotaProvider {
         let credits: ChatGptCredits?
         let spendControl: SpendControl?
         let rateLimitReachedType: String?
+        let rateLimitResetCredits: RateLimitResetCredits?
         let promo: JSONValue?
 
         enum CodingKeys: String, CodingKey {
@@ -139,6 +150,7 @@ public enum CodexQuotaProvider {
             case credits
             case spendControl = "spend_control"
             case rateLimitReachedType = "rate_limit_reached_type"
+            case rateLimitResetCredits = "rate_limit_reset_credits"
             case promo
         }
     }
@@ -190,6 +202,9 @@ public enum CodexQuotaProvider {
         if let limit = response.spendControl?.individualLimit {
             notes.append(QuotaNote(label: "Spend limit", value: String(limit)))
         }
+        if let availableCount = response.rateLimitResetCredits?.availableCount, availableCount > 0 {
+            notes.append(QuotaNote(label: "Rate limit resets", value: "\(availableCount) available"))
+        }
         if let promo = response.promo, !promo.isEmpty {
             for leaf in promo.flattenedScalars(prefix: "promo") {
                 notes.append(QuotaNote(label: leaf.label, value: leaf.value))
@@ -201,8 +216,9 @@ public enum CodexQuotaProvider {
             report.credits = CreditsInfo(
                 usedCents: 0,
                 limitCents: 0,
-                currency: "USD",
-                balanceUSD: credits.balance?.doubleValue
+                currency: CreditsInfo.creditUnitsCurrency,
+                balanceUSD: nil,
+                balanceCredits: credits.balance?.doubleValue
             )
         }
         return report
