@@ -242,15 +242,105 @@ import Testing
     #expect(prefs.refreshIntervalMinutes == 20)
     #expect(prefs.displayCurrency == DisplayCurrency.systemDefault)
     #expect(prefs.menuBarIcon == .cursor)
-    #expect(!prefs.hideCursorUsageValueAndBonus)
+    #expect(!prefs.showCursorUsageValueAndBonus)
 }
 
 @Test func providerPreferencesCursorValueRowsSettingRoundTripsThroughCoding() throws {
     var prefs = ProviderPreferences()
-    prefs.hideCursorUsageValueAndBonus = true
+    prefs.showCursorUsageValueAndBonus = true
     let data = try JSONEncoder().encode(prefs)
     let decoded = try JSONDecoder().decode(ProviderPreferences.self, from: data)
-    #expect(decoded.hideCursorUsageValueAndBonus)
+    #expect(decoded.showCursorUsageValueAndBonus)
+}
+
+@Test func providerPreferencesDecodesLegacyWithoutClaudeRepairSettings() throws {
+    let legacy = """
+        {"claude":{"subscriptionQuotaEnabled":true,"orgBillingEnabled":false},"codex":{"subscriptionQuotaEnabled":true,"orgBillingEnabled":false},"cursor":{"subscriptionQuotaEnabled":true,"orgBillingEnabled":false},"refreshIntervalMinutes":15}
+        """
+    let prefs = try JSONDecoder().decode(ProviderPreferences.self, from: Data(legacy.utf8))
+    #expect(!prefs.claudeAutomaticRepair)
+    #expect(prefs.claudeCLIPath == nil)
+}
+
+@Test func providerPreferencesClaudeRepairSettingsRoundTripThroughCoding() throws {
+    var prefs = ProviderPreferences()
+    prefs.claudeAutomaticRepair = true
+    prefs.claudeCLIPath = "/opt/homebrew/bin/claude"
+    let data = try JSONEncoder().encode(prefs)
+    let decoded = try JSONDecoder().decode(ProviderPreferences.self, from: data)
+    #expect(decoded.claudeAutomaticRepair)
+    #expect(decoded.claudeCLIPath == "/opt/homebrew/bin/claude")
+}
+
+@Test func claudeAutomaticRepairFallsThroughAfterSilentImporterAuthFailure() {
+    var prefs = ProviderPreferences()
+    prefs.claudeAutomaticRepair = true
+    let error = TokenTorchError.missingCredentials("Claude silent import unavailable")
+
+    #expect(
+        UsageOrchestrator.shouldContinueAfterImporterAuthorizationFailure(
+            provider: .claude,
+            preferences: prefs,
+            interactive: false,
+            error: error
+        ))
+
+    #expect(
+        !UsageOrchestrator.shouldContinueAfterImporterAuthorizationFailure(
+            provider: .codex,
+            preferences: prefs,
+            interactive: false,
+            error: error
+        ))
+
+    #expect(
+        !UsageOrchestrator.shouldContinueAfterImporterAuthorizationFailure(
+            provider: .claude,
+            preferences: prefs,
+            interactive: true,
+            error: error
+        ))
+
+    prefs.claudeAutomaticRepair = false
+    #expect(
+        !UsageOrchestrator.shouldContinueAfterImporterAuthorizationFailure(
+            provider: .claude,
+            preferences: prefs,
+            interactive: false,
+            error: error
+        ))
+}
+
+@Test func claudeRepairPrefersValidExplicitExecutablePath() {
+    let resolved = ClaudeCredentialRepair.resolvedExecutable(
+        named: "claude",
+        environment: ["PATH": "/nonexistent"],
+        explicitPath: "/bin/ls"
+    )
+    #expect(resolved == "/bin/ls")
+}
+
+@Test func claudeRepairFallsBackToPathWhenExplicitPathInvalid() throws {
+    let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: dir) }
+    let executable = dir.appendingPathComponent("claude")
+    try Data().write(to: executable)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executable.path)
+
+    let fallback = ClaudeCredentialRepair.resolvedExecutable(
+        named: "claude",
+        environment: ["PATH": dir.path],
+        explicitPath: "/does/not/exist/claude"
+    )
+    #expect(fallback == executable.path)
+
+    let unset = ClaudeCredentialRepair.resolvedExecutable(
+        named: "claude",
+        environment: ["PATH": dir.path],
+        explicitPath: nil
+    )
+    #expect(unset == executable.path)
 }
 
 @Test func menuBarIconProviderMapsPdfResources() {

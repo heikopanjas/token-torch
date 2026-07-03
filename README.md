@@ -60,13 +60,14 @@ Menu bar app (Xcode): `Token Torch.app`, code signing, `LSUIElement` for menu-ba
 
 - **General** — **Start at login**, refresh interval, display currency (USD/EUR), **VAT rate (%)**, **Automatically deduct VAT**, **Menu bar icon**, and a **Providers** table for the six menu views (Claude Code, Anthropic API, Codex, OpenAI Platform, Cursor, Copilot): drag rows to reorder, use **Enabled** to turn each view on or off
 - **Claude / Codex / Cursor** — reset imported subscription credentials; Claude repair can ask Claude Code to update its own login, then re-import the updated token into Token Torch; Claude and Codex tabs also include an Admin API key field
+- **Claude** — optional **Automatically repair credentials in the background** (off by default; when on, repair also runs on startup/timer refreshes, which may launch the `claude` CLI and prompt for Keychain access — manual Refresh always repairs on auth failure) and an optional **Claude CLI path** (point at the `claude` executable when it is not found on the login PATH; leave blank to auto-detect)
 - **Codex** — optional **Show additional model usage** (e.g. Codex Spark)
-- **Cursor** — optional **Hide Total usage value and Bonus** to suppress Cursor's opaque value-framing rows while keeping quota meters and Credits visible
+- **Cursor** — optional **Show Total usage value and Bonus** (off by default) to reveal Cursor's opaque value-framing rows; quota meters and Credits are always shown
 - **Copilot** — GitHub Personal Access Token field with setup guidance
 - **Advanced** — **Reset Keychain…** deletes all Token Torch-owned Keychain items (`com.tokentorch.*`); vendor logins are not touched
 - **Info** — metadata-only view of the vendor source recorded when each enabled subscription credential was imported; Keychain secret values are never displayed
 
-The app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider so routine refresh does not re-prompt macOS for vendor Keychain access. User-initiated Claude Code repair first checks no-prompt Claude sources, including credentials files and a timeout-bound Claude-only `/usr/bin/security` read, to avoid extra Keychain prompts when Claude Code has already refreshed its own login. On first launch after upgrading from **burn**, `CredentialStoreMigration` copies legacy `com.burn.*` Keychain entries.
+The app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider so routine refresh does not re-prompt macOS for vendor Keychain access. Claude Code repair first checks no-prompt Claude sources, including credentials files and a timeout-bound Claude-only `/usr/bin/security` read, to avoid extra Keychain prompts when Claude Code has already refreshed its own login. Repair runs on manual Refresh always, and on automatic refreshes only when **Automatically repair credentials in the background** is enabled on the Claude tab. On first launch after upgrading from **burn**, `CredentialStoreMigration` copies legacy `com.burn.*` Keychain entries.
 
 ### Quota credential sources (macOS)
 
@@ -121,7 +122,7 @@ Offline unit tests cover mappers, dates, redaction, credential guards, and Keych
 - Never commit API keys, OAuth tokens, or PATs
 - User-visible errors are redacted via `Redaction`
 - Quota mode does not refresh or write vendor credentials; on 401/403, re-login in the vendor tool (or replace the Copilot PAT)
-- Keychain access uses Security framework APIs by default. The only subprocess exception is Claude Code repair, which may read the Claude Code Keychain item with `/usr/bin/security` after an explicit user action; Token Torch still never writes vendor-owned credentials.
+- Keychain access uses Security framework APIs by default. The only subprocess exception is Claude Code repair, which may read the Claude Code Keychain item with `/usr/bin/security` (on manual Refresh, or automatic refresh when the Claude tab opt-in is enabled); Token Torch still never writes vendor-owned credentials.
 
 ## Development
 

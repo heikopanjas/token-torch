@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-07-02 (Claude Code delegated repair)
+Last updated: 2026-07-03 (Claude automatic repair silent import fallback)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -164,13 +164,13 @@ VERSION                    # Release version source of truth
 
 - Menu bar app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider; routine quota refresh reads only the Token Torch copy
 - Settings **Info** tab lists vendor credential source metadata for transparency. It shows enabled subscription providers that have a Token Torch-owned credential copy and the non-secret vendor source recorded at import time; it must never display raw token/API-key values.
-- Claude Code user-initiated repair is a narrow exception to the no-subprocess Keychain rule: it may check no-prompt Claude sources and run a timeout-bound `/usr/bin/security find-generic-password` read for Claude Code credentials after an explicit user action, then save only Token Torch's own copy. It must never run during startup/timer refreshes, must never print token values, and must never use Claude Code's `refreshToken` against Anthropic's OAuth refresh endpoint.
+- Claude Code repair is a narrow exception to the no-subprocess Keychain rule: it may check no-prompt Claude sources and run a timeout-bound `/usr/bin/security find-generic-password` read for Claude Code credentials, then save only Token Torch's own copy. Manual Refresh always attempts repair on auth failure. Automatic (startup/timer) refresh first uses the normal no-prompt importer; when that cannot silently authorize, repair runs only if the opt-in `ProviderPreferences.claudeAutomaticRepair` setting is enabled (default off; Claude Settings tab). Repair must never print token values and must never use Claude Code's `refreshToken` against Anthropic's OAuth refresh endpoint. The `claude` executable is located via `ProviderPreferences.claudeCLIPath` (Claude Settings tab) when set, else PATH.
 
 ### Key Core modules (`token-torch/Core/`)
 
 - `AnthropicOrgProvider` / `OpenAIOrgProvider` — Admin API usage, workspaces/projects, pagination
 - `ClaudeQuotaProvider` / `CodexQuotaProvider` / `CursorQuotaProvider` / `CopilotQuotaProvider` — subscription quota APIs
-- `ClaudeCredentialRepair` — Claude Code-only user-initiated repair path; checks no-prompt Claude sources, reads updated Claude Code OAuth JSON via timeout-bound `/usr/bin/security`, asks `claude` to touch its own auth path, stores only the Token Torch-owned copy, and keeps background refreshes prompt-free
+- `ClaudeCredentialRepair` — Claude Code repair path; checks no-prompt Claude sources, reads updated Claude Code OAuth JSON via timeout-bound `/usr/bin/security`, asks `claude` (located via `ProviderPreferences.claudeCLIPath` or PATH) to touch its own auth path, stores only the Token Torch-owned copy. Runs on manual Refresh always; automatic refresh tries the normal silent importer first and then runs repair only when `ProviderPreferences.claudeAutomaticRepair` is enabled
 - `UsageOrchestrator` — parallel fetch across enabled providers (menu bar)
 - `DateRange` — flexible date parsing, RFC 3339, inclusive end boundaries
 - `Redaction` — secret redaction for user-visible output
@@ -231,7 +231,7 @@ Flexible parsing via `DateRange.parseDateRange()`:
 
 Individual plans show `totalPercentUsed`, `autoPercentUsed`, and `apiPercentUsed` as separate non-additive pools. Subscription price (`$200/mo`) is separate from included usage credits.
 
-Cursor's `Total usage value` and `Bonus` rows are display-only value-framing fields from Cursor's private usage API. Users can hide both from the Cursor Settings tab via `ProviderPreferences.hideCursorUsageValueAndBonus`; hiding them posts `tokenTorchDisplayChanged` and must not refetch or discard the raw decoded values.
+Cursor's `Total usage value` and `Bonus` rows are display-only value-framing fields from Cursor's private usage API. They are hidden by default; users can reveal both from the Cursor Settings tab via `ProviderPreferences.showCursorUsageValueAndBonus` (default off); toggling it posts `tokenTorchDisplayChanged` and must not refetch or discard the raw decoded values.
 
 ### About panel
 
@@ -294,6 +294,30 @@ Load the `git-workflow` skill before committing. Commit message bodies are optio
 The root `VERSION` file is the release version and release tag source of truth (`v<version>`). `AppVersion.current` in `token-torch/Core/Utilities/AppVersion.swift` must match `VERSION`; app release builds pass `MARKETING_VERSION=$(cat VERSION)` to Xcode. Load the `semantic-versioning` skill before changing `VERSION` and keep version updates in the same commit as the behavior change.
 
 ## Recent Updates & Decisions
+
+### 2026-07-03: Fix Claude automatic repair silent import fallback
+
+**What**: Automatic Claude refreshes now try the normal no-prompt vendor importer before escalating to the Claude Code repair path. If that silent import cannot authorize and `ProviderPreferences.claudeAutomaticRepair` is enabled, the fetch falls through to repair instead of immediately showing a needs-authorization notice. Manual Claude refresh still bypasses the shared interactive importer and uses the delegated repair path directly.
+
+**Why**: Background repair previously skipped the silent importer whenever the opt-in was enabled, which could force the heavier repair path and show "repair ran, but the Keychain access token did not change" even when the existing no-prompt import path should have refreshed Token Torch's copy.
+
+**How**: `UsageOrchestrator` only self-imports Claude on manual refresh, adds a tested fall-through predicate for automatic importer authorization failures, and preserves the normal needs-authorization notice for providers without automatic repair. Version `5.5.1`.
+
+### 2026-07-03: Invert Cursor value rows toggle to Show (hidden by default)
+
+**What**: Replaced the Cursor Settings "Hide Total usage value and Bonus" checkbox with "Show Total usage value and Bonus" (`ProviderPreferences.showCursorUsageValueAndBonus`, default off). Cursor's `Total usage value` and `Bonus` menu rows are now hidden by default for all users until the box is ticked. Quota meters and Credits remain always visible.
+
+**Why**: The value-framing rows are opaque, so they should be opt-in rather than shown by default. Hard flip (legacy `hideCursorUsageValueAndBonus` key ignored on decode) so every user starts hidden.
+
+**How**: `ProviderPreferences` (rename + inverted default, decode new key only), `MenuBuilder` (`showCursorValueRows`/`showValueRows`, `if showValueRows`), Cursor Settings checkbox + `ProviderSettingsCopy` hint, README, tests. Version `5.5.0`.
+
+### 2026-07-03: Claude auto-repair setting and configurable CLI path
+
+**What**: Added two Claude Settings-tab options. An opt-in "Automatically repair credentials in the background" checkbox (`ProviderPreferences.claudeAutomaticRepair`, default off) lets the Claude Code credential repair run during automatic (startup/timer) refreshes, not just manual Refresh. A "Claude CLI path" field (`ProviderPreferences.claudeCLIPath`) lets the user point the repair touch step at the `claude` executable. Manual Refresh still always repairs on auth failure regardless of the checkbox.
+
+**Why**: Repair previously only ran on manual Refresh, so expired Claude Code tokens were not fixed on the timer. Menu bar apps launched at login inherit a minimal PATH, so `claude` often was not found automatically; the explicit path setting fixes discovery.
+
+**How**: `ProviderPreferences` (`claudeAutomaticRepair`, `claudeCLIPath`, backward-compatible decode); `ClaudeQuotaProvider.fetch(interactive:automaticRepairEnabled:claudeExecutablePath:)` routes through repair when interactive OR the setting is on; `UsageOrchestrator` threads preferences and skips the shared importer when Claude self-imports via repair; `ClaudeCredentialRepair.repairAndImport`/`touchClaudeCLIAuthPath`/`resolvedExecutable` accept an explicit path (valid explicit path wins, else PATH); `ProviderSettingsViewController` Claude block (checkbox + path field + Browse, blur-save), `ProviderSettingsCopy` hints, `SettingsStyle.claudePaneHeight`; tests for prefs decode/round-trip and executable resolution. Version `5.4.0`.
 
 ### 2026-07-02: Claude Code delegated repair
 

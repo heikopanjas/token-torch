@@ -11,6 +11,7 @@ enum ClaudeCredentialRepair {
 
     static func repairAndImport(
         baseline: OAuthSession?,
+        claudeExecutablePath: String? = nil,
         timeout: TimeInterval = repairTimeout,
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) async throws -> OAuthSession {
@@ -23,7 +24,11 @@ enum ClaudeCredentialRepair {
 
         let touchResult: Result<Void, Error>
         do {
-            try await touchClaudeCLIAuthPath(timeout: min(timeout, 8), environment: environment)
+            try await touchClaudeCLIAuthPath(
+                timeout: min(timeout, 8),
+                environment: environment,
+                claudeExecutablePath: claudeExecutablePath
+            )
             touchResult = .success(())
         }
         catch {
@@ -148,10 +153,19 @@ enum ClaudeCredentialRepair {
 
     private static func touchClaudeCLIAuthPath(
         timeout: TimeInterval,
-        environment: [String: String]
+        environment: [String: String],
+        claudeExecutablePath: String?
     ) async throws {
-        guard let claudePath = resolvedExecutable(named: "claude", environment: environment) else {
-            throw TokenTorchError.message("Claude CLI is not installed or not on PATH.")
+        guard
+            let claudePath = resolvedExecutable(
+                named: "claude",
+                environment: environment,
+                explicitPath: claudeExecutablePath
+            )
+        else {
+            throw TokenTorchError.message(
+                "Claude CLI is not installed or not on PATH. Set the Claude CLI path in Settings > Claude."
+            )
         }
 
         _ = try await runCommand(
@@ -357,10 +371,18 @@ enum ClaudeCredentialRepair {
         return exp * 1000
     }
 
-    private static func resolvedExecutable(
+    static func resolvedExecutable(
         named name: String,
-        environment: [String: String]
+        environment: [String: String],
+        explicitPath: String? = nil
     ) -> String? {
+        if let explicitPath = explicitPath?.trimmingCharacters(in: .whitespacesAndNewlines),
+            !explicitPath.isEmpty,
+            FileManager.default.isExecutableFile(atPath: explicitPath)
+        {
+            return explicitPath
+        }
+
         if name.contains("/") {
             return FileManager.default.isExecutableFile(atPath: name) ? name : nil
         }

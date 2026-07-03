@@ -34,7 +34,15 @@ enum ProviderSettingsCopy {
     }
 
     static func cursorValueRowsHint() -> String {
-        "When enabled, hides Cursor's estimated Total usage value and Bonus rows. The quota meters and Credits row remain visible so the menu focuses on actionable usage limits."
+        "When enabled, shows Cursor's estimated Total usage value and Bonus rows. Off by default; the quota meters and Credits row are always visible."
+    }
+
+    static func claudeAutomaticRepairHint() -> String {
+        "When enabled, \(AppBrand.displayName) may repair the Claude Code credential copy during automatic (startup and timer) refreshes. This can launch the `claude` CLI in the background and prompt for Keychain access. Off by default; manual Refresh always repairs on authentication failure."
+    }
+
+    static func claudeCLIPathHint() -> String {
+        "Optional. Absolute path to the `claude` CLI used by the repair step. Menu bar apps launched at login inherit a minimal PATH, so `claude` may not be found automatically. Leave blank to auto-detect on PATH (e.g. /opt/homebrew/bin/claude)."
     }
 
     static func personalAccessTokenHint() -> String {

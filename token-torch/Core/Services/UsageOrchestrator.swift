@@ -65,7 +65,7 @@ public struct UsageOrchestrator: Sendable {
         var reports: [ProviderReport] = []
 
         if flags.subscriptionQuotaEnabled {
-            reports.append(await subscriptionReport(provider: provider, interactive: interactive))
+            reports.append(await subscriptionReport(provider: provider, preferences: preferences, interactive: interactive))
         }
 
         if flags.orgBillingEnabled {
@@ -84,8 +84,11 @@ public struct UsageOrchestrator: Sendable {
         return ProviderFetchResult(provider: provider, reports: reports)
     }
 
-    private func subscriptionReport(provider: ProviderID, interactive: Bool) async -> ProviderReport {
-        if provider != .copilot, !(provider == .claude && interactive) {
+    private func subscriptionReport(provider: ProviderID, preferences: ProviderPreferences, interactive: Bool) async -> ProviderReport {
+        // Manual Claude refresh uses the repair path directly. Automatic refresh still tries the
+        // normal silent importer first, then falls through to repair if that importer cannot authorize.
+        let claudeSelfImports = provider == .claude && interactive
+        if provider != .copilot, !claudeSelfImports {
             do {
                 try VendorCredentialImporter.ensureImported(
                     provider: provider,
@@ -94,14 +97,20 @@ public struct UsageOrchestrator: Sendable {
                 )
             }
             catch {
-                if !interactive, Self.isNeedsAuthorization(error) {
+                if !Self.shouldContinueAfterImporterAuthorizationFailure(
+                    provider: provider,
+                    preferences: preferences,
+                    interactive: interactive,
+                    error: error
+                ), !interactive, Self.isNeedsAuthorization(error) {
                     return .needsAuthorization(provider: provider, mode: "subscription")
                 }
-                // Interactive failures fall through; the fetch below surfaces a precise error.
+                // Interactive failures and Claude automatic importer auth failures fall through;
+                // the fetch below surfaces a precise error or runs the repair path.
             }
         }
         do {
-            let quota = try await fetchQuota(provider: provider, interactive: interactive)
+            let quota = try await fetchQuota(provider: provider, preferences: preferences, interactive: interactive)
             return .subscription(quota)
         }
         catch {
@@ -120,10 +129,26 @@ public struct UsageOrchestrator: Sendable {
         }
     }
 
-    private func fetchQuota(provider: ProviderID, interactive: Bool) async throws -> SubscriptionQuotaReport {
+    static func shouldContinueAfterImporterAuthorizationFailure(
+        provider: ProviderID,
+        preferences: ProviderPreferences,
+        interactive: Bool,
+        error: Error
+    ) -> Bool {
+        provider == .claude
+            && !interactive
+            && preferences.claudeAutomaticRepair
+            && Self.isNeedsAuthorization(error)
+    }
+
+    private func fetchQuota(provider: ProviderID, preferences: ProviderPreferences, interactive: Bool) async throws -> SubscriptionQuotaReport {
         switch provider {
             case .claude:
-                return try await ClaudeQuotaProvider.fetch(interactive: interactive)
+                return try await ClaudeQuotaProvider.fetch(
+                    interactive: interactive,
+                    automaticRepairEnabled: preferences.claudeAutomaticRepair,
+                    claudeExecutablePath: preferences.claudeCLIPath
+                )
             case .codex:
                 return try await CodexQuotaProvider.fetch(interactive: interactive)
             case .cursor:

@@ -79,8 +79,13 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
     public var automaticallyDeductVAT: Bool
     /// When true, the menu also lists per-model extra rate limits (e.g. Codex Spark). Default off.
     public var showAdditionalModelUsage: Bool
-    /// When true, hide Cursor's opaque value-framing rows (Total usage value and Bonus). Default off.
-    public var hideCursorUsageValueAndBonus: Bool
+    /// When true, show Cursor's opaque value-framing rows (Total usage value and Bonus). Default off (hidden).
+    public var showCursorUsageValueAndBonus: Bool
+    /// When true, Claude Code credential repair may run during automatic (startup/timer) refreshes,
+    /// which can launch the `claude` CLI and prompt for Keychain access. Default off (manual Refresh always repairs).
+    public var claudeAutomaticRepair: Bool
+    /// Absolute path to the `claude` CLI used by the repair touch step. Empty/nil auto-detects on PATH.
+    public var claudeCLIPath: String?
     /// User-chosen order of the six menu views (provider + subscription/org). Normalize via `orderedSections()`.
     public var sectionOrder: [ProviderSection]
     /// Menu bar status item icon (Anthropic, OpenAI, Cursor, or Copilot PDF).
@@ -96,7 +101,9 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         vatRatePercent: Double = 0,
         automaticallyDeductVAT: Bool = false,
         showAdditionalModelUsage: Bool = false,
-        hideCursorUsageValueAndBonus: Bool = false,
+        showCursorUsageValueAndBonus: Bool = false,
+        claudeAutomaticRepair: Bool = false,
+        claudeCLIPath: String? = nil,
         sectionOrder: [ProviderSection] = ProviderSection.allSections,
         menuBarIcon: MenuBarIconProvider = .cursor
     ) {
@@ -109,7 +116,9 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         self.vatRatePercent = DisplayPriceOptions.normalizeVATRate(vatRatePercent)
         self.automaticallyDeductVAT = automaticallyDeductVAT
         self.showAdditionalModelUsage = showAdditionalModelUsage
-        self.hideCursorUsageValueAndBonus = hideCursorUsageValueAndBonus
+        self.showCursorUsageValueAndBonus = showCursorUsageValueAndBonus
+        self.claudeAutomaticRepair = claudeAutomaticRepair
+        self.claudeCLIPath = claudeCLIPath
         self.sectionOrder = sectionOrder
         self.menuBarIcon = menuBarIcon
     }
@@ -131,8 +140,10 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         )
         automaticallyDeductVAT = try container.decodeIfPresent(Bool.self, forKey: .automaticallyDeductVAT) ?? false
         showAdditionalModelUsage = try container.decodeIfPresent(Bool.self, forKey: .showAdditionalModelUsage) ?? false
-        hideCursorUsageValueAndBonus =
-            try container.decodeIfPresent(Bool.self, forKey: .hideCursorUsageValueAndBonus) ?? false
+        showCursorUsageValueAndBonus =
+            try container.decodeIfPresent(Bool.self, forKey: .showCursorUsageValueAndBonus) ?? false
+        claudeAutomaticRepair = try container.decodeIfPresent(Bool.self, forKey: .claudeAutomaticRepair) ?? false
+        claudeCLIPath = try container.decodeIfPresent(String.self, forKey: .claudeCLIPath)
         sectionOrder = try container.decodeIfPresent([ProviderSection].self, forKey: .sectionOrder) ?? ProviderSection.allSections
         menuBarIcon = try container.decodeIfPresent(MenuBarIconProvider.self, forKey: .menuBarIcon) ?? .cursor
     }
