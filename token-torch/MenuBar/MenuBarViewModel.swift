@@ -36,7 +36,7 @@ final class MenuBarViewModel {
     }
 
     func refresh(interactive: Bool = false) {
-        guard interactive else {
+        guard interactive == true else {
             refreshWhenNetworkReady()
             return
         }
@@ -59,13 +59,13 @@ final class MenuBarViewModel {
     }
 
     private func refreshWhenNetworkReady() {
-        guard !isLoading else { return }
+        guard isLoading == false else { return }
         pendingNonInteractiveRefresh = true
         startPendingRefreshWait(timeoutSeconds: 60)
     }
 
     private func startPendingRefreshWait(timeoutSeconds: Double) {
-        guard !isWaitingForNetwork else { return }
+        guard isWaitingForNetwork == false else { return }
         isWaitingForNetwork = true
 
         Task { [weak self] in
@@ -75,25 +75,25 @@ final class MenuBarViewModel {
             await MainActor.run { [weak self] in
                 guard let self else { return }
                 self.isWaitingForNetwork = false
-                guard isReady else { return }
+                guard isReady == true else { return }
                 self.runPendingNonInteractiveRefresh()
             }
         }
     }
 
     private func networkStatusChanged() {
-        guard pendingNonInteractiveRefresh, !isLoading else { return }
+        guard pendingNonInteractiveRefresh, isLoading == false else { return }
         startPendingRefreshWait(timeoutSeconds: 15)
     }
 
     private func runPendingNonInteractiveRefresh() {
-        guard pendingNonInteractiveRefresh, !isLoading else { return }
+        guard pendingNonInteractiveRefresh, isLoading == false else { return }
         pendingNonInteractiveRefresh = false
         performRefresh(interactive: false)
     }
 
     private func performRefresh(interactive: Bool) {
-        guard !isLoading else { return }
+        guard isLoading == false else { return }
         isLoading = true
         notifyUpdated()
         Task {
@@ -101,10 +101,10 @@ final class MenuBarViewModel {
             MenuTrackingRefresh.perform {
                 self.result = fetched
                 self.isLoading = false
-                if !interactive {
+                if interactive == false {
                     let failureMessage = fetched.claudeRepairFailureMessage
                     if let failureMessage,
-                        !self.lastRepairFailureNotified,
+                        self.lastRepairFailureNotified == false,
                         ProviderPreferencesStore.shared.load().notifyOnRepairFailure
                     {
                         NotificationService.post(.claudeRepairFailed(message: failureMessage))

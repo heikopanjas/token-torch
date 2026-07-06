@@ -5,20 +5,12 @@ public enum CursorQuotaProvider {
     private static let client = HTTPClient()
 
     public static func fetch(interactive: Bool = false) async throws -> SubscriptionQuotaReport {
-        let session = try VendorCredentialsReader.loadCursorSession()
-        try QuotaHTTP.requireUsableSession(session, provider: "Cursor", vendorAction: "Re-login via the Cursor IDE or `cursor agent login`.")
-        let reauth: () throws -> OAuthSession = {
-            try VendorCredentialImporter.reimportAfterAuthFailure(provider: .cursor, interactive: interactive)
-        }
-        return try await QuotaHTTP.fetchWithAuthRecovery(
-            provider: "Cursor",
-            session: session,
-            vendorAction: "Re-login via the Cursor IDE or `cursor agent login`.",
-            policy: .extended,
-            reauthenticate: reauth
-        ) { session in
-            try await fetchUsage(session: session)
-        }
+        return try await QuotaHTTP.fetchSubscriptionQuota(
+            providerID: .cursor,
+            interactive: interactive,
+            loadSession: VendorCredentialsReader.loadCursorSession,
+            fetchUsage: Self.fetchUsage
+        )
     }
 
     private static func fetchUsage(session: OAuthSession) async throws -> SubscriptionQuotaReport {
@@ -31,11 +23,13 @@ public enum CursorQuotaProvider {
         let url = URL(string: "\(apiBase)/aiserver.v1.DashboardService/\(method)")!
         return try await client.postJSON(
             url: url,
-            headers: [
-                "Authorization": "Bearer \(token)",
-                "Content-Type": "application/json",
-                "Connect-Protocol-Version": "1"
-            ]
+            headers: HTTPHeaders.bearerJSON(
+                token: token,
+                extra: [
+                    "Content-Type": "application/json",
+                    "Connect-Protocol-Version": "1"
+                ]
+            )
         )
     }
 
@@ -145,7 +139,7 @@ public enum CursorQuotaProvider {
         report.totalSpendCents = planUsage.totalSpend
         report.bonusSpendCents = planUsage.bonusSpend
 
-        if isTeam {
+        if isTeam == true {
             if let limit = planUsage.limit, let included = planUsage.includedSpend {
                 let remaining = planUsage.remaining ?? (limit >= included ? limit - included : 0)
                 report.dollarUsage = DollarUsage(

@@ -48,7 +48,7 @@ public enum QuotaHTTP {
         vendorAction: String,
         reauthenticate: () throws -> OAuthSession
     ) throws -> OAuthSession {
-        guard !VendorCredentialsReader.sessionIsUsable(session) else {
+        guard VendorCredentialsReader.sessionIsUsable(session) == false else {
             return session
         }
 
@@ -101,13 +101,40 @@ public enum QuotaHTTP {
         }
     }
 
+    public static func fetchSubscriptionQuota(
+        providerID: ProviderID,
+        interactive: Bool,
+        loadSession: () throws -> OAuthSession,
+        fetchUsage: @escaping (OAuthSession) async throws -> SubscriptionQuotaReport
+    ) async throws -> SubscriptionQuotaReport {
+        let provider = providerID.quotaDisplayName
+        let vendorAction = providerID.quotaReloginAction
+        let session = try loadSession()
+        try Self.requireUsableSession(session, provider: provider, vendorAction: vendorAction)
+        let reauth: () throws -> OAuthSession = {
+            return try VendorCredentialImporter.reimportAfterAuthFailure(provider: providerID, interactive: interactive)
+        }
+        return try await Self.fetchWithAuthRecovery(
+            provider: provider,
+            session: session,
+            vendorAction: vendorAction,
+            policy: providerID.quotaAuthPolicy,
+            reauthenticate: reauth,
+            fetch: fetchUsage
+        )
+    }
+
     public static func parseQuotaResponse<T: Decodable>(
         data: Data,
         statusCode: Int,
-        operation: String
+        operation: String,
+        mapHTTPError: ((Int, String) -> TokenTorchError)? = nil
     ) throws -> T {
         let text = String(data: data, encoding: .utf8) ?? ""
         guard (200 ..< 300).contains(statusCode) else {
+            if let mapHTTPError {
+                throw mapHTTPError(statusCode, text)
+            }
             throw TokenTorchError.message("\(operation) failed (\(statusCode)): \(Redaction.redactSecrets(text))")
         }
         do {
@@ -119,6 +146,14 @@ public enum QuotaHTTP {
             )
         }
     }
+
+    public static func parseQuotaResponse<T: Decodable>(
+        data: Data,
+        statusCode: Int,
+        operation: String
+    ) throws -> T {
+        return try Self.parseQuotaResponse(data: data, statusCode: statusCode, operation: operation, mapHTTPError: nil)
+    }
 }
 
 public struct HTTPClient: Sendable {
@@ -128,8 +163,15 @@ public struct HTTPClient: Sendable {
         self.session = session
     }
 
+    private static func validatingHTTPResponse(_ response: URLResponse) throws -> HTTPURLResponse {
+        guard let http = response as? HTTPURLResponse else {
+            throw TokenTorchError.message("Invalid HTTP response")
+        }
+        return http
+    }
+
     public func getJSON<T: Decodable>(url: URL, headers: [String: String] = [:]) async throws -> T {
-        let (data, http) = try await data(for: url, method: "GET", headers: headers)
+        let (data, http) = try await self.data(for: url, method: "GET", headers: headers)
         return try QuotaHTTP.parseQuotaResponse(data: data, statusCode: http.statusCode, operation: "GET \(url.absoluteString)")
     }
 
@@ -143,10 +185,8 @@ public struct HTTPClient: Sendable {
         request.httpMethod = method
         request.httpBody = body
         for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw TokenTorchError.message("Invalid HTTP response")
-        }
+        let (data, response) = try await self.session.data(for: request)
+        let http = try Self.validatingHTTPResponse(response)
         return (data, http)
     }
 
@@ -155,14 +195,12 @@ public struct HTTPClient: Sendable {
         headers: [String: String] = [:],
         body: Data? = nil
     ) async throws -> T {
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.httpBody = body ?? Data("{}".utf8)
-        for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse else {
-            throw TokenTorchError.message("Invalid HTTP response")
-        }
+        let (data, http) = try await self.data(
+            for: url,
+            method: "POST",
+            headers: headers,
+            body: body ?? Data("{}".utf8)
+        )
         return try QuotaHTTP.parseQuotaResponse(data: data, statusCode: http.statusCode, operation: "POST \(url.path)")
     }
 
@@ -177,17 +215,17 @@ public struct HTTPClient: Sendable {
         var cursor: String?
         var pageNumber = 0
         let client = self
-        while true {
+        while true == true {
             pageNumber += 1
             pageCallback?(pageNumber)
-            var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)!
+            guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else { break }
             var items = [URLQueryItem(name: "limit", value: String(limit))]
             if let cursor { items.append(URLQueryItem(name: cursorParam, value: cursor)) }
             components.queryItems = items
             guard let url = components.url else { break }
             let page: T = try await client.getJSON(url: url, headers: headers)
             let (hasMore, next) = onPage(page, pageNumber)
-            if !hasMore || next == nil { break }
+            if hasMore == false || next == nil { break }
             cursor = next
         }
     }
@@ -201,12 +239,12 @@ public struct HTTPClient: Sendable {
         var nextPage: String?
         var pageNumber = 0
         let client = self
-        while true {
+        while true == true {
             pageNumber += 1
             pageCallback?(pageNumber)
             let page: T = try await client.getJSON(url: urlBuilder(nextPage), headers: headers)
             let (hasMore, next) = onPage(page, pageNumber)
-            if !hasMore || next == nil { break }
+            if hasMore == false || next == nil { break }
             nextPage = next
         }
     }

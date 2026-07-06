@@ -4,12 +4,11 @@ import UserNotifications
 enum NotificationService {
     /// First launch: request access when undetermined; on grant, post the welcome notification.
     static func bootstrap() {
-        let center = UNUserNotificationCenter.current()
-        center.getNotificationSettings { settings in
-            guard settings.authorizationStatus == .notDetermined else { return }
-            center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
-                guard granted else { return }
-                Task { @MainActor in post(.welcome) }
+        Task { @MainActor in
+            let center = UNUserNotificationCenter.current()
+            guard await center.notificationSettings().authorizationStatus == .notDetermined else { return }
+            if (try? await center.requestAuthorization(options: [.alert, .sound])) == true {
+                Self.post(.welcome)
             }
         }
     }
@@ -18,7 +17,7 @@ enum NotificationService {
         let content = UNMutableNotificationContent()
         content.title = notification.title
         content.body = notification.body
-        if notification.playsSound {
+        if notification.playsSound == true {
             content.sound = .default
         }
         let request = UNNotificationRequest(

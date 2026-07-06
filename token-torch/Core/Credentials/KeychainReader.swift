@@ -63,7 +63,7 @@ enum KeychainReader {
                 accounts = []
         }
 
-        if accounts.isEmpty {
+        if accounts.isEmpty == true {
             if let value = try? readGenericPassword(service: service, account: nil, allowUI: allowUI) {
                 return [value]
             }

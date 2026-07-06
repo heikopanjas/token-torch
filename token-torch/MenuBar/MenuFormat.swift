@@ -4,20 +4,39 @@ enum MenuFormat {
     static let menuWidth: CGFloat = 360
     static let copyButtonSize: CGFloat = 16
 
-    static func billingCycleDate(_ value: Date) -> String {
+    private static func utcFormatter(_ format: String) -> DateFormatter {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: value)
+        formatter.dateFormat = format
+        return formatter
+    }
+
+    static func billingCycleDate(_ value: Date) -> String {
+        return Self.utcFormatter("yyyy-MM-dd").string(from: value)
+    }
+
+    static func billingCycleCaption(start: Date, end: Date) -> String {
+        return "Billing cycle: \(Self.billingCycleDate(start)) → \(Self.billingCycleDate(end))"
+    }
+
+    static func billingCycleCaption(start: String, end: String?) -> String {
+        if let end {
+            return "Billing cycle: \(start) → \(end)"
+        }
+        return "Billing cycle: \(start)"
+    }
+
+    static func percentUsed(_ percent: Double, parenthesized: Bool = false) -> String {
+        let core = String(format: "%.0f%% used", percent)
+        if parenthesized == true {
+            return " (\(core))"
+        }
+        return core
     }
 
     static func resetTime(_ value: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.dateFormat = "yyyy-MM-dd HH:mm"
-        return formatter.string(from: value) + " UTC"
+        return Self.utcFormatter("yyyy-MM-dd HH:mm").string(from: value) + " UTC"
     }
 
     /// Caption styled like the org-billing "Billing cycle" line: "resets 2026-06-07 14:11 UTC · in 5d 3h".

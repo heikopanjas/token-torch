@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-07-06 (About panel dock restore)
+Last updated: 2026-07-06 (About panel dock restore regression)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -287,6 +287,7 @@ xcodebuild test -scheme token-torch -configuration Debug -destination 'platform=
 - Prefer `Sendable` and actor isolation where appropriate
 - Public APIs documented with `///` when non-obvious
 - Match existing naming and file organization under `token-torch/Core/`
+- Boolean conditions use explicit literals: `if condition == true` / `if condition == false` (not bare `if condition` or `if !condition`); qualify member access with `Self.` / `self.` when touching code (see `.agents/skills/swift-coding-conventions/SKILL.md`)
 
 ## Commit Protocol
 
@@ -297,6 +298,22 @@ Load the `git-workflow` skill before committing. Commit message bodies are optio
 The root `VERSION` file is the release version and release tag source of truth (`v<version>`). `AppVersion.current` in `token-torch/Core/Utilities/AppVersion.swift` must match `VERSION`; app release builds pass `MARKETING_VERSION=$(cat VERSION)` to Xcode. Load the `semantic-versioning` skill before changing `VERSION` and keep version updates in the same commit as the behavior change.
 
 ## Recent Updates & Decisions
+
+### 2026-07-06: Fix About panel dock icon regression
+
+**What**: Restored correct About-panel window discovery (new window diff, not pre-existing windows), retry delay while the panel appears, and `hasVisibleUserPanel` logic that only treats About as blocking while the lifecycle tracker is attached, so restore runs after dismiss even if the window is briefly still visible.
+
+**Why**: An inverted `windowsBeforeShow.contains` check prevented attaching the lifecycle tracker, so closing About left Token Torch in `.regular` with a Dock icon.
+
+**How**: `AppActions.swift`. Version `5.6.4`.
+
+### 2026-07-06: Concurrency and conventions cleanup
+
+**What**: Fixed concurrency warnings and correctness issues: `NotificationService.bootstrap()` uses async UserNotifications APIs; `HTTPClient.paginateCursor` no longer force-unwraps `URLComponents`; About-panel dismissal finishes unconditionally on `willCloseNotification`; GCD delays in `AppActions` and `UsageMenuItemViews` replaced with `Task { @MainActor }`. Applied Swift coding conventions (boolean `== true` / `== false` including `guard`, incremental `Self.`/`self.` in Settings) across the app target. DRY refactors: `QuotaHTTP.fetchSubscriptionQuota`, shared Claude credential paths/parser/JWT, `HTTPHeaders.bearerJSON`, `FlexibleDoubleDecoding`, generic org pagination, `OrgCostRow.fromUSD`/`fromEUR`, `SettingsLayout` secure-field/checkbox builders and keychain helpers, `SettingsPaneViewController` base class, `SettingsCopy`, MenuBar billing/percent/copy helpers; removed dead `secondaryCaption`.
+
+**Why**: Swift 6 concurrency checks flagged nested `@Sendable` captures; duplicated provider/HTTP/credential code increased maintenance risk; project conventions require explicit boolean comparisons.
+
+**How**: Core HTTP/credentials/providers, `AppActions`, `NotificationService`, MenuBar, Settings layout/copy, tests unchanged behavior. Version `5.6.3`.
 
 ### 2026-07-06: Restore accessory activation after About panel closes
 

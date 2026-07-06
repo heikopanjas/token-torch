@@ -12,17 +12,7 @@ public enum AnthropicOrgProvider {
         var all: [AnthropicWorkspace] = []
         let listURL = URL(string: "\(baseURL)/organizations/workspaces")!
 
-        struct Page: Decodable {
-            let data: [AnthropicWorkspace]
-            let hasMore: Bool
-            let lastID: String?
-
-            enum CodingKeys: String, CodingKey {
-                case data
-                case hasMore = "has_more"
-                case lastID = "last_id"
-            }
-        }
+        typealias Page = CursorPage<AnthropicWorkspace>
 
         try await client.paginateCursor(
             baseURL: listURL,
@@ -110,11 +100,7 @@ public enum AnthropicOrgProvider {
         var rows: [OrgUsageRow] = []
         try await client.paginateNextToken(
             urlBuilder: { token in
-                var url = baseURLString
-                if let token {
-                    url += "&page=\(token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token)"
-                }
-                return URL(string: url)!
+                return OrgPagination.appendPageToken(token, to: baseURLString)
             },
             headers: headers,
             onPage: { (page: Page, _) in
@@ -193,7 +179,7 @@ public enum AnthropicOrgProvider {
                     cacheReadTokens: totals.cacheRead,
                     totalTokens: totals.input + totals.output + totals.cacheCreate + totals.cacheRead
                 ))
-            report.costRows.append(OrgCostRow(label: model, costUSD: eur / Pricing.usdToEUR, costEUR: eur))
+            report.costRows.append(OrgCostRow.fromEUR(label: model, eur: eur))
         }
         report.grandTotalEUR = grandEUR
         report.grandTotalUSD = grandEUR / Pricing.usdToEUR

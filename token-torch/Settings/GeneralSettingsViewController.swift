@@ -1,7 +1,7 @@
 import AppKit
 
 @MainActor
-final class GeneralSettingsViewController: NSViewController {
+final class GeneralSettingsViewController: SettingsPaneViewController {
     private static let intervalOptions: [(title: String, minutes: Int)] = [
         ("Every 5 minutes", 5),
         ("Every 10 minutes", 10),
@@ -42,14 +42,11 @@ final class GeneralSettingsViewController: NSViewController {
     private var orderItems: [ProviderSection] = ProviderSection.allSections
     private var infoLabel: NSTextField!
 
-    override var preferredContentSize: NSSize {
-        get { isViewLoaded ? view.bounds.size : NSSize(width: SettingsStyle.paneWidth, height: SettingsStyle.generalPaneHeight) }
-        set {}
-    }
+    override var paneHeight: CGFloat { SettingsStyle.generalPaneHeight }
 
     override func loadView() {
         let w = SettingsStyle.paneWidth
-        let h = SettingsStyle.generalPaneHeight
+        let h = self.paneHeight
         let x = SettingsStyle.contentPadding
         let controlW = w - 2 * x
         var y = h - x - 16
@@ -299,7 +296,7 @@ final class GeneralSettingsViewController: NSViewController {
         let normalized = DisplayPriceOptions.normalizeVATRate(parsed)
         var prefs = ProviderPreferencesStore.shared.load()
         let rateChanged = prefs.vatRatePercent != normalized
-        guard rateChanged else { return }
+        guard rateChanged == true else { return }
         prefs.vatRatePercent = normalized
         if normalized > 0 {
             prefs.automaticallyDeductVAT = true
@@ -363,7 +360,7 @@ final class GeneralSettingsViewController: NSViewController {
         if prefs.menuBarIcon == .topOfProviderList {
             rebuildIconPopupItems(selecting: .topOfProviderList)
         }
-        if enabled {
+        if enabled == true {
             // Enabling needs fresh data (the last fetch omitted this view), so refetch.
             NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
             NotificationCenter.default.post(name: AppActions.tokenTorchRefreshRequested, object: nil)

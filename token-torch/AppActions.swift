@@ -30,30 +30,28 @@ extension AppActions {
     }
 
     static func deactivateAfterSettings() {
-        restoreAccessoryActivationIfNeeded()
+        Self.restoreAccessoryActivationIfNeeded()
     }
 
     static func showAbout() {
-        activateForSettings()
+        Self.activateForSettings()
         let windowsBeforeShow = Set(NSApplication.shared.windows.map(ObjectIdentifier.init))
         NSApplication.shared.orderFrontStandardAboutPanel(nil)
-        locateAboutPanel(excluding: windowsBeforeShow, attempt: 0)
+        Self.locateAboutPanel(excluding: windowsBeforeShow, attempt: 0)
     }
 
     static func restoreAccessoryActivationIfNeeded() {
-        guard !hasVisibleUserPanel else { return }
+        guard Self.hasVisibleUserPanel == false else { return }
         NSApplication.shared.hide(nil)
         NSApplication.shared.setActivationPolicy(.accessory)
     }
 
     private static var hasVisibleUserPanel: Bool {
-        NSApplication.shared.windows.contains { window in
-            window.isVisible && isUserPanel(window)
+        if Self.settingsWindow?.isVisible == true { return true }
+        guard Self.aboutPanelTracker != nil else { return false }
+        return NSApplication.shared.windows.contains { window in
+            window.isVisible && Self.looksLikeAboutPanel(window)
         }
-    }
-
-    private static func isUserPanel(_ window: NSWindow) -> Bool {
-        window === settingsWindow || looksLikeAboutPanel(window)
     }
 
     private static func looksLikeAboutPanel(_ window: NSWindow) -> Bool {
@@ -62,48 +60,55 @@ extension AppActions {
             return true
         }
         let title = window.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !title.isEmpty else { return false }
+        guard title.isEmpty == false else { return false }
         guard title.localizedCaseInsensitiveContains(AppBrand.displayName) else { return false }
         let lower = title.lowercased()
         return lower.contains("about") || lower.contains("über") || lower.contains("ueber")
     }
 
     private static func locateAboutPanel(excluding windowsBeforeShow: Set<ObjectIdentifier>, attempt: Int) {
-        DispatchQueue.main.async {
-            if let aboutWindow = findAboutPanelWindow(excluding: windowsBeforeShow) {
-                attachAboutPanelTracker(to: aboutWindow)
+        Task { @MainActor in
+            if let aboutWindow = Self.findAboutPanelWindow(excluding: windowsBeforeShow) {
+                Self.attachAboutPanelTracker(to: aboutWindow)
                 return
             }
             guard attempt < 10 else { return }
-            locateAboutPanel(excluding: windowsBeforeShow, attempt: attempt + 1)
+            try? await Task.sleep(for: .milliseconds(50))
+            Self.locateAboutPanel(excluding: windowsBeforeShow, attempt: attempt + 1)
         }
     }
 
     private static func findAboutPanelWindow(excluding windowsBeforeShow: Set<ObjectIdentifier>) -> NSWindow? {
         let app = NSApplication.shared
         if let newWindow = app.windows.first(where: { window in
-            !windowsBeforeShow.contains(ObjectIdentifier(window))
+            windowsBeforeShow.contains(ObjectIdentifier(window)) == false
                 && window.isVisible
-                && window !== settingsWindow
+                && window !== Self.settingsWindow
         }) {
             return newWindow
         }
-        if let keyWindow = app.keyWindow, keyWindow.isVisible, keyWindow !== settingsWindow {
+        if let keyWindow = app.keyWindow,
+            keyWindow.isVisible,
+            keyWindow !== Self.settingsWindow,
+            windowsBeforeShow.contains(ObjectIdentifier(keyWindow)) == false
+        {
             return keyWindow
         }
         return app.windows.first { window in
-            window.isVisible && window !== settingsWindow && looksLikeAboutPanel(window)
+            window.isVisible
+                && window !== Self.settingsWindow
+                && Self.looksLikeAboutPanel(window)
         }
     }
 
     private static func attachAboutPanelTracker(to window: NSWindow) {
-        aboutPanelTracker?.stop()
+        Self.aboutPanelTracker?.stop()
         let tracker = AboutPanelLifecycleTracker {
-            aboutPanelTracker = nil
-            restoreAccessoryActivationIfNeeded()
+            Self.aboutPanelTracker = nil
+            Self.restoreAccessoryActivationIfNeeded()
         }
         tracker.track(window)
-        aboutPanelTracker = tracker
+        Self.aboutPanelTracker = tracker
     }
 }
 
@@ -130,9 +135,10 @@ private final class AboutPanelLifecycleTracker {
                     forName: name,
                     object: window,
                     queue: .main
-                ) { [weak self] _ in
+                ) { [weak self] notification in
+                    let notificationName = notification.name
                     MainActor.assumeIsolated {
-                        self?.handleWindowChanged()
+                        self?.handleWindowChanged(notificationName: notificationName)
                     }
                 }
             )
@@ -145,18 +151,22 @@ private final class AboutPanelLifecycleTracker {
         window = nil
     }
 
-    private func handleWindowChanged() {
-        guard let window else {
-            finish()
+    private func handleWindowChanged(notificationName: Notification.Name) {
+        if notificationName == NSWindow.willCloseNotification {
+            self.finish()
             return
         }
-        if !window.isVisible {
-            finish()
+        guard let window = self.window else {
+            self.finish()
+            return
+        }
+        if window.isVisible == false {
+            self.finish()
         }
     }
 
     private func finish() {
-        stop()
-        onDismiss()
+        self.stop()
+        self.onDismiss()
     }
 }

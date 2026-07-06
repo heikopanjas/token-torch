@@ -58,7 +58,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     /// is applied during menu tracking (AppKit runs a nested tracking loop that starves the default
     /// run loop mode, otherwise leaving the open menu frozen until it is dismissed and reopened).
     private func refreshOpenMenu() {
-        guard isMenuOpen else { return }
+        guard isMenuOpen == true else { return }
         MenuTrackingRefresh.perform { [weak self] in
             guard let self, self.isMenuOpen else { return }
             self.menuBuilder.populate(self.menu, model: self.model)

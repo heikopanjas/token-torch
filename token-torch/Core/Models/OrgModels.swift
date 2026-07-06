@@ -35,6 +35,14 @@ public struct OrgCostRow: Codable, Sendable, Equatable {
     public let label: String
     public let costUSD: Double
     public let costEUR: Double
+
+    public static func fromUSD(label: String, usd: Double) -> OrgCostRow {
+        return OrgCostRow(label: label, costUSD: usd, costEUR: usd * Pricing.usdToEUR)
+    }
+
+    public static func fromEUR(label: String, eur: Double) -> OrgCostRow {
+        return OrgCostRow(label: label, costUSD: eur / Pricing.usdToEUR, costEUR: eur)
+    }
 }
 
 public struct OrgUsageReport: Codable, Sendable, Equatable {
@@ -100,10 +108,10 @@ public struct AnthropicDataResidency: Decodable, Sendable, Equatable {
     }
 
     public func allowedGeosDisplay() -> String {
-        switch allowedInferenceGeos {
-            case .unrestricted(let value): value
-            case .list(let values): values.joined(separator: ", ")
-            case .unknown: "—"
+        switch self.allowedInferenceGeos {
+            case .unrestricted(let value): return value
+            case .list(let values): return values.joined(separator: ", ")
+            case .unknown: return "—"
         }
     }
 }
@@ -137,7 +145,7 @@ public struct AnthropicWorkspace: Decodable, Sendable, Equatable, Identifiable {
     }
 
     public func tagsDisplay() -> String {
-        guard !tags.isEmpty else { return "—" }
+        guard tags.isEmpty == false else { return "—" }
         return tags.keys.sorted().map { key in "\(key)=\(tags[key] ?? "")" }.joined(separator: ", ")
     }
 }
@@ -164,11 +172,11 @@ public enum ScopeFilter {
     public static func emptyScopeHint(flagName: String) -> String {
         switch flagName {
             case "--workspace":
-                "Tip: org usage on the default workspace uses a null workspace_id. Try `--workspace default`."
+                return "Tip: org usage on the default workspace uses a null workspace_id. Try `--workspace default`."
             case "--project":
-                "Tip: usage with no project uses a null project_id. Try `--project default`."
+                return "Tip: usage with no project uses a null project_id. Try `--project default`."
             default:
-                "Tip: try the provider default scope flag with value `default`."
+                return "Tip: try the provider default scope flag with value `default`."
         }
     }
 

@@ -16,7 +16,7 @@ enum LoginItemRegistration {
     }
 
     static func setEnabled(_ enabled: Bool) throws {
-        if enabled {
+        if enabled == true {
             try SMAppService.mainApp.register()
         }
         else {

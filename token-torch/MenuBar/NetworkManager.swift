@@ -21,7 +21,7 @@ actor NetworkManager {
     private init() {}
 
     func startMonitoring() async {
-        guard !isMonitoringStarted else { return }
+        guard isMonitoringStarted == false else { return }
 
         setupMonitor()
         monitor.start(queue: monitorQueue)
@@ -30,7 +30,7 @@ actor NetworkManager {
     }
 
     func waitForConnection(timeoutSeconds: Double) async -> Bool {
-        if isConnected {
+        if isConnected == true {
             return await checkActualConnectivity()
         }
 
@@ -44,7 +44,7 @@ actor NetworkManager {
 
                 Task {
                     let didComplete = await connectionWaiter.tryComplete()
-                    guard didComplete else { return }
+                    guard didComplete == true else { return }
 
                     connectionMonitor.cancel()
                     let hasConnectivity = await self.checkActualConnectivity()
@@ -57,7 +57,7 @@ actor NetworkManager {
             Task {
                 try? await Task.sleep(for: .seconds(timeoutSeconds))
                 let didComplete = await connectionWaiter.tryComplete()
-                guard didComplete else { return }
+                guard didComplete == true else { return }
 
                 connectionMonitor.cancel()
                 continuation.resume(returning: false)
@@ -77,11 +77,11 @@ actor NetworkManager {
 
     private func waitForInitialConnectionCheck() async {
         let deadline = Date().addingTimeInterval(5)
-        while !initialConnectionCheckCompleted && Date() < deadline {
+        while initialConnectionCheckCompleted == false && Date() < deadline {
             try? await Task.sleep(for: .milliseconds(100))
         }
 
-        if !initialConnectionCheckCompleted {
+        if initialConnectionCheckCompleted == false {
             initialConnectionCheckCompleted = true
         }
     }
@@ -91,7 +91,7 @@ actor NetworkManager {
         isConnected = path.status == .satisfied
         updateConnectionType(path)
 
-        if !initialConnectionCheckCompleted {
+        if initialConnectionCheckCompleted == false {
             initialConnectionCheckCompleted = true
         }
 
@@ -141,7 +141,7 @@ private actor ConnectionWaiter {
     private var isCompleted = false
 
     func tryComplete() -> Bool {
-        guard !isCompleted else { return false }
+        guard isCompleted == false else { return false }
 
         isCompleted = true
         return true

@@ -66,53 +66,28 @@ enum ClaudeCredentialRepair {
         if let keychain = try await currentSecurityCLISession() {
             candidates.append(keychain)
         }
-        return freshest(candidates)
+        return VendorCredentialsReader.freshest(candidates)
     }
 
     static func currentSecurityCLISession() async throws -> OAuthSession? {
         var candidates: [OAuthSession] = []
-        for service in claudeKeychainServices() {
+        for service in ClaudeCredentialPaths.keychainServices(defaultService: defaultKeychainService) {
             for account in accountCandidates(for: service) {
                 guard let json = try? await readSecurityCLI(service: service, account: account) else { continue }
-                if let session = try? parseClaudeCredentialJSON(json, service: service) {
+                if let session = try? ClaudeOAuthParser.parse(json, source: .claudeKeychain(service: service)) {
                     candidates.append(session)
                 }
             }
         }
-        return freshest(candidates)
+        return VendorCredentialsReader.freshest(candidates)
     }
 
     static func parseClaudeCredentialJSON(_ json: String, service: String) throws -> OAuthSession {
-        try parseClaudeCredentialJSON(json, source: .claudeKeychain(service: service))
+        return try Self.parseClaudeCredentialJSON(json, source: .claudeKeychain(service: service))
     }
 
     static func parseClaudeCredentialJSON(_ json: String, source: CredentialSource) throws -> OAuthSession {
-        struct ClaudeCredentialsFile: Decodable {
-            struct OAuth: Decodable {
-                let accessToken: String
-                let refreshToken: String
-                let expiresAt: Int64?
-                let subscriptionType: String?
-                let rateLimitTier: String?
-            }
-
-            let oauth: OAuth
-
-            enum CodingKeys: String, CodingKey {
-                case oauth = "claudeAiOauth"
-            }
-        }
-
-        let parsed = try JSONDecoder().decode(ClaudeCredentialsFile.self, from: Data(json.utf8))
-        return OAuthSession(
-            accessToken: parsed.oauth.accessToken,
-            refreshToken: parsed.oauth.refreshToken,
-            expiresAt: parsed.oauth.expiresAt,
-            accountID: nil,
-            subscriptionType: parsed.oauth.subscriptionType,
-            rateLimitTier: parsed.oauth.rateLimitTier,
-            source: source
-        )
+        return try ClaudeOAuthParser.parse(json, source: source)
     }
 
     static func accessTokenFingerprint(_ session: OAuthSession?) -> String? {
@@ -124,7 +99,7 @@ enum ClaudeCredentialRepair {
         guard VendorCredentialsReader.sessionIsUsable(session) else { return false }
         guard let baseline else { return true }
         return accessTokenFingerprint(session) != accessTokenFingerprint(baseline)
-            || !VendorCredentialsReader.sessionIsUsable(baseline)
+            || VendorCredentialsReader.sessionIsUsable(baseline) == false
     }
 
     private static func saveTokenTorchCopy(_ session: OAuthSession) throws {
@@ -135,7 +110,7 @@ enum ClaudeCredentialRepair {
 
     private static func readSecurityCLI(service: String, account: String?) async throws -> String {
         var arguments = ["find-generic-password", "-s", service]
-        if let account, !account.isEmpty {
+        if let account, account.isEmpty == false {
             arguments.append(contentsOf: ["-a", account])
         }
         arguments.append("-w")
@@ -147,7 +122,7 @@ enum ClaudeCredentialRepair {
         )
         let value = String(data: data, encoding: .utf8) ?? ""
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
+        guard trimmed.isEmpty == false else {
             throw TokenTorchError.missingCredentials("Claude Code Keychain item was empty.")
         }
         return trimmed
@@ -254,7 +229,7 @@ enum ClaudeCredentialRepair {
             Thread.sleep(forTimeInterval: 0.02)
         }
 
-        if process.isRunning {
+        if process.isRunning == true {
             terminate(process: process, processGroup: processGroup)
             throw TokenTorchError.message("\(URL(fileURLWithPath: executablePath).lastPathComponent) timed out.")
         }
@@ -271,7 +246,7 @@ enum ClaudeCredentialRepair {
     }
 
     private static func terminate(process: Process, processGroup: pid_t?) {
-        guard process.isRunning else { return }
+        guard process.isRunning == true else { return }
         process.terminate()
         if let processGroup {
             kill(-processGroup, SIGTERM)
@@ -282,7 +257,7 @@ enum ClaudeCredentialRepair {
             Thread.sleep(forTimeInterval: 0.05)
         }
 
-        if process.isRunning {
+        if process.isRunning == true {
             if let processGroup {
                 kill(-processGroup, SIGKILL)
             }
@@ -303,11 +278,11 @@ enum ClaudeCredentialRepair {
 
     private static func fileCandidates() -> [OAuthSession] {
         var sessions: [OAuthSession] = []
-        for url in claudeCredentialPaths() {
+        for url in ClaudeCredentialPaths.credentialPaths() {
             guard
                 FileManager.default.fileExists(atPath: url.path),
                 let json = try? String(contentsOf: url, encoding: .utf8),
-                let session = try? parseClaudeCredentialJSON(json, source: .claudeFile(url))
+                let session = try? ClaudeOAuthParser.parse(json, source: .claudeFile(url))
             else {
                 continue
             }
@@ -316,70 +291,13 @@ enum ClaudeCredentialRepair {
         return sessions
     }
 
-    private static func claudeKeychainServices() -> [String] {
-        var services: [String] = []
-        for dir in claudeConfigDirs() {
-            let hash = SHA256.hash(data: Data(dir.path.utf8))
-            let hex = hash.map { String(format: "%02x", $0) }.joined()
-            services.append("Claude Code-credentials-\(String(hex.prefix(8)))")
-        }
-        services.append(defaultKeychainService)
-
-        var seen = Set<String>()
-        return services.filter { seen.insert($0).inserted }
-    }
-
-    private static func claudeConfigDirs() -> [URL] {
-        var dirs: [URL] = []
-        if let config = ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"] {
-            dirs.append(URL(fileURLWithPath: config))
-        }
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        dirs.append(home.appendingPathComponent(".config/claude"))
-        dirs.append(home.appendingPathComponent(".claude"))
-
-        var seen = Set<String>()
-        return dirs.filter { seen.insert($0.path).inserted }
-    }
-
-    private static func claudeCredentialPaths() -> [URL] {
-        claudeConfigDirs().map { $0.appendingPathComponent(".credentials.json") }
-    }
-
-    private static func freshest(_ sessions: [OAuthSession]) -> OAuthSession? {
-        sessions.max { lhs, rhs in
-            freshness(lhs) < freshness(rhs)
-        }
-    }
-
-    private static func freshness(_ session: OAuthSession) -> Int64 {
-        session.expiresAt ?? jwtExpMs(session.accessToken) ?? 0
-    }
-
-    private static func jwtExpMs(_ token: String) -> Int64? {
-        let parts = token.split(separator: ".")
-        guard parts.count >= 2 else { return nil }
-        var base64 = String(parts[1])
-        base64 = base64.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
-        let padding = (4 - base64.count % 4) % 4
-        base64 += String(repeating: "=", count: padding)
-        guard
-            let data = Data(base64Encoded: base64),
-            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let exp = json["exp"] as? Int64
-        else {
-            return nil
-        }
-        return exp * 1000
-    }
-
     static func resolvedExecutable(
         named name: String,
         environment: [String: String],
         explicitPath: String? = nil
     ) -> String? {
         if let explicitPath = explicitPath?.trimmingCharacters(in: .whitespacesAndNewlines),
-            !explicitPath.isEmpty,
+            explicitPath.isEmpty == false,
             FileManager.default.isExecutableFile(atPath: explicitPath)
         {
             return explicitPath

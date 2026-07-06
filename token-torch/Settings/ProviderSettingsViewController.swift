@@ -1,7 +1,7 @@
 import AppKit
 
 @MainActor
-final class ProviderSettingsViewController: NSViewController {
+final class ProviderSettingsViewController: SettingsPaneViewController {
     let provider: ProviderID
 
     private let keychain = AppKeychainStore.shared
@@ -28,7 +28,7 @@ final class ProviderSettingsViewController: NSViewController {
     private var saveTokenButton: NSButton!
     private var clearTokenButton: NSButton!
     private var adminKeyLabel: NSTextField!
-    private var adminKeyHintLabel: NSTextField!
+    private var adminKeyHintLabel: NSTextField?
     private var adminKeyField: NSSecureTextField!
     private var saveKeyButton: NSButton!
     private var clearKeyButton: NSButton!
@@ -37,17 +37,12 @@ final class ProviderSettingsViewController: NSViewController {
     private var usesVendorOAuth: Bool { provider != .copilot }
     private var usesPersonalAccessToken: Bool { provider == .copilot }
 
-    override var preferredContentSize: NSSize {
-        get { isViewLoaded ? view.bounds.size : NSSize(width: SettingsStyle.paneWidth, height: preferredHeight) }
-        set {}
-    }
-
-    private var preferredHeight: CGFloat {
-        switch provider {
-            case .codex: SettingsStyle.providerPaneHeight + 40
-            case .copilot: SettingsStyle.copilotPaneHeight
-            case .claude: SettingsStyle.claudePaneHeight
-            case .cursor: SettingsStyle.providerQuotaOnlyPaneHeight
+    override var paneHeight: CGFloat {
+        switch self.provider {
+            case .codex: return SettingsStyle.providerPaneHeight + 40
+            case .copilot: return SettingsStyle.copilotPaneHeight
+            case .claude: return SettingsStyle.claudePaneHeight
+            case .cursor: return SettingsStyle.providerQuotaOnlyPaneHeight
         }
     }
 
@@ -63,14 +58,14 @@ final class ProviderSettingsViewController: NSViewController {
 
     override func loadView() {
         let w = SettingsStyle.paneWidth
-        let h = preferredHeight
+        let h = self.paneHeight
         let x = SettingsStyle.contentPadding
         let controlW = w - 2 * x
         var y = h - SettingsStyle.contentPadding - 22
 
         view = NSView(frame: NSRect(x: 0, y: 0, width: w, height: h))
 
-        if usesVendorOAuth {
+        if usesVendorOAuth == true {
             resetButton = NSButton(title: "Reset subscription credentials", target: self, action: #selector(resetCredentials))
             resetButton.bezelStyle = .rounded
             resetButton.frame = NSRect(x: x, y: y, width: 240, height: 22)
@@ -159,121 +154,96 @@ final class ProviderSettingsViewController: NSViewController {
             claudeCLIPathBrowseButton = browseButton
         }
 
-        if usesPersonalAccessToken {
-            y = h - SettingsStyle.contentPadding - 16
-            tokenLabel = NSTextField(labelWithString: "GitHub Personal Access Token")
-            tokenLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
-            tokenLabel.autoresizingMask = [.minYMargin, .width]
-            view.addSubview(tokenLabel)
-
-            tokenHintLabel = SettingsLayout.makeHintLabel(ProviderSettingsCopy.personalAccessTokenHint())
-            let tokenHintHeight = SettingsLayout.measuredHintHeight(tokenHintLabel, width: controlW)
-            y -= 4 + tokenHintHeight
-            tokenHintLabel.frame = NSRect(x: x, y: y, width: controlW, height: tokenHintHeight)
-            view.addSubview(tokenHintLabel)
-
-            y -= SettingsLayout.groupedControlGap + 22
-            tokenField = NSSecureTextField(frame: NSRect(x: x, y: y, width: controlW, height: 22))
-            tokenField.placeholderString = "github_pat_…"
-            tokenField.autoresizingMask = [.minYMargin, .width]
-            view.addSubview(tokenField)
-
-            y -= 16 + 22
-            saveTokenButton = NSButton(title: "Save token", target: self, action: #selector(saveToken))
-            saveTokenButton.bezelStyle = .rounded
-            saveTokenButton.frame = NSRect(x: x, y: y, width: 100, height: 22)
-            saveTokenButton.autoresizingMask = [.minYMargin]
-            view.addSubview(saveTokenButton)
-
-            clearTokenButton = NSButton(title: "Clear token", target: self, action: #selector(clearToken))
-            clearTokenButton.bezelStyle = .rounded
-            clearTokenButton.frame = NSRect(x: x + 108, y: y, width: 100, height: 22)
-            clearTokenButton.autoresizingMask = [.minYMargin]
-            view.addSubview(clearTokenButton)
-        }
-
-        if provider.supportsOrgBilling {
-            y -= Self.sectionGap + 16
-            adminKeyLabel = NSTextField(labelWithString: "Admin API key")
-            adminKeyLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
-            adminKeyLabel.autoresizingMask = [.minYMargin, .width]
-            view.addSubview(adminKeyLabel)
-
-            if let adminHint = ProviderSettingsCopy.adminKeyHint(for: provider) {
-                adminKeyHintLabel = SettingsLayout.makeHintLabel(adminHint)
-                let adminHintHeight = SettingsLayout.measuredHintHeight(adminKeyHintLabel, width: controlW)
-                y -= 4 + adminHintHeight
-                adminKeyHintLabel.frame = NSRect(x: x, y: y, width: controlW, height: adminHintHeight)
-                view.addSubview(adminKeyHintLabel)
-            }
-
-            y -= SettingsLayout.groupedControlGap + 22
-            adminKeyField = NSSecureTextField(frame: NSRect(x: x, y: y, width: controlW, height: 22))
-            adminKeyField.placeholderString = "Admin key"
-            adminKeyField.autoresizingMask = [.minYMargin, .width]
-            view.addSubview(adminKeyField)
-
-            y -= 16 + 22
-            saveKeyButton = NSButton(title: "Save key", target: self, action: #selector(saveKey))
-            saveKeyButton.bezelStyle = .rounded
-            saveKeyButton.frame = NSRect(x: x, y: y, width: 90, height: 22)
-            saveKeyButton.autoresizingMask = [.minYMargin]
-            view.addSubview(saveKeyButton)
-
-            clearKeyButton = NSButton(title: "Clear key", target: self, action: #selector(clearKey))
-            clearKeyButton.bezelStyle = .rounded
-            clearKeyButton.frame = NSRect(x: x + 98, y: y, width: 90, height: 22)
-            clearKeyButton.autoresizingMask = [.minYMargin]
-            view.addSubview(clearKeyButton)
-        }
-
-        if provider == .codex {
-            y -= Self.sectionGap + 22
-            let toggle = NSButton(
-                checkboxWithTitle: "Show additional model usage (e.g. Codex Spark)",
+        if self.usesPersonalAccessToken == true {
+            y = h - SettingsStyle.contentPadding - SettingsStyle.labelHeight
+            let tokenSection = SettingsLayout.addSecureFieldSection(
+                to: self.view,
+                title: "GitHub Personal Access Token",
+                hint: ProviderSettingsCopy.personalAccessTokenHint(),
+                placeholder: "github_pat_…",
+                saveTitle: "Save token",
+                clearTitle: "Clear token",
+                saveButtonWidth: 100,
+                clearButtonWidth: 100,
+                width: controlW,
+                x: x,
+                y: y,
                 target: self,
-                action: #selector(additionalUsageChanged)
+                saveAction: #selector(self.saveToken),
+                clearAction: #selector(self.clearToken)
             )
-            toggle.frame = NSRect(x: x, y: y, width: controlW, height: 22)
-            toggle.autoresizingMask = [.minYMargin, .width]
-            view.addSubview(toggle)
-            additionalUsageToggle = toggle
-
-            let usageHint = SettingsLayout.makeHintLabel(ProviderSettingsCopy.additionalModelUsageHint())
-            let usageHintHeight = SettingsLayout.measuredHintHeight(usageHint, width: controlW)
-            y -= SettingsLayout.groupedControlGap + usageHintHeight
-            usageHint.frame = NSRect(x: x, y: y, width: controlW, height: usageHintHeight)
-            view.addSubview(usageHint)
-            additionalUsageHintLabel = usageHint
+            self.tokenLabel = tokenSection.titleLabel
+            self.tokenHintLabel = tokenSection.hintLabel!
+            self.tokenField = tokenSection.field
+            self.saveTokenButton = tokenSection.saveButton
+            self.clearTokenButton = tokenSection.clearButton
+            y = tokenSection.newY
         }
 
-        if provider == .cursor {
-            y -= Self.sectionGap + 22
-            let toggle = NSButton(
-                checkboxWithTitle: "Show Total usage value and Bonus",
+        if self.provider.supportsOrgBilling == true {
+            y -= Self.sectionGap + SettingsStyle.labelHeight
+            let adminHint = ProviderSettingsCopy.adminKeyHint(for: self.provider)
+            let adminSection = SettingsLayout.addSecureFieldSection(
+                to: self.view,
+                title: "Admin API key",
+                hint: adminHint,
+                placeholder: "Admin key",
+                saveTitle: "Save key",
+                clearTitle: "Clear key",
+                saveButtonWidth: 90,
+                clearButtonWidth: 90,
+                width: controlW,
+                x: x,
+                y: y,
                 target: self,
-                action: #selector(cursorValueRowsChanged)
+                saveAction: #selector(self.saveKey),
+                clearAction: #selector(self.clearKey)
             )
-            toggle.frame = NSRect(x: x, y: y, width: controlW, height: 22)
-            toggle.autoresizingMask = [.minYMargin, .width]
-            view.addSubview(toggle)
-            cursorValueRowsToggle = toggle
-
-            let valueRowsHint = SettingsLayout.makeHintLabel(ProviderSettingsCopy.cursorValueRowsHint())
-            let valueRowsHintHeight = SettingsLayout.measuredHintHeight(valueRowsHint, width: controlW)
-            y -= SettingsLayout.groupedControlGap + valueRowsHintHeight
-            valueRowsHint.frame = NSRect(x: x, y: y, width: controlW, height: valueRowsHintHeight)
-            view.addSubview(valueRowsHint)
-            cursorValueRowsHintLabel = valueRowsHint
+            self.adminKeyLabel = adminSection.titleLabel
+            self.adminKeyHintLabel = adminSection.hintLabel
+            self.adminKeyField = adminSection.field
+            self.saveKeyButton = adminSection.saveButton
+            self.clearKeyButton = adminSection.clearButton
+            y = adminSection.newY
         }
 
-        y -= 16 + 16
-        statusLabel = NSTextField(labelWithString: "")
-        statusLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
-        statusLabel.autoresizingMask = [.minYMargin, .width]
-        statusLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-        statusLabel.textColor = .secondaryLabelColor
-        view.addSubview(statusLabel)
+        if self.provider == .codex {
+            let codexToggle = SettingsLayout.addCheckboxWithHint(
+                to: self.view,
+                title: "Show additional model usage (e.g. Codex Spark)",
+                hint: ProviderSettingsCopy.additionalModelUsageHint(),
+                width: controlW,
+                x: x,
+                y: y,
+                sectionGapAbove: Self.sectionGap,
+                target: self,
+                action: #selector(self.additionalUsageChanged)
+            )
+            self.additionalUsageToggle = codexToggle.checkbox
+            self.additionalUsageHintLabel = codexToggle.hintLabel
+            y = codexToggle.newY
+        }
+
+        if self.provider == .cursor {
+            let cursorToggle = SettingsLayout.addCheckboxWithHint(
+                to: self.view,
+                title: "Show Total usage value and Bonus",
+                hint: ProviderSettingsCopy.cursorValueRowsHint(),
+                width: controlW,
+                x: x,
+                y: y,
+                sectionGapAbove: Self.sectionGap,
+                target: self,
+                action: #selector(self.cursorValueRowsChanged)
+            )
+            self.cursorValueRowsToggle = cursorToggle.checkbox
+            self.cursorValueRowsHintLabel = cursorToggle.hintLabel
+            y = cursorToggle.newY
+        }
+
+        y -= SettingsStyle.labelHeight + SettingsStyle.labelHeight
+        self.statusLabel = SettingsLayout.makeStatusLabel(width: controlW, y: y)
+        self.view.addSubview(self.statusLabel)
     }
 
     override func viewWillAppear() {
@@ -363,57 +333,47 @@ final class ProviderSettingsViewController: NSViewController {
 
     @objc private func saveKey() {
         guard let adminKeyField else { return }
-        do {
-            if adminKeyField.stringValue.isEmpty {
-                try keychain.delete(provider: provider, kind: .adminKey)
-            }
-            else {
-                try keychain.save(provider: provider, kind: .adminKey, value: adminKeyField.stringValue)
-            }
-            statusLabel.stringValue = "Saved."
-        }
-        catch {
-            statusLabel.stringValue = Redaction.redactSecrets(error.localizedDescription)
-        }
+        SettingsLayout.persistKeychainField(
+            value: adminKeyField.stringValue,
+            provider: provider,
+            kind: .adminKey,
+            using: keychain,
+            statusLabel: statusLabel
+        )
     }
 
     @objc private func clearKey() {
         try? keychain.delete(provider: provider, kind: .adminKey)
         adminKeyField?.stringValue = ""
-        statusLabel.stringValue = "Key cleared."
+        SettingsLayout.showStatus("Key cleared.", on: statusLabel)
     }
 
     @objc private func saveToken() {
         guard let tokenField else { return }
-        do {
-            if tokenField.stringValue.isEmpty {
-                try keychain.delete(provider: provider, kind: .personalAccessToken)
-            }
-            else {
-                try keychain.save(provider: provider, kind: .personalAccessToken, value: tokenField.stringValue)
-            }
-            statusLabel.stringValue = "Saved."
-        }
-        catch {
-            statusLabel.stringValue = Redaction.redactSecrets(error.localizedDescription)
-        }
+        SettingsLayout.persistKeychainField(
+            value: tokenField.stringValue,
+            provider: provider,
+            kind: .personalAccessToken,
+            using: keychain,
+            statusLabel: statusLabel
+        )
     }
 
     @objc private func clearToken() {
         try? keychain.delete(provider: provider, kind: .personalAccessToken)
         tokenField?.stringValue = ""
-        statusLabel.stringValue = "Token cleared."
+        SettingsLayout.showStatus("Token cleared.", on: statusLabel)
     }
 
     @objc private func resetCredentials() {
         let subscriptionEnabled = preferences.load().flags(for: provider).subscriptionQuotaEnabled
-        if provider == .claude, subscriptionEnabled {
+        if provider == .claude, subscriptionEnabled == true {
             repairClaudeCredentials()
             return
         }
 
         do {
-            if subscriptionEnabled {
+            if subscriptionEnabled == true {
                 try VendorCredentialImporter.resetAndReimport(
                     provider: provider,
                     quotaEnabled: subscriptionEnabled,
@@ -428,7 +388,7 @@ final class ProviderSettingsViewController: NSViewController {
             NotificationCenter.default.post(name: AppActions.tokenTorchRefreshRequested, object: nil)
         }
         catch {
-            statusLabel.stringValue = Redaction.redactSecrets(error.localizedDescription)
+            SettingsLayout.showError(error.localizedDescription, on: statusLabel)
         }
     }
 
@@ -443,11 +403,11 @@ final class ProviderSettingsViewController: NSViewController {
                     baseline: baseline,
                     claudeExecutablePath: preferences.load().claudeCLIPath
                 )
-                statusLabel.stringValue = "Claude Code credentials repaired and imported."
+                SettingsLayout.showStatus("Claude Code credentials repaired and imported.", on: statusLabel)
                 NotificationCenter.default.post(name: AppActions.tokenTorchRefreshRequested, object: nil)
             }
             catch {
-                statusLabel.stringValue = Redaction.redactSecrets(error.localizedDescription)
+                SettingsLayout.showError(error.localizedDescription, on: statusLabel)
             }
         }
     }

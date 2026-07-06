@@ -64,12 +64,12 @@ public struct UsageOrchestrator: Sendable {
 
         var reports: [ProviderReport] = []
 
-        if flags.subscriptionQuotaEnabled {
+        if flags.subscriptionQuotaEnabled == true {
             reports.append(await subscriptionReport(provider: provider, preferences: preferences, interactive: interactive))
         }
 
-        if flags.orgBillingEnabled {
-            guard provider.supportsOrgBilling else { return ProviderFetchResult(provider: provider, reports: reports) }
+        if flags.orgBillingEnabled == true {
+            guard provider.supportsOrgBilling == true else { return ProviderFetchResult(provider: provider, reports: reports) }
             do {
                 let (start, end) = try DateRange.parseDateRange(startInput: nil, endInput: nil)
                 let adminKey = try requireAdminKey(provider: provider)
@@ -95,7 +95,7 @@ public struct UsageOrchestrator: Sendable {
         // Manual Claude refresh uses the repair path directly. Automatic refresh still tries the
         // normal silent importer first, then falls through to repair if that importer cannot authorize.
         let claudeSelfImports = provider == .claude && interactive
-        if provider != .copilot, !claudeSelfImports {
+        if provider != .copilot, claudeSelfImports == false {
             do {
                 try VendorCredentialImporter.ensureImported(
                     provider: provider,
@@ -104,12 +104,12 @@ public struct UsageOrchestrator: Sendable {
                 )
             }
             catch {
-                if !Self.shouldContinueAfterImporterAuthorizationFailure(
+                if Self.shouldContinueAfterImporterAuthorizationFailure(
                     provider: provider,
                     preferences: preferences,
                     interactive: interactive,
                     error: error
-                ), !interactive, Self.isNeedsAuthorization(error) {
+                ), interactive == false, Self.isNeedsAuthorization(error) {
                     return .needsAuthorization(provider: provider, mode: "subscription")
                 }
                 // Interactive failures and Claude automatic importer auth failures fall through;
@@ -121,7 +121,7 @@ public struct UsageOrchestrator: Sendable {
             return .subscription(quota)
         }
         catch {
-            if !interactive, Self.isNeedsAuthorization(error) {
+            if interactive == false, Self.isNeedsAuthorization(error) {
                 return .needsAuthorization(provider: provider, mode: "subscription")
             }
             let isRepairFailure: Bool
@@ -155,7 +155,7 @@ public struct UsageOrchestrator: Sendable {
         error: Error
     ) -> Bool {
         provider == .claude
-            && !interactive
+            && interactive == false
             && preferences.claudeAutomaticRepair
             && Self.isNeedsAuthorization(error)
     }
@@ -181,7 +181,7 @@ public struct UsageOrchestrator: Sendable {
     private func requirePersonalAccessToken() throws -> String {
         guard
             let token = try keychain.load(provider: .copilot, kind: .personalAccessToken),
-            !token.isEmpty
+            token.isEmpty == false
         else {
             throw TokenTorchError.missingPersonalAccessToken(provider: .copilot)
         }
@@ -189,7 +189,7 @@ public struct UsageOrchestrator: Sendable {
     }
 
     private func requireAdminKey(provider: ProviderID) throws -> String {
-        guard let key = try keychain.load(provider: provider, kind: .adminKey), !key.isEmpty else {
+        guard let key = try keychain.load(provider: provider, kind: .adminKey), key.isEmpty == false else {
             throw TokenTorchError.missingAdminKey(provider: provider)
         }
         return key

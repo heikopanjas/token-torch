@@ -35,6 +35,19 @@ enum ReportLabels {
         }
     }
 
+    static func creditsTitle(for provider: String) -> String {
+        switch provider {
+            case "Codex": return "Extra usage"
+            case "Copilot": return "AI Credits"
+            default: return "On-demand credits"
+        }
+    }
+
+    private static func percentUsedSuffix(_ percent: Double?) -> String {
+        guard let percent else { return "" }
+        return MenuFormat.percentUsed(percent, parenthesized: true)
+    }
+
     /// Cursor spend counted against the included allowance, e.g. `$333.51/$400.00 (83% used)`.
     /// Styled like Claude's on-demand credits row. The used amount is the same value the previous
     /// Grand Total showed (`apiAllowance`, or `dollarUsage` for team), paired with its limit.
@@ -43,7 +56,7 @@ enum ReportLabels {
         let usedText = pricing.formatMinorUnits(usage.usedCents, from: "USD")
         let limitText = pricing.formatMinorUnits(usage.limitCents, from: "USD")
         let pct = usage.usedPercent ?? QuotaHelpers.creditUsedPercent(usedCents: usage.usedCents, limitCents: usage.limitCents)
-        let pctText = pct.map { String(format: " (%.0f%% used)", $0) } ?? ""
+        let pctText = Self.percentUsedSuffix(pct)
         return "\(usedText)/\(limitText)\(pctText)"
     }
 
@@ -52,7 +65,7 @@ enum ReportLabels {
         if credits.currency == CreditsInfo.creditUnitsCurrency {
             guard credits.limitCents > 0 || credits.usedCents > 0 else { return nil }
             let pct = credits.utilizationPercent ?? QuotaHelpers.creditUsedPercent(usedCents: credits.usedCents, limitCents: credits.limitCents)
-            let pctText = pct.map { String(format: " (%.0f%% used)", $0) } ?? ""
+            let pctText = Self.percentUsedSuffix(pct)
             return "\(credits.usedCents)/\(credits.limitCents)\(pctText)"
         }
         if let balance = credits.balanceUSD {
@@ -65,7 +78,7 @@ enum ReportLabels {
             ? "unlimited"
             : pricing.formatMinorUnits(credits.limitCents, from: credits.currency)
         let pct = credits.utilizationPercent ?? QuotaHelpers.creditUsedPercent(usedCents: credits.usedCents, limitCents: credits.limitCents)
-        let pctText = pct.map { String(format: " (%.0f%% used)", $0) } ?? ""
+        let pctText = Self.percentUsedSuffix(pct)
         return "\(used)/\(limit)\(pctText)"
     }
 
