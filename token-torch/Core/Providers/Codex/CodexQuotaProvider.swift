@@ -6,28 +6,17 @@ public enum CodexQuotaProvider {
     private static let client = HTTPClient()
 
     public static func fetch(interactive: Bool = false) async throws -> SubscriptionQuotaReport {
-        let session = try VendorCredentialsReader.loadCodexSession()
-        try QuotaHTTP.requireUsableSession(session, provider: "ChatGPT/Codex", vendorAction: "Re-login with the Codex CLI (`codex login`).")
-        let reauth: () throws -> OAuthSession = {
-            try VendorCredentialImporter.reimportAfterAuthFailure(provider: .codex, interactive: interactive)
-        }
-        return try await QuotaHTTP.fetchWithAuthRecovery(
-            provider: "ChatGPT/Codex",
-            session: session,
-            vendorAction: "Re-login with the Codex CLI (`codex login`).",
-            policy: .standard,
-            reauthenticate: reauth
-        ) { session in
-            try await fetchUsage(session: session)
-        }
+        return try await QuotaHTTP.fetchSubscriptionQuota(
+            providerID: .codex,
+            interactive: interactive,
+            loadSession: VendorCredentialsReader.loadCodexSession,
+            fetchUsage: Self.fetchUsage
+        )
     }
 
     private static func fetchUsage(session: OAuthSession) async throws -> SubscriptionQuotaReport {
         let url = URL(string: "https://chatgpt.com/backend-api/wham/usage")!
-        var headers = [
-            "Authorization": "Bearer \(session.accessToken)",
-            "Accept": "application/json"
-        ]
+        var headers = HTTPHeaders.bearerJSON(token: session.accessToken)
         if let accountID = session.accountID {
             headers["ChatGPT-Account-Id"] = accountID
         }
@@ -205,7 +194,7 @@ public enum CodexQuotaProvider {
         if let availableCount = response.rateLimitResetCredits?.availableCount, availableCount > 0 {
             notes.append(QuotaNote(label: "Rate limit resets", value: "\(availableCount) available"))
         }
-        if let promo = response.promo, !promo.isEmpty {
+        if let promo = response.promo, promo.isEmpty == false {
             for leaf in promo.flattenedScalars(prefix: "promo") {
                 notes.append(QuotaNote(label: leaf.label, value: leaf.value))
             }

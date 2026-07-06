@@ -23,7 +23,7 @@ public enum GitHubPersonalAccessToken: Sendable, Equatable {
     /// with the account **Copilot requests** permission (see GitHub Copilot CLI auth docs).
     public static func validateForCopilot(_ token: String) throws -> String {
         let normalized = normalize(token)
-        guard !normalized.isEmpty else {
+        guard normalized.isEmpty == false else {
             throw TokenTorchError.message("GitHub Personal Access Token is empty.")
         }
         switch classify(normalized) {
@@ -47,7 +47,7 @@ public enum GitHubPersonalAccessToken: Sendable, Equatable {
 
     public static func redactedSummary(_ token: String) -> String {
         let normalized = normalize(token)
-        guard !normalized.isEmpty else { return "empty" }
+        guard normalized.isEmpty == false else { return "empty" }
         let kind: String = switch classify(normalized) {
             case .classic: "classic"
             case .fineGrained: "fine-grained"

@@ -6,7 +6,7 @@ public enum VendorCredentialImporter {
     /// - Parameter interactive: when `false` (startup/timer), vendor Keychain reads never prompt;
     ///   if no silent source is available the call throws `TokenTorchError.needsAuthorization`.
     public static func ensureImported(provider: ProviderID, quotaEnabled: Bool, interactive: Bool = false) throws {
-        guard quotaEnabled else { return }
+        guard quotaEnabled == true else { return }
         guard provider != .copilot else { return }
 
         if let cached = VendorCredentialCache.session(for: provider),
@@ -24,7 +24,7 @@ public enum VendorCredentialImporter {
             _ = try importAndSave(provider: provider, interactive: interactive)
         }
         catch let error as TokenTorchError {
-            if !interactive, case .missingCredentials = error {
+            if interactive == false, case .missingCredentials = error {
                 throw TokenTorchError.needsAuthorization(provider: provider)
             }
             throw error
@@ -39,7 +39,7 @@ public enum VendorCredentialImporter {
 
     public static func resetAndReimport(provider: ProviderID, quotaEnabled: Bool, interactive: Bool = false) throws {
         try reset(provider: provider)
-        guard quotaEnabled else { return }
+        guard quotaEnabled == true else { return }
         _ = try importAndSave(provider: provider, interactive: interactive)
     }
 

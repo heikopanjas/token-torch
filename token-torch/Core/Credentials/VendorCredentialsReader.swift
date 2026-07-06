@@ -166,7 +166,7 @@ public enum VendorCredentialsReader {
     }
 
     static func sessionIsUsable(_ session: OAuthSession) -> Bool {
-        guard let expiresAt = session.expiresAt ?? jwtExpMs(session.accessToken) else {
+        guard let expiresAt = session.expiresAt ?? JWTHelper.expMs(session.accessToken) else {
             return true
         }
         let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
@@ -183,65 +183,19 @@ public enum VendorCredentialsReader {
     // MARK: - Claude
 
     private static func claudeConfigDirs() -> [URL] {
-        var dirs: [URL] = []
-        if let config = ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"] {
-            dirs.append(URL(fileURLWithPath: config))
-        }
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        dirs.append(home.appendingPathComponent(".config/claude"))
-        dirs.append(home.appendingPathComponent(".claude"))
-        var seen = Set<String>()
-        return dirs.filter { seen.insert($0.path).inserted }
+        return ClaudeCredentialPaths.configDirs()
     }
 
     private static func claudeKeychainServices() -> [String] {
-        var services: [String] = []
-        for dir in claudeConfigDirs() {
-            let hash = SHA256.hash(data: Data(dir.path.utf8))
-            let hex = hash.map { String(format: "%02x", $0) }.joined()
-            services.append("Claude Code-credentials-\(String(hex.prefix(8)))")
-        }
-        services.append(claudeDefaultKeychain)
-        var seen = Set<String>()
-        return services.filter { seen.insert($0).inserted }
+        return ClaudeCredentialPaths.keychainServices(defaultService: claudeDefaultKeychain)
     }
 
     private static func claudeCredentialPaths() -> [URL] {
-        claudeConfigDirs().map { $0.appendingPathComponent(".credentials.json") }
-    }
-
-    private struct ClaudeCredentialsFile: Decodable {
-        struct OAuth: Decodable {
-            let accessToken: String
-            let refreshToken: String
-            let expiresAt: Int64?
-            let subscriptionType: String?
-            let rateLimitTier: String?
-
-            enum CodingKeys: String, CodingKey {
-                case accessToken, refreshToken, expiresAt, subscriptionType, rateLimitTier
-            }
-        }
-
-        let oauth: OAuth
-
-        enum CodingKeys: String, CodingKey {
-            case oauth = "claudeAiOauth"
-        }
+        return ClaudeCredentialPaths.credentialPaths()
     }
 
     private static func parseClaudeJSON(_ json: String, source: CredentialSource) throws -> OAuthSession {
-        let data = Data(json.utf8)
-        let parsed = try JSONDecoder().decode(ClaudeCredentialsFile.self, from: data)
-        return OAuthSession(
-            accessToken: parsed.oauth.accessToken,
-            refreshToken: parsed.oauth.refreshToken,
-            expiresAt: parsed.oauth.expiresAt,
-            accountID: nil,
-            subscriptionType: parsed.oauth.subscriptionType,
-            rateLimitTier: parsed.oauth.rateLimitTier,
-            source: source
-        )
+        return try ClaudeOAuthParser.parse(json, source: source)
     }
 
     private static func loadClaudeFromFile(_ url: URL) throws -> OAuthSession? {
@@ -284,7 +238,7 @@ public enum VendorCredentialsReader {
         return OAuthSession(
             accessToken: parsed.tokens.accessToken,
             refreshToken: parsed.tokens.refreshToken,
-            expiresAt: jwtExpMs(parsed.tokens.accessToken),
+            expiresAt: JWTHelper.expMs(parsed.tokens.accessToken),
             accountID: parsed.tokens.accountID,
             subscriptionType: nil,
             rateLimitTier: nil,
@@ -315,7 +269,7 @@ public enum VendorCredentialsReader {
         return OAuthSession(
             accessToken: access,
             refreshToken: refresh,
-            expiresAt: jwtExpMs(access),
+            expiresAt: JWTHelper.expMs(access),
             accountID: nil,
             subscriptionType: membership,
             rateLimitTier: nil,
@@ -330,7 +284,7 @@ public enum VendorCredentialsReader {
         return OAuthSession(
             accessToken: access,
             refreshToken: refresh,
-            expiresAt: jwtExpMs(access),
+            expiresAt: JWTHelper.expMs(access),
             accountID: nil,
             subscriptionType: nil,
             rateLimitTier: nil,
@@ -341,26 +295,12 @@ public enum VendorCredentialsReader {
     // MARK: - Helpers
 
     private static func freshness(_ session: OAuthSession) -> Int64 {
-        session.expiresAt ?? jwtExpMs(session.accessToken) ?? 0
+        return session.expiresAt ?? JWTHelper.expMs(session.accessToken) ?? 0
     }
 
     /// The session with the latest expiry. Used to prefer a live login over a stale same-service item.
     static func freshest(_ sessions: [OAuthSession]) -> OAuthSession? {
-        sessions.max(by: { freshness($0) < freshness($1) })
-    }
-
-    private static func jwtExpMs(_ token: String) -> Int64? {
-        let parts = token.split(separator: ".")
-        guard parts.count >= 2 else { return nil }
-        var base64 = String(parts[1])
-        base64 = base64.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
-        let padding = (4 - base64.count % 4) % 4
-        base64 += String(repeating: "=", count: padding)
-        guard let data = Data(base64Encoded: base64),
-            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-            let exp = json["exp"] as? Int64
-        else { return nil }
-        return exp * 1000
+        return sessions.max(by: { freshness($0) < freshness($1) })
     }
 
     private static func readVendorKeychain(service: String, allowUI: Bool) throws -> String? {

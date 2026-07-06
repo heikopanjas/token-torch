@@ -1,20 +1,17 @@
 import AppKit
 
 @MainActor
-final class InfoSettingsViewController: NSViewController {
+final class InfoSettingsViewController: SettingsPaneViewController {
     private var sectionLabel: NSTextField!
     private var hintLabel: NSTextField!
     private var refreshButton: NSButton!
     private var textView: NSTextView!
 
-    override var preferredContentSize: NSSize {
-        get { isViewLoaded ? view.bounds.size : NSSize(width: SettingsStyle.paneWidth, height: SettingsStyle.infoPaneHeight) }
-        set {}
-    }
+    override var paneHeight: CGFloat { SettingsStyle.infoPaneHeight }
 
     override func loadView() {
         let w = SettingsStyle.paneWidth
-        let h = SettingsStyle.infoPaneHeight
+        let h = self.paneHeight
         let x = SettingsStyle.contentPadding
         let controlW = w - 2 * x
         var y = h - SettingsStyle.contentPadding - 16

@@ -85,15 +85,16 @@ public enum ClaudeQuotaProvider {
 
     private static func fetchUsage(session: OAuthSession) async throws -> SubscriptionQuotaReport {
         let url = URL(string: "https://api.anthropic.com/api/oauth/usage")!
-        let response: ClaudeUsageResponse = try await client.getJSON(
-            url: url,
-            headers: [
-                "Authorization": "Bearer \(session.accessToken)",
-                "Accept": "application/json",
-                "Content-Type": "application/json",
+        var headers = HTTPHeaders.bearerJSON(
+            token: session.accessToken,
+            extra: [
                 "anthropic-beta": "oauth-2025-04-20",
                 "User-Agent": AppBrand.claudeUsageUserAgent
             ]
+        )
+        let response: ClaudeUsageResponse = try await client.getJSON(
+            url: url,
+            headers: headers
         )
         return mapUsage(response, subscriptionType: session.subscriptionType, rateLimitTier: session.rateLimitTier)
     }

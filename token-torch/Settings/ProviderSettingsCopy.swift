@@ -3,14 +3,26 @@ enum ProviderSettingsCopy {
     static func resetHint(for provider: ProviderID) -> String {
         switch provider {
             case .claude:
-                return
-                    "Clears \(AppBrand.displayName)'s Keychain copy of your Claude Code OAuth session and re-imports from Claude Code. Claude Code itself is not modified. Use after signing in again in Claude Code (/login) if the Claude Code view shows expired credentials."
+                return Self.resetHint(
+                    vendorName: "Claude Code OAuth session",
+                    reimportSource: "Claude Code",
+                    loginAction: "signing in again in Claude Code (/login)",
+                    viewName: "Claude Code view"
+                )
             case .codex:
-                return
-                    "Clears \(AppBrand.displayName)'s Keychain copy of your Codex OAuth session and re-imports from the Codex CLI. The Codex CLI login is not modified. Use after running `codex login` if the Codex menu view shows expired credentials."
+                return Self.resetHint(
+                    vendorName: "Codex OAuth session",
+                    reimportSource: "the Codex CLI",
+                    loginAction: "running `codex login`",
+                    viewName: "Codex menu view"
+                )
             case .cursor:
-                return
-                    "Clears \(AppBrand.displayName)'s Keychain copy of your Cursor OAuth session and re-imports from Cursor. Your Cursor login is not modified. Use after signing in again in the Cursor IDE if the Cursor view shows expired credentials."
+                return Self.resetHint(
+                    vendorName: "Cursor OAuth session",
+                    reimportSource: "Cursor",
+                    loginAction: "signing in again in the Cursor IDE",
+                    viewName: "Cursor view"
+                )
             case .copilot:
                 return ""
         }
@@ -19,14 +31,42 @@ enum ProviderSettingsCopy {
     static func adminKeyHint(for provider: ProviderID) -> String? {
         switch provider {
             case .claude:
-                return
-                    "Required for the Anthropic API org-billing menu view. Create an Admin API key in the Anthropic Console under Settings → Organization → API Keys. Regular API keys return 401. Stored only in \(AppBrand.displayName)'s Keychain."
+                return Self.adminKeyHint(
+                    viewName: "Anthropic API org-billing menu view",
+                    createInstructions:
+                        "Create an Admin API key in the Anthropic Console under Settings → Organization → API Keys.",
+                    invalidKeyNote: "Regular API keys return 401."
+                )
             case .codex:
-                return
-                    "Required for the OpenAI Platform org-billing menu view. Create an Admin API key at platform.openai.com under Settings → Organization → Admin keys. Regular project API keys cannot access organization usage and return 401. Stored only in \(AppBrand.displayName)'s Keychain."
+                return Self.adminKeyHint(
+                    viewName: "OpenAI Platform org-billing menu view",
+                    createInstructions:
+                        "Create an Admin API key at platform.openai.com under Settings → Organization → Admin keys.",
+                    invalidKeyNote:
+                        "Regular project API keys cannot access organization usage and return 401."
+                )
             case .cursor, .copilot:
                 return nil
         }
+    }
+
+    private static func resetHint(
+        vendorName: String,
+        reimportSource: String,
+        loginAction: String,
+        viewName: String
+    ) -> String {
+        return
+            "Clears \(AppBrand.displayName)'s Keychain copy of your \(vendorName) and re-imports from \(reimportSource). \(reimportSource.capitalized) itself is not modified. Use after \(loginAction) if the \(viewName) shows expired credentials."
+    }
+
+    private static func adminKeyHint(
+        viewName: String,
+        createInstructions: String,
+        invalidKeyNote: String
+    ) -> String {
+        return
+            "Required for the \(viewName). \(createInstructions) \(invalidKeyNote) \(SettingsCopy.keychainStorageNote)"
     }
 
     static func additionalModelUsageHint() -> String {
@@ -54,6 +94,6 @@ enum ProviderSettingsCopy {
     }
 
     static func personalAccessTokenHint() -> String {
-        "Required for the Copilot subscription menu view. Create a fine-grained GitHub Personal Access Token on your personal account with Account permission “Copilot requests” (Read-only) at github.com/settings/personal-access-tokens. Under Repository access, choose Public repositories only (or the most restrictive option available). Classic tokens (ghp_…) return HTTP 401. Stored only in \(AppBrand.displayName)'s Keychain; Token Torch only reads Copilot usage."
+        "Required for the Copilot subscription menu view. Create a fine-grained GitHub Personal Access Token on your personal account with Account permission “Copilot requests” (Read-only) at github.com/settings/personal-access-tokens. Under Repository access, choose Public repositories only (or the most restrictive option available). Classic tokens (ghp_…) return HTTP 401. \(SettingsCopy.keychainStorageNote) Token Torch only reads Copilot usage."
     }
 }

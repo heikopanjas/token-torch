@@ -13,27 +13,19 @@ public enum CopilotQuotaProvider {
         TokenTorchLog.copilot.info("Fetching Copilot quota (\(GitHubPersonalAccessToken.redactedSummary(token), privacy: .public))")
 
         let (data, http) = try await client.data(for: apiURL, headers: headers)
-        guard (200 ..< 300).contains(http.statusCode) else {
-            let body = String(data: data, encoding: .utf8) ?? ""
-            TokenTorchLog.copilot.error(
-                "Copilot quota HTTP \(http.statusCode, privacy: .public): \(Redaction.redactSecrets(body), privacy: .public)"
-            )
-            throw TokenTorchError.message(
-                copilotHTTPError(statusCode: http.statusCode, body: body, token: token)
-            )
-        }
-
-        let response: CopilotUserResponse
-        do {
-            response = try JSONDecoder().decode(CopilotUserResponse.self, from: data)
-        }
-        catch {
-            let body = String(data: data, encoding: .utf8) ?? ""
-            TokenTorchLog.copilot.error("Copilot quota decode failed: \(Redaction.redactSecrets(body), privacy: .public)")
-            throw TokenTorchError.message(
-                "Invalid Copilot usage response: \(Redaction.redactSecrets(body))"
-            )
-        }
+        let response: CopilotUserResponse = try QuotaHTTP.parseQuotaResponse(
+            data: data,
+            statusCode: http.statusCode,
+            operation: "Copilot quota",
+            mapHTTPError: { statusCode, body in
+                TokenTorchLog.copilot.error(
+                    "Copilot quota HTTP \(statusCode, privacy: .public): \(Redaction.redactSecrets(body), privacy: .public)"
+                )
+                return TokenTorchError.message(
+                    copilotHTTPError(statusCode: statusCode, body: body, token: token)
+                )
+            }
+        )
 
         TokenTorchLog.copilot.info(
             "Copilot quota OK plan=\(response.copilotPlan ?? "nil", privacy: .public) sku=\(response.accessTypeSKU ?? "nil", privacy: .public)"
@@ -84,7 +76,7 @@ public enum CopilotQuotaProvider {
 
         report.windows = windows
 
-        if windows.isEmpty {
+        if windows.isEmpty == true {
             report.rawMessage = "Usage not exposed for this plan."
         }
 
@@ -190,24 +182,25 @@ public enum CopilotQuotaProvider {
     // MARK: - Private
 
     private static func copilotHeaders(token: String) -> [String: String] {
-        [
-            "Authorization": "Bearer \(token)",
-            "Accept": "application/json",
-            "Editor-Version": "vscode/1.96.2",
-            "Editor-Plugin-Version": "copilot-chat/0.26.7",
-            "User-Agent": "GitHubCopilotChat/0.26.7",
-            "X-Github-Api-Version": "2025-04-01"
-        ]
+        return HTTPHeaders.bearerJSON(
+            token: token,
+            extra: [
+                "Editor-Version": "vscode/1.96.2",
+                "Editor-Plugin-Version": "copilot-chat/0.26.7",
+                "User-Agent": "GitHubCopilotChat/0.26.7",
+                "X-Github-Api-Version": "2025-04-01"
+            ]
+        )
     }
 
     private static func copilotHTTPError(statusCode: Int, body: String, token: String) -> String {
         let redacted = Redaction.redactSecrets(body)
         let githubMessage = parseGitHubMessage(body)
         var lines = ["Copilot usage request failed (HTTP \(statusCode))"]
-        if let githubMessage, !githubMessage.isEmpty {
+        if let githubMessage, githubMessage.isEmpty == false {
             lines.append(githubMessage)
         }
-        else if !redacted.isEmpty {
+        else if redacted.isEmpty == false {
             lines.append(redacted)
         }
 

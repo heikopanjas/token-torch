@@ -23,7 +23,7 @@ final class MenuBuilder {
         let showAdditional = prefs.showAdditionalModelUsage
         let showCursorValueRows = prefs.showCursorUsageValueAndBonus
 
-        guard prefs.hasAnyEnabledProvider else {
+        guard prefs.hasAnyEnabledProvider == true else {
             menu.addItem(UsageMenuItemViews.emptyState())
             appendCommandItems(to: menu, model: model)
             return
@@ -61,7 +61,7 @@ final class MenuBuilder {
         }
 
         if hasResult || model.isLoading {
-            if hasResult {
+            if hasResult == true {
                 menu.addItem(.separator())
             }
             menu.addItem(UsageMenuItemViews.header(result: model.result, isLoading: model.isLoading))
@@ -107,9 +107,9 @@ final class MenuBuilder {
                     {
                         menu.addItem(
                             UsageMenuItemViews.caption(
-                                "Billing cycle: \(MenuFormat.billingCycleDate(start)) → \(MenuFormat.billingCycleDate(end))"
+                                MenuFormat.billingCycleCaption(start: start, end: end)
                             ))
-                        if !quota.windows.isEmpty {
+                        if quota.windows.isEmpty == false {
                             menu.addItem(UsageMenuItemViews.menuSpacer())
                         }
                     }
@@ -123,7 +123,7 @@ final class MenuBuilder {
                             menu.addItem(
                                 UsageMenuItemViews.costRow(
                                     label: window.label,
-                                    value: String(format: "%.0f%% used", window.usedPercent),
+                                    value: MenuFormat.percentUsed(window.usedPercent),
                                     caption: resetCaption
                                 ))
                         }
@@ -134,7 +134,7 @@ final class MenuBuilder {
                     if let credits = quota.credits,
                         let label = creditsLabel(for: quota, credits: credits, pricing: pricing)
                     {
-                        let creditsTitle = creditsTitle(for: quota)
+                        let creditsTitle = ReportLabels.creditsTitle(for: quota.provider)
                         menu.addItem(UsageMenuItemViews.costRow(label: creditsTitle, value: label))
                     }
                 }
@@ -144,14 +144,6 @@ final class MenuBuilder {
                 menu.addItem(UsageMenuItemViews.noticeRow("Click Refresh to authorize Keychain access."))
             case .error(_, let mode, let message, _):
                 menu.addItem(UsageMenuItemViews.errorRow(mode: mode, message: message))
-        }
-    }
-
-    private func creditsTitle(for quota: SubscriptionQuotaReport) -> String {
-        switch quota.provider {
-            case "Codex": "Extra usage"
-            case "Copilot": "AI Credits"
-            default: "On-demand credits"
         }
     }
 
@@ -184,7 +176,7 @@ final class MenuBuilder {
         if let start = quota.billingCycleStart, let end = quota.billingCycleEnd {
             menu.addItem(
                 UsageMenuItemViews.caption(
-                    "Billing cycle: \(MenuFormat.billingCycleDate(start)) → \(MenuFormat.billingCycleDate(end))"
+                    MenuFormat.billingCycleCaption(start: start, end: end)
                 ))
         }
         let meterLabels = ["Included total usage", "Auto + Composer", "Included API usage"]
@@ -192,10 +184,10 @@ final class MenuBuilder {
             guard let window = quota.windows.first(where: { $0.label == label }) else { return nil }
             return UsageMenuItemViews.costRow(
                 label: label,
-                value: String(format: "%.0f%% used", window.usedPercent)
+                value: MenuFormat.percentUsed(window.usedPercent)
             )
         }
-        if !meterRows.isEmpty {
+        if meterRows.isEmpty == false {
             if quota.billingCycleStart != nil {
                 menu.addItem(UsageMenuItemViews.menuSpacer())
             }
@@ -203,7 +195,7 @@ final class MenuBuilder {
                 menu.addItem(item)
             }
         }
-        if showValueRows {
+        if showValueRows == true {
             if let total = quota.totalSpendCents {
                 menu.addItem(
                     UsageMenuItemViews.costRow(
@@ -224,21 +216,16 @@ final class MenuBuilder {
     }
 
     private func appendOrgBilling(to menu: NSMenu, org: OrgUsageReport, pricing: DisplayPriceOptions) {
-        let cycleLine: String = {
-            if let end = org.endDate {
-                return "Billing cycle: \(org.startDate) → \(end)"
-            }
-            return "Billing cycle: \(org.startDate)"
-        }()
+        let cycleLine = MenuFormat.billingCycleCaption(start: org.startDate, end: org.endDate)
         menu.addItem(UsageMenuItemViews.caption(cycleLine))
 
         let sorted = org.costRows.sorted { $0.costUSD > $1.costUSD }
-        if sorted.isEmpty {
+        if sorted.isEmpty == true {
             let empty =
                 org.provider == "OpenAI"
                 ? "No billed costs in this period."
                 : "No billable usage in this period."
-            menu.addItem(UsageMenuItemViews.secondaryCaption(empty))
+            menu.addItem(UsageMenuItemViews.caption(empty))
         }
         else {
             menu.addItem(UsageMenuItemViews.menuSpacer())
@@ -262,7 +249,7 @@ final class MenuBuilder {
         )
         refresh.keyEquivalentModifierMask = .command
         refresh.target = settingsTarget
-        refresh.isEnabled = !model.isLoading
+        refresh.isEnabled = model.isLoading == false
         menu.addItem(refresh)
 
         menu.addItem(.separator())

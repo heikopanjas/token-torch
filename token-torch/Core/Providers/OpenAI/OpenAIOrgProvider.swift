@@ -14,21 +14,7 @@ public enum OpenAIOrgProvider {
 
         public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
-            if let number = try? container.decode(Double.self, forKey: .value) {
-                value = number
-            }
-            else if let text = try? container.decode(String.self, forKey: .value),
-                let parsed = Double(text)
-            {
-                value = parsed
-            }
-            else {
-                throw DecodingError.dataCorruptedError(
-                    forKey: .value,
-                    in: container,
-                    debugDescription: "invalid cost amount"
-                )
-            }
+            value = try FlexibleDoubleDecoding.decode(from: container, forKey: .value)
         }
     }
 
@@ -40,17 +26,7 @@ public enum OpenAIOrgProvider {
         var all: [OpenAIProject] = []
         let listURL = URL(string: "\(baseURL)/organization/projects")!
 
-        struct Page: Decodable {
-            let data: [OpenAIProject]
-            let hasMore: Bool
-            let lastID: String?
-
-            enum CodingKeys: String, CodingKey {
-                case data
-                case hasMore = "has_more"
-                case lastID = "last_id"
-            }
-        }
+        typealias Page = CursorPage<OpenAIProject>
 
         try await client.paginateCursor(
             baseURL: listURL,
@@ -141,9 +117,7 @@ public enum OpenAIOrgProvider {
         var mergedUsage: [String: OrgUsageRow] = [:]
         try await client.paginateNextToken(
             urlBuilder: { token in
-                var url = usageURL
-                if let token { url += "&page=\(token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token)" }
-                return URL(string: url)!
+                return OrgPagination.appendPageToken(token, to: usageURL)
             },
             headers: headers,
             onPage: { (page: Page<CompletionsResult>, _) in
@@ -190,9 +164,7 @@ public enum OpenAIOrgProvider {
         var costTotals: [String: Double] = [:]
         try await client.paginateNextToken(
             urlBuilder: { token in
-                var url = costURL
-                if let token { url += "&page=\(token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token)" }
-                return URL(string: url)!
+                return OrgPagination.appendPageToken(token, to: costURL)
             },
             headers: headers,
             onPage: { (page: Page<CostResult>, _) in
@@ -211,12 +183,7 @@ public enum OpenAIOrgProvider {
         var grandUSD = 0.0
         for (line, usd) in costTotals.sorted(by: { $0.value > $1.value }) {
             grandUSD += usd
-            report.costRows.append(
-                OrgCostRow(
-                    label: line,
-                    costUSD: usd,
-                    costEUR: usd * Pricing.usdToEUR
-                ))
+            report.costRows.append(OrgCostRow.fromUSD(label: line, usd: usd))
         }
         report.grandTotalUSD = grandUSD
         report.grandTotalEUR = grandUSD * Pricing.usdToEUR

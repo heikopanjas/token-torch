@@ -9,7 +9,7 @@ import Foundation
 public enum PlanBranding {
     /// ChatGPT `plan_type` code -> brand name (Go / Plus / Pro / Pro Lite / ...).
     public static func chatGPT(_ planType: String?) -> String? {
-        guard let raw = planType?.lowercased(), !raw.isEmpty else { return planType }
+        guard let raw = planType?.lowercased(), raw.isEmpty == false else { return planType }
         switch raw {
             case "free", "guest": return "Free"
             case "go": return "Go"
@@ -26,7 +26,7 @@ public enum PlanBranding {
 
     /// Claude `subscriptionType` (+ optional `rateLimitTier`) -> brand name (Pro / Max 5x / Max 20x / ...).
     public static func claude(subscriptionType: String?, rateLimitTier: String?) -> String? {
-        guard let raw = subscriptionType?.lowercased(), !raw.isEmpty else { return subscriptionType }
+        guard let raw = subscriptionType?.lowercased(), raw.isEmpty == false else { return subscriptionType }
         switch raw {
             case "pro": return "Pro"
             case "max":
@@ -68,7 +68,7 @@ public enum PlanBranding {
         let plan = copilotPlan?.lowercased()
         let sku = accessTypeSKU?.lowercased()
         if sku == "free_limited_copilot" { return "Free" }
-        guard let plan, !plan.isEmpty else { return copilotPlan }
+        guard let plan, plan.isEmpty == false else { return copilotPlan }
         switch plan {
             case "individual", "free": return "Free"
             case "student": return "Student"

@@ -19,8 +19,35 @@ public enum ProviderID: String, Codable, CaseIterable, Sendable, Identifiable {
 
     public var supportsOrgBilling: Bool {
         switch self {
-            case .claude, .codex: true
-            case .cursor, .copilot: false
+            case .claude, .codex: return true
+            case .cursor, .copilot: return false
+        }
+    }
+
+    public var quotaDisplayName: String {
+        switch self {
+            case .claude: return "Claude Code"
+            case .codex: return "ChatGPT/Codex"
+            case .cursor: return "Cursor"
+            case .copilot: return "Copilot"
+        }
+    }
+
+    public var quotaReloginAction: String {
+        switch self {
+            case .claude: return "Re-login with Claude Code (/login)."
+            case .codex: return "Re-login with the Codex CLI (`codex login`)."
+            case .cursor: return "Re-login via the Cursor IDE or `cursor agent login`."
+            case .copilot: return "Re-login to GitHub Copilot."
+        }
+    }
+
+    public var quotaAuthPolicy: QuotaAuthPolicy {
+        switch self {
+            case .claude: return .strict
+            case .codex: return .standard
+            case .cursor: return .extended
+            case .copilot: return .strict
         }
     }
 }
@@ -48,7 +75,7 @@ public struct ProviderSection: Codable, Hashable, Sendable, Identifiable {
     public static var allSections: [ProviderSection] {
         ProviderID.allCases.flatMap { provider -> [ProviderSection] in
             var sections = [ProviderSection(provider: provider, kind: .subscription)]
-            if provider.supportsOrgBilling {
+            if provider.supportsOrgBilling == true {
                 sections.append(ProviderSection(provider: provider, kind: .orgBilling))
             }
             return sections
@@ -184,7 +211,7 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
     public func orderedSections() -> [ProviderSection] {
         let valid = ProviderSection.allSections
         let known = sectionOrder.filter { valid.contains($0) }
-        let missing = valid.filter { !known.contains($0) }
+        let missing = valid.filter { known.contains($0) == false }
         return known + missing
     }
 
