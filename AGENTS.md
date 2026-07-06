@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-07-06 (Claude doctor repair, notifications, error row copy)
+Last updated: 2026-07-06 (About panel dock restore)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -240,7 +240,7 @@ Cursor's `Total usage value` and `Bonus` rows are display-only value-framing fie
 
 - **About…** lives in the status menu (`MenuBuilder.appendCommandItems`) and the app menu (`AppDelegate.setupMainMenu`), not in Settings.
 - Uses the standard macOS About panel via `AppActions.showAbout()` → `NSApplication.orderFrontStandardAboutPanel`; version/copyright come from `Info.plist` (`MARKETING_VERSION`, `NSHumanReadableCopyright`).
-- Status-menu About temporarily switches activation to `.regular` so the panel is key while the app is otherwise an accessory (`LSUIElement`).
+- Status-menu About temporarily switches activation to `.regular` so the panel is key while the app is otherwise an accessory (`LSUIElement`); closing the About panel restores `.accessory` unless Settings is still visible (same helper as Settings close).
 
 ## Dependencies
 
@@ -297,6 +297,14 @@ Load the `git-workflow` skill before committing. Commit message bodies are optio
 The root `VERSION` file is the release version and release tag source of truth (`v<version>`). `AppVersion.current` in `token-torch/Core/Utilities/AppVersion.swift` must match `VERSION`; app release builds pass `MARKETING_VERSION=$(cat VERSION)` to Xcode. Load the `semantic-versioning` skill before changing `VERSION` and keep version updates in the same commit as the behavior change.
 
 ## Recent Updates & Decisions
+
+### 2026-07-06: Restore accessory activation after About panel closes
+
+**What**: Closing the standard About panel now restores `NSApplication` activation policy to `.accessory` so the Dock icon disappears again, matching Settings close behavior. `AppActions.restoreAccessoryActivationIfNeeded()` skips the restore while Settings or About remains visible.
+
+**Why**: `showAbout()` switched to `.regular` for the panel but never switched back, leaving Token Torch in the Dock after dismissing About.
+
+**How**: `AppActions.swift`, `SettingsWindowController` (`settingsWindow` tracking). Version `5.6.1`. Follow-up: locate the standard About panel by window diff/key window/class name (not English `About` title prefix), observe `willOrderOut` as well as `willClose`, and call `NSApplication.hide(nil)` before restoring `.accessory`. Version `5.6.2`.
 
 ### 2026-07-06: Claude doctor repair touch, readable error row, desktop notifications
 

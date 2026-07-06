@@ -52,6 +52,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             height: minContentHeight + 80
         )
         window.delegate = self
+        AppActions.settingsWindow = window
 
         let toolbar = NSToolbar(identifier: "tokentorch.settings.toolbar")
         toolbar.displayMode = .iconOnly
@@ -87,6 +88,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
+        AppActions.settingsWindow = nil
         AppActions.deactivateAfterSettings()
     }
 
