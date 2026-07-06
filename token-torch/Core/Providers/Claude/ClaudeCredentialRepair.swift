@@ -3,9 +3,11 @@ import Darwin
 import Foundation
 
 enum ClaudeCredentialRepair {
+    static let doctorTouchArguments = ["doctor"]
+
     private static let securityPath = "/usr/bin/security"
     private static let securityTimeout: TimeInterval = 1.5
-    private static let repairTimeout: TimeInterval = 15
+    private static let repairTimeout: TimeInterval = 20
     private static let pollInterval: TimeInterval = 0.5
     private static let defaultKeychainService = "Claude Code-credentials"
 
@@ -25,7 +27,7 @@ enum ClaudeCredentialRepair {
         let touchResult: Result<Void, Error>
         do {
             try await touchClaudeCLIAuthPath(
-                timeout: min(timeout, 8),
+                timeout: min(timeout, 12),
                 environment: environment,
                 claudeExecutablePath: claudeExecutablePath
             )
@@ -49,12 +51,12 @@ enum ClaudeCredentialRepair {
 
         switch touchResult {
             case .success:
-                throw TokenTorchError.message(
-                    "Claude Code repair ran, but the Keychain access token did not change. Run Claude Code interactively, then retry Token Torch refresh."
+                throw TokenTorchError.claudeRepairFailed(
+                    "Claude Code repair ran, but the Keychain access token did not change. Run `claude doctor` in a terminal (or launch Claude Code), then retry Token Torch refresh."
                 )
             case .failure(let error):
-                throw TokenTorchError.message(
-                    "Claude Code repair did not update credentials: \(error.localizedDescription)"
+                throw TokenTorchError.claudeRepairFailed(
+                    "Claude Code repair did not update credentials: \(error.localizedDescription). Run `claude doctor` in a terminal, then retry Token Torch refresh."
                 )
         }
     }
@@ -170,8 +172,8 @@ enum ClaudeCredentialRepair {
 
         _ = try await runCommand(
             executablePath: claudePath,
-            arguments: ["--allowed-tools", ""],
-            input: "/status\n\n",
+            arguments: Self.doctorTouchArguments,
+            input: "\n",
             timeout: timeout,
             environment: environment,
             workingDirectory: preparedProbeWorkingDirectory()

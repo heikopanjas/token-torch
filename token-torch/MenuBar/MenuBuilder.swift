@@ -142,7 +142,7 @@ final class MenuBuilder {
                 appendOrgBilling(to: menu, org: org, pricing: pricing)
             case .needsAuthorization:
                 menu.addItem(UsageMenuItemViews.noticeRow("Click Refresh to authorize Keychain access."))
-            case .error(_, let mode, let message):
+            case .error(_, let mode, let message, _):
                 menu.addItem(UsageMenuItemViews.errorRow(mode: mode, message: message))
         }
     }

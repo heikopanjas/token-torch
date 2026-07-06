@@ -2,6 +2,7 @@ import AppKit
 
 enum MenuFormat {
     static let menuWidth: CGFloat = 360
+    static let copyButtonSize: CGFloat = 16
 
     static func billingCycleDate(_ value: Date) -> String {
         let formatter = DateFormatter()

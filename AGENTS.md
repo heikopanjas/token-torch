@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-07-03 (Codex credit unit display)
+Last updated: 2026-07-06 (Claude doctor repair, notifications, error row copy)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -164,13 +164,14 @@ VERSION                    # Release version source of truth
 
 - Menu bar app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider; routine quota refresh reads only the Token Torch copy
 - Settings **Info** tab lists vendor credential source metadata for transparency. It shows enabled subscription providers that have a Token Torch-owned credential copy and the non-secret vendor source recorded at import time; it must never display raw token/API-key values.
-- Claude Code repair is a narrow exception to the no-subprocess Keychain rule: it may check no-prompt Claude sources and run a timeout-bound `/usr/bin/security find-generic-password` read for Claude Code credentials, then save only Token Torch's own copy. Manual Refresh always attempts repair on auth failure. Automatic (startup/timer) refresh first uses the normal no-prompt importer; when that cannot silently authorize, repair runs only if the opt-in `ProviderPreferences.claudeAutomaticRepair` setting is enabled (default off; Claude Settings tab). Repair must never print token values and must never use Claude Code's `refreshToken` against Anthropic's OAuth refresh endpoint. The `claude` executable is located via `ProviderPreferences.claudeCLIPath` (Claude Settings tab) when set, else PATH.
+- Claude Code repair is a narrow exception to the no-subprocess Keychain rule: it may check no-prompt Claude sources and run a timeout-bound `/usr/bin/security find-generic-password` read for Claude Code credentials, then save only Token Torch's own copy. Manual Refresh always attempts repair on auth failure. Automatic (startup/timer) refresh first uses the normal no-prompt importer; when that cannot silently authorize, repair runs only if the opt-in `ProviderPreferences.claudeAutomaticRepair` setting is enabled (default off; Claude Settings tab). The repair touch runs `claude doctor` (no model inference; never use `claude -p`). Repair must never print token values and must never use Claude Code's `refreshToken` against Anthropic's OAuth refresh endpoint. The `claude` executable is located via `ProviderPreferences.claudeCLIPath` (Claude Settings tab) when set, else PATH. Background repair failures on automatic refreshes can post a desktop notification when `ProviderPreferences.notifyOnRepairFailure` is enabled (default on).
 
 ### Key Core modules (`token-torch/Core/`)
 
 - `AnthropicOrgProvider` / `OpenAIOrgProvider` — Admin API usage, workspaces/projects, pagination
 - `ClaudeQuotaProvider` / `CodexQuotaProvider` / `CursorQuotaProvider` / `CopilotQuotaProvider` — subscription quota APIs
-- `ClaudeCredentialRepair` — Claude Code repair path; checks no-prompt Claude sources, reads updated Claude Code OAuth JSON via timeout-bound `/usr/bin/security`, asks `claude` (located via `ProviderPreferences.claudeCLIPath` or PATH) to touch its own auth path, stores only the Token Torch-owned copy. Runs on manual Refresh always; automatic refresh tries the normal silent importer first and then runs repair only when `ProviderPreferences.claudeAutomaticRepair` is enabled
+- `ClaudeCredentialRepair` — Claude Code repair path; checks no-prompt Claude sources, reads updated Claude Code OAuth JSON via timeout-bound `/usr/bin/security`, runs `claude doctor` (billing-free health check, no model inference) to trigger proactive OAuth refresh, stores only the Token Torch-owned copy. Runs on manual Refresh always; automatic refresh tries the normal silent importer first and then runs repair only when `ProviderPreferences.claudeAutomaticRepair` is enabled
+- `AppNotification` / `NotificationService` — general desktop notification content model (`AppNotification` factories per use case) and app-layer poster (`NotificationService.bootstrap()` requests authorization on first launch and posts a welcome notification on grant; `post(_:)` delivers any notification). First consumer: Claude repair failure on automatic refreshes, gated by `ProviderPreferences.notifyOnRepairFailure` (default on). Designed for future alerts (e.g. budget warnings) by adding new `AppNotification` factories only
 - `UsageOrchestrator` — parallel fetch across enabled providers (menu bar)
 - `DateRange` — flexible date parsing, RFC 3339, inclusive end boundaries
 - `Redaction` — secret redaction for user-visible output
@@ -296,6 +297,14 @@ Load the `git-workflow` skill before committing. Commit message bodies are optio
 The root `VERSION` file is the release version and release tag source of truth (`v<version>`). `AppVersion.current` in `token-torch/Core/Utilities/AppVersion.swift` must match `VERSION`; app release builds pass `MARKETING_VERSION=$(cat VERSION)` to Xcode. Load the `semantic-versioning` skill before changing `VERSION` and keep version updates in the same commit as the behavior change.
 
 ## Recent Updates & Decisions
+
+### 2026-07-06: Claude doctor repair touch, readable error row, desktop notifications
+
+**What**: Claude Code credential repair now runs `claude doctor` (with stdin newline to dismiss the exit prompt) instead of piping `/status` into a headless session, which did not trigger proactive OAuth refresh. Menu error rows size to the full wrapped message and include an SF Symbol copy-to-clipboard control. Added a general notification system: pure Core `AppNotification` factories, app-layer `NotificationService` (`bootstrap()` requests authorization on first launch and posts a welcome notification on grant; `post(_:)` is use-case agnostic). First consumer: edge-triggered desktop alert when background Claude repair fails, gated by new Claude Settings toggle **Notify me when background credential repair fails** (`ProviderPreferences.notifyOnRepairFailure`, default on; manual Refresh shows the menu only). Repair failures use `TokenTorchError.claudeRepairFailed` and `ProviderReport.error(..., isRepairFailure:)`.
+
+**Why**: User testing confirmed `claude auth status` and piped `/status` do not refresh expired-but-refreshable tokens; `claude doctor` does (billing-free, trust dialog skipped). Long repair error text was truncated in the menu. Background timer failures need a visible alert when the menu is closed.
+
+**How**: `ClaudeCredentialRepair`, `TokenTorchError`, `ProviderReport`, `UsageOrchestrator`, `UsageMenuItemViews` (`ErrorRowView`), `NotificationService`, `AppDelegate`, `MenuBarViewModel`, `ProviderPreferences`, Claude Settings UI, tests, README, AGENTS. Version `5.6.0`.
 
 ### 2026-07-03: Fix Codex credit unit display
 

@@ -1,6 +1,7 @@
 import AppKit
+import UserNotifications
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private var model: MenuBarViewModel!
     private var settingsController: SettingsWindowController!
     private var statusItemController: StatusItemController!
@@ -14,6 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     private func bootstrap() {
         CredentialStoreMigration.migrateFromBurnIfNeeded()
+        UNUserNotificationCenter.current().delegate = self
+        NotificationService.bootstrap()
         model = MenuBarViewModel()
         settingsController = SettingsWindowController(model: model)
         statusItemController = StatusItemController(
@@ -21,6 +24,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             settingsOpener: settingsController
         )
         setupMainMenu()
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
     }
 
     @MainActor

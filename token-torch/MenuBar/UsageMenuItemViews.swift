@@ -93,13 +93,27 @@ enum UsageMenuItemViews {
     }
 
     static func errorRow(mode: String, message: String) -> NSMenuItem {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: MenuFormat.menuWidth, height: 36))
-        let label = labelField("\(mode): \(message)", font: MenuFormat.captionFont, color: .systemRed)
-        label.frame = NSRect(x: inset, y: 4, width: MenuFormat.menuWidth - inset * 2, height: 28)
-        label.maximumNumberOfLines = 2
-        label.lineBreakMode = .byWordWrapping
-        container.addSubview(label)
-        return customItem(view: container, height: 36)
+        let fullMessage = "\(mode): \(message)"
+        let verticalPadding: CGFloat = 4
+        let copyGap: CGFloat = 8
+        let textWidth = MenuFormat.menuWidth - inset * 2 - MenuFormat.copyButtonSize - copyGap
+        let font = MenuFormat.captionFont
+        let boundingRect = (fullMessage as NSString).boundingRect(
+            with: NSSize(width: textWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: [.font: font]
+        )
+        let maxHeight: CGFloat = 120
+        let textHeight = min(ceil(boundingRect.height), maxHeight)
+        let totalHeight = textHeight + verticalPadding * 2
+        let rowView = ErrorRowView(
+            fullMessage: fullMessage,
+            textWidth: textWidth,
+            textHeight: textHeight,
+            totalHeight: totalHeight,
+            verticalPadding: verticalPadding
+        )
+        return customItem(view: rowView, height: totalHeight)
     }
 
     static func providerHeader(
@@ -203,6 +217,95 @@ enum UsageMenuItemViews {
         let field = NSTextField(labelWithString: text)
         field.font = font
         field.textColor = color
+        field.isBezeled = false
+        field.drawsBackground = false
+        field.isEditable = false
+        return field
+    }
+}
+
+private final class ErrorRowView: NSView {
+    private let fullMessage: String
+    private let copyIcon: NSImageView
+    private var copyIconFrame: NSRect = .zero
+    private var copyRevertWorkItem: DispatchWorkItem?
+
+    init(
+        fullMessage: String,
+        textWidth: CGFloat,
+        textHeight: CGFloat,
+        totalHeight: CGFloat,
+        verticalPadding: CGFloat
+    ) {
+        self.fullMessage = fullMessage
+        let label = UsageMenuItemViews.labelFieldForErrorRow(fullMessage)
+        label.maximumNumberOfLines = 0
+        label.lineBreakMode = .byWordWrapping
+        label.preferredMaxLayoutWidth = textWidth
+        label.frame = NSRect(
+            x: UsageMenuItemViews.errorRowInset,
+            y: verticalPadding,
+            width: textWidth,
+            height: textHeight
+        )
+
+        let icon = NSImageView(
+            frame: NSRect(
+                x: MenuFormat.menuWidth - UsageMenuItemViews.errorRowInset - MenuFormat.copyButtonSize,
+                y: totalHeight - verticalPadding - MenuFormat.copyButtonSize,
+                width: MenuFormat.copyButtonSize,
+                height: MenuFormat.copyButtonSize
+            )
+        )
+        icon.image = NSImage(
+            systemSymbolName: "doc.on.doc",
+            accessibilityDescription: "Copy error"
+        )
+        icon.contentTintColor = .secondaryLabelColor
+        icon.imageScaling = .scaleProportionallyDown
+        icon.toolTip = "Copy error message"
+        copyIcon = icon
+        copyIconFrame = icon.frame
+
+        super.init(frame: NSRect(x: 0, y: 0, width: MenuFormat.menuWidth, height: totalHeight))
+        addSubview(label)
+        addSubview(icon)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        let location = convert(event.locationInWindow, from: nil)
+        guard copyIconFrame.contains(location) else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(fullMessage, forType: .string)
+        showCopyConfirmation()
+    }
+
+    private func showCopyConfirmation() {
+        copyIcon.image = NSImage(systemSymbolName: "checkmark", accessibilityDescription: "Copied")
+        copyRevertWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.copyIcon.image = NSImage(
+                systemSymbolName: "doc.on.doc",
+                accessibilityDescription: "Copy error"
+            )
+        }
+        copyRevertWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1, execute: workItem)
+    }
+}
+
+extension UsageMenuItemViews {
+    fileprivate static let errorRowInset: CGFloat = 12
+
+    fileprivate static func labelFieldForErrorRow(_ text: String) -> NSTextField {
+        let field = NSTextField(labelWithString: text)
+        field.font = MenuFormat.captionFont
+        field.textColor = .systemRed
         field.isBezeled = false
         field.drawsBackground = false
         field.isEditable = false
