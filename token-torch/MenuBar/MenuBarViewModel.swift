@@ -11,6 +11,7 @@ final class MenuBarViewModel {
     private var timer: Timer?
     private var pendingNonInteractiveRefresh = false
     private var isWaitingForNetwork = false
+    private var lastRepairFailureNotified = false
 
     init() {
         NotificationCenter.default.addObserver(
@@ -100,6 +101,16 @@ final class MenuBarViewModel {
             MenuTrackingRefresh.perform {
                 self.result = fetched
                 self.isLoading = false
+                if !interactive {
+                    let failureMessage = fetched.claudeRepairFailureMessage
+                    if let failureMessage,
+                        !self.lastRepairFailureNotified,
+                        ProviderPreferencesStore.shared.load().notifyOnRepairFailure
+                    {
+                        NotificationService.post(.claudeRepairFailed(message: failureMessage))
+                    }
+                    self.lastRepairFailureNotified = (failureMessage != nil)
+                }
                 self.notifyUpdated()
             }
         }

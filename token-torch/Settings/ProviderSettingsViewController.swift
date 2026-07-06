@@ -17,7 +17,12 @@ final class ProviderSettingsViewController: NSViewController {
     private var cursorValueRowsToggle: NSButton?
     private var cursorValueRowsHintLabel: NSTextField?
     private var automaticRepairToggle: NSButton?
+    private var notifyRepairFailureToggle: NSButton?
+    private var notifyRepairHintLabel: NSTextField?
+    private var claudeCLIPathLabel: NSTextField?
+    private var claudeCLIPathHintLabel: NSTextField?
     private var claudeCLIPathField: NSTextField?
+    private var claudeCLIPathBrowseButton: NSButton?
     private var tokenLabel: NSTextField!
     private var tokenField: NSSecureTextField!
     private var saveTokenButton: NSButton!
@@ -80,7 +85,13 @@ final class ProviderSettingsViewController: NSViewController {
         }
 
         if provider == .claude {
-            y -= Self.sectionGap + 22
+            y -= Self.sectionGap + 16
+            let sectionLabel = NSTextField(labelWithString: ProviderSettingsCopy.claudeBackgroundRepairSectionTitle())
+            sectionLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
+            sectionLabel.autoresizingMask = [.minYMargin, .width]
+            view.addSubview(sectionLabel)
+
+            y -= SettingsLayout.groupedControlGap + 22
             let repairToggle = NSButton(
                 checkboxWithTitle: "Automatically repair credentials in the background",
                 target: self,
@@ -97,17 +108,37 @@ final class ProviderSettingsViewController: NSViewController {
             repairHint.frame = NSRect(x: x, y: y, width: controlW, height: repairHintHeight)
             view.addSubview(repairHint)
 
+            y -= Self.sectionGap + 22
+            let notifyToggle = NSButton(
+                checkboxWithTitle: "Notify me when background credential repair fails",
+                target: self,
+                action: #selector(notifyRepairFailureChanged)
+            )
+            notifyToggle.frame = NSRect(x: x, y: y, width: controlW, height: 22)
+            notifyToggle.autoresizingMask = [.minYMargin, .width]
+            view.addSubview(notifyToggle)
+            notifyRepairFailureToggle = notifyToggle
+
+            let notifyHint = SettingsLayout.makeHintLabel(ProviderSettingsCopy.claudeRepairFailureNotificationHint())
+            let notifyHintHeight = SettingsLayout.measuredHintHeight(notifyHint, width: controlW)
+            y -= SettingsLayout.groupedControlGap + notifyHintHeight
+            notifyHint.frame = NSRect(x: x, y: y, width: controlW, height: notifyHintHeight)
+            view.addSubview(notifyHint)
+            notifyRepairHintLabel = notifyHint
+
             y -= Self.sectionGap + 16
             let pathLabel = NSTextField(labelWithString: "Claude CLI path")
             pathLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
             pathLabel.autoresizingMask = [.minYMargin, .width]
             view.addSubview(pathLabel)
+            claudeCLIPathLabel = pathLabel
 
             let pathHint = SettingsLayout.makeHintLabel(ProviderSettingsCopy.claudeCLIPathHint())
             let pathHintHeight = SettingsLayout.measuredHintHeight(pathHint, width: controlW)
             y -= 4 + pathHintHeight
             pathHint.frame = NSRect(x: x, y: y, width: controlW, height: pathHintHeight)
             view.addSubview(pathHint)
+            claudeCLIPathHintLabel = pathHint
 
             y -= SettingsLayout.groupedControlGap + 22
             let browseWidth: CGFloat = 88
@@ -125,6 +156,7 @@ final class ProviderSettingsViewController: NSViewController {
             browseButton.frame = NSRect(x: w - x - browseWidth, y: y, width: browseWidth, height: 22)
             browseButton.autoresizingMask = [.minYMargin, .minXMargin]
             view.addSubview(browseButton)
+            claudeCLIPathBrowseButton = browseButton
         }
 
         if usesPersonalAccessToken {
@@ -250,7 +282,9 @@ final class ProviderSettingsViewController: NSViewController {
         additionalUsageToggle?.state = prefs.showAdditionalModelUsage ? .on : .off
         cursorValueRowsToggle?.state = prefs.showCursorUsageValueAndBonus ? .on : .off
         automaticRepairToggle?.state = prefs.claudeAutomaticRepair ? .on : .off
+        notifyRepairFailureToggle?.state = prefs.notifyOnRepairFailure ? .on : .off
         claudeCLIPathField?.stringValue = prefs.claudeCLIPath ?? ""
+        updateClaudeRepairDependentControls()
         loadKeys()
     }
 
@@ -276,6 +310,26 @@ final class ProviderSettingsViewController: NSViewController {
     @objc private func automaticRepairChanged() {
         var prefs = preferences.load()
         prefs.claudeAutomaticRepair = automaticRepairToggle?.state == .on
+        preferences.save(prefs)
+        updateClaudeRepairDependentControls()
+    }
+
+    private func updateClaudeRepairDependentControls() {
+        let enabled = automaticRepairToggle?.state == .on
+        notifyRepairFailureToggle?.isEnabled = enabled
+        claudeCLIPathField?.isEnabled = enabled
+        claudeCLIPathBrowseButton?.isEnabled = enabled
+
+        let labelColor: NSColor = enabled ? .labelColor : .tertiaryLabelColor
+        let hintColor: NSColor = enabled ? .secondaryLabelColor : .tertiaryLabelColor
+        claudeCLIPathLabel?.textColor = labelColor
+        notifyRepairHintLabel?.textColor = hintColor
+        claudeCLIPathHintLabel?.textColor = hintColor
+    }
+
+    @objc private func notifyRepairFailureChanged() {
+        var prefs = preferences.load()
+        prefs.notifyOnRepairFailure = notifyRepairFailureToggle?.state == .on
         preferences.save(prefs)
     }
 

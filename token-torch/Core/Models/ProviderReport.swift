@@ -4,14 +4,14 @@ public enum ProviderReport: Sendable, Equatable {
     case subscription(SubscriptionQuotaReport)
     case org(OrgUsageReport)
     case needsAuthorization(provider: ProviderID, mode: String)
-    case error(provider: ProviderID, mode: String, message: String)
+    case error(provider: ProviderID, mode: String, message: String, isRepairFailure: Bool)
 
     /// Which reorderable menu view this report belongs to (subscription vs org billing).
     public var sectionKind: ProviderSectionKind {
         switch self {
             case .subscription: .subscription
             case .org: .orgBilling
-            case .needsAuthorization(_, let mode), .error(_, let mode, _):
+            case .needsAuthorization(_, let mode), .error(_, let mode, _, _):
                 mode == "subscription" ? .subscription : .orgBilling
         }
     }
@@ -34,5 +34,18 @@ public struct AllProvidersResult: Sendable {
     public init(fetchedAt: Date = Date(), results: [ProviderFetchResult]) {
         self.fetchedAt = fetchedAt
         self.results = results
+    }
+}
+
+extension AllProvidersResult {
+    public var claudeRepairFailureMessage: String? {
+        for result in results where result.provider == .claude {
+            for report in result.reports {
+                if case let .error(_, _, message, isRepairFailure) = report, isRepairFailure {
+                    return message
+                }
+            }
+        }
+        return nil
     }
 }

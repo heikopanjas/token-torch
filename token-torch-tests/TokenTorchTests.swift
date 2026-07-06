@@ -343,6 +343,59 @@ import Testing
     #expect(unset == executable.path)
 }
 
+@Test func claudeRepairTouchUsesDoctorSubcommand() {
+    #expect(ClaudeCredentialRepair.doctorTouchArguments == ["doctor"])
+}
+
+@Test func providerPreferencesNotifyOnRepairFailureDefaultsTrue() throws {
+    let legacy = """
+        {"claude":{"subscriptionQuotaEnabled":true,"orgBillingEnabled":false},"codex":{"subscriptionQuotaEnabled":true,"orgBillingEnabled":false},"cursor":{"subscriptionQuotaEnabled":true,"orgBillingEnabled":false},"refreshIntervalMinutes":15}
+        """
+    let prefs = try JSONDecoder().decode(ProviderPreferences.self, from: Data(legacy.utf8))
+    #expect(prefs.notifyOnRepairFailure)
+}
+
+@Test func providerPreferencesNotifyOnRepairFailureRoundTripThroughCoding() throws {
+    var prefs = ProviderPreferences()
+    prefs.notifyOnRepairFailure = false
+    let data = try JSONEncoder().encode(prefs)
+    let decoded = try JSONDecoder().decode(ProviderPreferences.self, from: data)
+    #expect(!decoded.notifyOnRepairFailure)
+}
+
+@Test func allProvidersResultClaudeRepairFailureMessage() {
+    let repairResult = AllProvidersResult(results: [
+        ProviderFetchResult(
+            provider: .claude,
+            reports: [
+                .error(provider: .claude, mode: "subscription", message: "repair failed", isRepairFailure: true)
+            ])
+    ])
+    #expect(repairResult.claudeRepairFailureMessage == "repair failed")
+
+    let plainError = AllProvidersResult(results: [
+        ProviderFetchResult(
+            provider: .claude,
+            reports: [
+                .error(provider: .claude, mode: "subscription", message: "other error", isRepairFailure: false)
+            ])
+    ])
+    #expect(plainError.claudeRepairFailureMessage == nil)
+}
+
+@Test func appNotificationClaudeRepairFailedCarriesMessage() {
+    let notification = AppNotification.claudeRepairFailed(message: "token unchanged")
+    #expect(notification.identifier == "token-torch.claude-repair-failed")
+    #expect(notification.title == "Claude Code credential repair failed")
+    #expect(notification.body == "token unchanged")
+}
+
+@Test func appNotificationWelcomeHasStableIdentifier() {
+    #expect(AppNotification.welcome.identifier == "token-torch.welcome")
+    #expect(AppNotification.welcome.title.contains(AppBrand.displayName))
+    #expect(!AppNotification.welcome.playsSound)
+}
+
 @Test func menuBarIconProviderMapsPdfResources() {
     #expect(MenuBarIconProvider.topOfProviderList.pdfResourceName == nil)
     #expect(MenuBarIconProvider.anthropic.pdfResourceName == "anthropic")

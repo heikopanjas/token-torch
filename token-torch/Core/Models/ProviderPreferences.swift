@@ -86,6 +86,8 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
     public var claudeAutomaticRepair: Bool
     /// Absolute path to the `claude` CLI used by the repair touch step. Empty/nil auto-detects on PATH.
     public var claudeCLIPath: String?
+    /// When true, post a desktop notification when background Claude Code credential repair fails.
+    public var notifyOnRepairFailure: Bool
     /// User-chosen order of the six menu views (provider + subscription/org). Normalize via `orderedSections()`.
     public var sectionOrder: [ProviderSection]
     /// Menu bar status item icon (Anthropic, OpenAI, Cursor, or Copilot PDF).
@@ -104,6 +106,7 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         showCursorUsageValueAndBonus: Bool = false,
         claudeAutomaticRepair: Bool = false,
         claudeCLIPath: String? = nil,
+        notifyOnRepairFailure: Bool = true,
         sectionOrder: [ProviderSection] = ProviderSection.allSections,
         menuBarIcon: MenuBarIconProvider = .cursor
     ) {
@@ -119,6 +122,7 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         self.showCursorUsageValueAndBonus = showCursorUsageValueAndBonus
         self.claudeAutomaticRepair = claudeAutomaticRepair
         self.claudeCLIPath = claudeCLIPath
+        self.notifyOnRepairFailure = notifyOnRepairFailure
         self.sectionOrder = sectionOrder
         self.menuBarIcon = menuBarIcon
     }
@@ -144,6 +148,7 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
             try container.decodeIfPresent(Bool.self, forKey: .showCursorUsageValueAndBonus) ?? false
         claudeAutomaticRepair = try container.decodeIfPresent(Bool.self, forKey: .claudeAutomaticRepair) ?? false
         claudeCLIPath = try container.decodeIfPresent(String.self, forKey: .claudeCLIPath)
+        notifyOnRepairFailure = try container.decodeIfPresent(Bool.self, forKey: .notifyOnRepairFailure) ?? true
         sectionOrder = try container.decodeIfPresent([ProviderSection].self, forKey: .sectionOrder) ?? ProviderSection.allSections
         menuBarIcon = try container.decodeIfPresent(MenuBarIconProvider.self, forKey: .menuBarIcon) ?? .cursor
     }

@@ -37,8 +37,16 @@ enum ProviderSettingsCopy {
         "When enabled, shows Cursor's estimated Total usage value and Bonus rows. Off by default; the quota meters and Credits row are always visible."
     }
 
+    static func claudeBackgroundRepairSectionTitle() -> String {
+        "Background credential repair"
+    }
+
     static func claudeAutomaticRepairHint() -> String {
-        "When enabled, \(AppBrand.displayName) may repair the Claude Code credential copy during automatic (startup and timer) refreshes. This can launch the `claude` CLI in the background and prompt for Keychain access. Off by default; manual Refresh always repairs on authentication failure."
+        "When enabled, \(AppBrand.displayName) may repair the Claude Code credential copy during automatic (startup and timer) refreshes. This can launch the `claude doctor` health check in the background and prompt for Keychain access. Off by default; manual Refresh always repairs on authentication failure."
+    }
+
+    static func claudeRepairFailureNotificationHint() -> String {
+        "When enabled, \(AppBrand.displayName) posts a desktop notification if background Claude Code credential repair fails during startup or timer refreshes. On by default; manual Refresh still shows the error in the menu only."
     }
 
     static func claudeCLIPathHint() -> String {

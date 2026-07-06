@@ -38,6 +38,7 @@
 		B0010100000000000000001D /* NetworkManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0010200000000000000001F /* NetworkManager.swift */; };
 		B00101000000000000000021 /* InfoSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000021 /* InfoSettingsViewController.swift */; };
 		B00101000000000000000022 /* InfoSettingsCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000022 /* InfoSettingsCopy.swift */; };
+		B00101000000000000000023 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000023 /* NotificationService.swift */; };
 		C0040000000000000004 /* AppKeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000003 /* AppKeychainStore.swift */; };
 		C0040000000000000006 /* CredentialStoreMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000005 /* CredentialStoreMigration.swift */; };
 		C0040000000000000008 /* KeychainReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000007 /* KeychainReader.swift */; };
@@ -55,6 +56,7 @@
 		C0040000000000000038 /* AnthropicOrgProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000037 /* AnthropicOrgProvider.swift */; };
 		C0040000000000000041 /* ClaudeQuotaProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000040 /* ClaudeQuotaProvider.swift */; };
 		C004000000000000008B /* ClaudeCredentialRepair.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000008B /* ClaudeCredentialRepair.swift */; };
+		C004000000000000008C /* AppNotification.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000008C /* AppNotification.swift */; };
 		C0040000000000000044 /* CodexQuotaProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000043 /* CodexQuotaProvider.swift */; };
 		C0040000000000000047 /* CopilotQuotaProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000046 /* CopilotQuotaProvider.swift */; };
 		C0040000000000000050 /* CursorQuotaProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000049 /* CursorQuotaProvider.swift */; };
@@ -111,6 +113,7 @@
 		B0010200000000000000001F /* NetworkManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkManager.swift; sourceTree = "<group>"; };
 		B00102000000000000000021 /* InfoSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoSettingsViewController.swift; sourceTree = "<group>"; };
 		B00102000000000000000022 /* InfoSettingsCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoSettingsCopy.swift; sourceTree = "<group>"; };
+		B00102000000000000000023 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		C0030000000000000003 /* AppKeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppKeychainStore.swift; sourceTree = "<group>"; };
 		C0030000000000000005 /* CredentialStoreMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialStoreMigration.swift; sourceTree = "<group>"; };
 		C0030000000000000007 /* KeychainReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainReader.swift; sourceTree = "<group>"; };
@@ -128,6 +131,7 @@
 		C0030000000000000037 /* AnthropicOrgProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnthropicOrgProvider.swift; sourceTree = "<group>"; };
 		C0030000000000000040 /* ClaudeQuotaProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeQuotaProvider.swift; sourceTree = "<group>"; };
 		C003000000000000008B /* ClaudeCredentialRepair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCredentialRepair.swift; sourceTree = "<group>"; };
+		C003000000000000008C /* AppNotification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNotification.swift; sourceTree = "<group>"; };
 		C0030000000000000043 /* CodexQuotaProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexQuotaProvider.swift; sourceTree = "<group>"; };
 		C0030000000000000046 /* CopilotQuotaProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CopilotQuotaProvider.swift; sourceTree = "<group>"; };
 		C0030000000000000049 /* CursorQuotaProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorQuotaProvider.swift; sourceTree = "<group>"; };
@@ -186,6 +190,7 @@
 				B00102000000000000000015 /* main.swift */,
 				B00102000000000000000001 /* AppDelegate.swift */,
 				B0010200000000000000000A /* AppActions.swift */,
+				B00102000000000000000023 /* NotificationService.swift */,
 				B00104000000000000000005 /* MenuBar */,
 				B00104000000000000000006 /* Settings */,
 				B00102000000000000000002 /* Assets.xcassets */,
@@ -296,6 +301,7 @@
 				C0030000000000000027 /* OrgModels.swift */,
 				C0030000000000000029 /* ProviderPreferences.swift */,
 				C0030000000000000031 /* ProviderReport.swift */,
+				C003000000000000008C /* AppNotification.swift */,
 				C0030000000000000033 /* QuotaModels.swift */,
 			);
 			path = Models;
@@ -495,6 +501,7 @@
 				B00101000000000000000013 /* main.swift in Sources */,
 				B00101000000000000000001 /* AppDelegate.swift in Sources */,
 				B00101000000000000000008 /* AppActions.swift in Sources */,
+				B00101000000000000000023 /* NotificationService.swift in Sources */,
 				B00101000000000000000009 /* MenuBarViewModel.swift in Sources */,
 				B0010100000000000000000A /* MenuFormat.swift in Sources */,
 				B0010100000000000000000B /* ProviderIcons.swift in Sources */,
@@ -530,6 +537,7 @@
 				C0040000000000000028 /* OrgModels.swift in Sources */,
 				C0040000000000000030 /* ProviderPreferences.swift in Sources */,
 				C0040000000000000032 /* ProviderReport.swift in Sources */,
+				C004000000000000008C /* AppNotification.swift in Sources */,
 				C0040000000000000034 /* QuotaModels.swift in Sources */,
 				C0040000000000000038 /* AnthropicOrgProvider.swift in Sources */,
 				C0040000000000000041 /* ClaudeQuotaProvider.swift in Sources */,

@@ -77,7 +77,14 @@ public struct UsageOrchestrator: Sendable {
                 reports.append(.org(org))
             }
             catch {
-                reports.append(.error(provider: provider, mode: "org billing", message: Redaction.redactSecrets(error.localizedDescription)))
+                reports.append(
+                    .error(
+                        provider: provider,
+                        mode: "org billing",
+                        message: Redaction.redactSecrets(error.localizedDescription),
+                        isRepairFailure: false
+                    )
+                )
             }
         }
 
@@ -117,7 +124,19 @@ public struct UsageOrchestrator: Sendable {
             if !interactive, Self.isNeedsAuthorization(error) {
                 return .needsAuthorization(provider: provider, mode: "subscription")
             }
-            return .error(provider: provider, mode: "subscription", message: Redaction.redactSecrets(error.localizedDescription))
+            let isRepairFailure: Bool
+            if case TokenTorchError.claudeRepairFailed = error {
+                isRepairFailure = true
+            }
+            else {
+                isRepairFailure = false
+            }
+            return .error(
+                provider: provider,
+                mode: "subscription",
+                message: Redaction.redactSecrets(error.localizedDescription),
+                isRepairFailure: isRepairFailure
+            )
         }
     }
 
