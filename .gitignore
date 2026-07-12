@@ -30,9 +30,6 @@ playground.xcworkspace
 # .swiftpm
 
 .build/
-build/
-DerivedData/
-*.xcuserstate
 
 # CocoaPods
 #
@@ -63,12 +60,3 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
-
-# Visual Studio Code
-.vscode/
-
-# Sweetpad
-buildServer.json
-
-# Xcode
-Index.noindex/

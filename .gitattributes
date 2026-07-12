@@ -38,6 +38,7 @@ Makefile text
 CMakeLists.txt text
 Cargo.toml text
 Cargo.lock text
+Package.swift text
 
 # Scripts
 *.sh text eol=lf
