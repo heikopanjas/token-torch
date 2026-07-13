@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import Testing
 
@@ -111,6 +112,172 @@ import Testing
     #expect(session.rateLimitTier == "default_claude_ai")
     #expect(session.subscriptionType == "pro")
     #expect(session.source == .claudeKeychain(service: "Claude Code-credentials"))
+}
+
+@Test func securityCLIArgumentsKeepServiceAndAccountSeparate() {
+    #expect(
+        SecurityCLIReader.arguments(service: "Claude Code-credentials", account: "test-user")
+            == ["find-generic-password", "-s", "Claude Code-credentials", "-a", "test-user", "-w"]
+    )
+    #expect(
+        SecurityCLIReader.arguments(service: "Codex Auth", account: nil)
+            == ["find-generic-password", "-s", "Codex Auth", "-w"]
+    )
+}
+
+@Test func securityCLIPasswordTrimsOutputAndMapsMissingItem() throws {
+    let success = ProcessRunner.Result(
+        standardOutput: Data("  secret-value\n".utf8),
+        standardError: Data(),
+        terminationStatus: 0
+    )
+    let missing = ProcessRunner.Result(
+        standardOutput: Data(),
+        standardError: Data("not found".utf8),
+        terminationStatus: 44
+    )
+
+    #expect(try SecurityCLIReader.password(from: success, service: "test") == "secret-value")
+    #expect(try SecurityCLIReader.password(from: missing, service: "test") == nil)
+}
+
+@Test func securityCLIEmptyPasswordMapsToNil() throws {
+    let result = ProcessRunner.Result(
+        standardOutput: Data(" \n".utf8),
+        standardError: Data(),
+        terminationStatus: 0
+    )
+
+    #expect(try SecurityCLIReader.password(from: result, service: "test") == nil)
+}
+
+@Test func securityCLITimeoutAllowsInteractiveAuthorization() {
+    #expect(SecurityCLIReader.timeout(interactive: false) == 1.5)
+    #expect(SecurityCLIReader.timeout(interactive: true) == 30)
+}
+
+@Test func processRunnerCapturesConcurrentOutput() async throws {
+    let result = try await ProcessRunner.run(
+        executablePath: "/bin/sh",
+        arguments: [
+            "-c",
+            "i=0; while [ $i -lt 2000 ]; do printf 1234567890; printf abcdefghij >&2; i=$((i+1)); done"
+        ],
+        timeout: 5
+    )
+
+    #expect(result.terminationStatus == 0)
+    #expect(result.standardOutput.count == 20_000)
+    #expect(result.standardError.count == 20_000)
+}
+
+@Test(arguments: Array(0 ..< 20))
+func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
+    let expected = "fast-output-\(iteration)"
+    let result = try await ProcessRunner.run(
+        executablePath: "/usr/bin/printf",
+        arguments: [expected],
+        timeout: 1
+    )
+
+    #expect(String(data: result.standardOutput, encoding: .utf8) == expected)
+}
+
+@Test func processRunnerTimesOut() async {
+    do {
+        _ = try await ProcessRunner.run(
+            executablePath: "/bin/sleep",
+            arguments: ["2"],
+            timeout: 0.05
+        )
+        Issue.record("Expected the process to time out.")
+    }
+    catch let error as ProcessRunner.Failure {
+        guard case .timedOut(let commandName) = error else {
+            Issue.record("Expected a timeout failure.")
+            return
+        }
+        #expect(commandName == "sleep")
+    }
+    catch {
+        Issue.record("Unexpected error: \(error)")
+    }
+}
+
+@Test func processRunnerPropagatesCancellation() async {
+    let task = Task {
+        return try await ProcessRunner.run(
+            executablePath: "/bin/sleep",
+            arguments: ["2"],
+            timeout: 5
+        )
+    }
+    try? await Task.sleep(nanoseconds: 50_000_000)
+    task.cancel()
+
+    do {
+        _ = try await task.value
+        Issue.record("Expected process cancellation.")
+    }
+    catch is CancellationError {
+        return
+    }
+    catch {
+        Issue.record("Unexpected error: \(error)")
+    }
+}
+
+@Test func processRunnerTimeoutKillsDescendants() async throws {
+    let pidURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("token-torch-process-runner-\(UUID().uuidString).pid")
+    defer { try? FileManager.default.removeItem(at: pidURL) }
+
+    do {
+        _ = try await ProcessRunner.run(
+            executablePath: "/bin/sh",
+            arguments: ["-c", "/bin/sleep 5 & echo $! > \"$PID_FILE\"; wait"],
+            timeout: 0.2,
+            environment: ["PID_FILE": pidURL.path]
+        )
+        Issue.record("Expected the process group to time out.")
+    }
+    catch let error as ProcessRunner.Failure {
+        guard case .timedOut = error else {
+            Issue.record("Expected a timeout failure.")
+            return
+        }
+    }
+    catch {
+        Issue.record("Unexpected error: \(error)")
+        return
+    }
+
+    let pidText = try String(contentsOf: pidURL, encoding: .utf8)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    let childPID = try #require(pid_t(pidText))
+    try await Task.sleep(nanoseconds: 300_000_000)
+    errno = 0
+    let probe = Darwin.kill(childPID, 0)
+    #expect(probe == -1)
+    #expect(errno == ESRCH)
+}
+
+@Test func securityCLIReadAllPropagatesPreexistingCancellation() async {
+    let task = Task {
+        return try await SecurityCLIReader.readAllGenericPasswords(service: "Token Torch cancellation test")
+    }
+    task.cancel()
+
+    do {
+        _ = try await task.value
+        Issue.record("Expected Keychain read cancellation.")
+    }
+    catch is CancellationError {
+        return
+    }
+    catch {
+        Issue.record("Unexpected error: \(error)")
+    }
 }
 
 @Test func claudeAccessTokenFingerprintDoesNotExposeToken() {
@@ -343,8 +510,92 @@ import Testing
     #expect(unset == executable.path)
 }
 
-@Test func claudeRepairTouchUsesDoctorSubcommand() {
-    #expect(ClaudeCredentialRepair.doctorTouchArguments == ["doctor"])
+@Test func claudeRepairUsesOneShellForUnsetAndUsageCommand() {
+    let claudePath = "/Applications/Claude Code/claude"
+    #expect(ClaudeCredentialRepair.usageRefreshShellPath == "/bin/zsh")
+    #expect(
+        ClaudeCredentialRepair.usageRefreshShellScript
+            == #"unset ANTHROPIC_API_KEY; exec "$1" -p "/usage""#
+    )
+    #expect(
+        ClaudeCredentialRepair.usageRefreshShellArguments(claudePath: claudePath)
+            == [
+                "-c",
+                ClaudeCredentialRepair.usageRefreshShellScript,
+                "token-torch-claude-repair",
+                claudePath
+            ]
+    )
+}
+
+@Test func claudeRepairShellUnsetsAnthropicAPIKeyBeforeExec() async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let fakeClaude = directory.appendingPathComponent("claude")
+    let script = """
+        #!/bin/zsh
+        if [[ -n "${ANTHROPIC_API_KEY+x}" ]]; then
+            print -r -- "ANTHROPIC_API_KEY is still set"
+            exit 9
+        fi
+        print -r -- "$*|$UNRELATED"
+        """
+    try script.write(to: fakeClaude, atomically: true, encoding: .utf8)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fakeClaude.path)
+    let environment = [
+        "ANTHROPIC_API_KEY": "must-not-reach-claude",
+        "UNRELATED": "preserved"
+    ]
+
+    let result = try await ProcessRunner.run(
+        executablePath: ClaudeCredentialRepair.usageRefreshShellPath,
+        arguments: ClaudeCredentialRepair.usageRefreshShellArguments(claudePath: fakeClaude.path),
+        timeout: 2,
+        environment: environment
+    )
+    let output = try #require(String(data: result.standardOutput, encoding: .utf8))
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    #expect(result.terminationStatus == 0)
+    #expect(output == "-p /usage|preserved")
+}
+
+@Test func claudeRepairCapturesUsageCommandOutput() throws {
+    let result = ProcessRunner.Result(
+        standardOutput: Data("Claude usage refresh output".utf8),
+        standardError: Data(),
+        terminationStatus: 0
+    )
+
+    let output = try ClaudeCredentialRepair.validateUsageRefreshResult(
+        result,
+        executablePath: "/usr/local/bin/claude"
+    )
+    #expect(output == "Claude usage refresh output")
+}
+
+@Test func claudeRepairFailureCarriesCommandOutput() {
+    let result = ProcessRunner.Result(
+        standardOutput: Data("Claude usage refresh output".utf8),
+        standardError: Data("refresh failed".utf8),
+        terminationStatus: 1
+    )
+
+    do {
+        _ = try ClaudeCredentialRepair.validateUsageRefreshResult(
+            result,
+            executablePath: "/usr/local/bin/claude"
+        )
+        Issue.record("Expected Claude repair failure")
+    }
+    catch TokenTorchError.claudeRepairFailed(let message, let commandOutput) {
+        #expect(message == "refresh failed")
+        #expect(commandOutput == "Claude usage refresh output\n\nstderr:\nrefresh failed")
+    }
+    catch {
+        Issue.record("Unexpected error: \(error)")
+    }
 }
 
 @Test func providerPreferencesNotifyOnRepairFailureDefaultsTrue() throws {
@@ -368,7 +619,13 @@ import Testing
         ProviderFetchResult(
             provider: .claude,
             reports: [
-                .error(provider: .claude, mode: "subscription", message: "repair failed", isRepairFailure: true)
+                .error(
+                    provider: .claude,
+                    mode: "subscription",
+                    message: "repair failed",
+                    diagnosticOutput: "command output",
+                    isRepairFailure: true
+                )
             ])
     ])
     #expect(repairResult.claudeRepairFailureMessage == "repair failed")
@@ -377,10 +634,26 @@ import Testing
         ProviderFetchResult(
             provider: .claude,
             reports: [
-                .error(provider: .claude, mode: "subscription", message: "other error", isRepairFailure: false)
+                .error(
+                    provider: .claude,
+                    mode: "subscription",
+                    message: "other error",
+                    diagnosticOutput: nil,
+                    isRepairFailure: false
+                )
             ])
     ])
     #expect(plainError.claudeRepairFailureMessage == nil)
+}
+
+@Test func errorRowTextIncludesClaudeCommandOutput() {
+    let text = UsageMenuItemViews.errorRowText(
+        mode: "subscription",
+        message: "repair failed",
+        diagnosticOutput: "usage details"
+    )
+
+    #expect(text == "subscription: repair failed\n\nclaude -p \"/usage\" output:\nusage details")
 }
 
 @Test func appNotificationClaudeRepairFailedCarriesMessage() {
@@ -698,28 +971,28 @@ import Testing
     #expect(VendorCredentialCache.claudeSession() == nil)
 }
 
-@Test func ensureImportedSkipsWhenQuotaDisabled() throws {
-    try VendorCredentialImporter.ensureImported(provider: .cursor, quotaEnabled: false)
+@Test func ensureImportedSkipsWhenQuotaDisabled() async throws {
+    try await VendorCredentialImporter.ensureImported(provider: .cursor, quotaEnabled: false)
 }
 
-@Test func ensureImportedForEnabledProvidersSkipsDisabledProviders() throws {
+@Test func ensureImportedForEnabledProvidersSkipsDisabledProviders() async throws {
     var preferences = ProviderPreferences()
     preferences.claude = ProviderModeFlags(subscriptionQuotaEnabled: false, orgBillingEnabled: false)
     preferences.codex = ProviderModeFlags(subscriptionQuotaEnabled: false, orgBillingEnabled: false)
     preferences.cursor = ProviderModeFlags(subscriptionQuotaEnabled: false, orgBillingEnabled: false)
-    try VendorCredentialImporter.ensureImportedForEnabledProviders(preferences: preferences)
+    try await VendorCredentialImporter.ensureImportedForEnabledProviders(preferences: preferences)
 }
 
-@Test func ensureImportedForEnabledProvidersNonInteractiveSkipsDisabledProviders() throws {
+@Test func ensureImportedForEnabledProvidersNonInteractiveSkipsDisabledProviders() async throws {
     var preferences = ProviderPreferences()
     preferences.claude = ProviderModeFlags(subscriptionQuotaEnabled: false, orgBillingEnabled: false)
     preferences.codex = ProviderModeFlags(subscriptionQuotaEnabled: false, orgBillingEnabled: false)
     preferences.cursor = ProviderModeFlags(subscriptionQuotaEnabled: false, orgBillingEnabled: false)
-    try VendorCredentialImporter.ensureImportedForEnabledProviders(preferences: preferences, interactive: false)
+    try await VendorCredentialImporter.ensureImportedForEnabledProviders(preferences: preferences, interactive: false)
 }
 
-@Test func resetAndReimportWithQuotaDisabledOnlyResets() throws {
-    try VendorCredentialImporter.resetAndReimport(provider: .cursor, quotaEnabled: false, interactive: false)
+@Test func resetAndReimportWithQuotaDisabledOnlyResets() async throws {
+    try await VendorCredentialImporter.resetAndReimport(provider: .cursor, quotaEnabled: false, interactive: false)
 }
 
 @Test func requireUsableSessionThrowsForExpiredToken() {
@@ -750,7 +1023,7 @@ import Testing
     try QuotaHTTP.requireUsableSession(session, provider: "Claude Code", vendorAction: "Re-login with Claude Code (/login).")
 }
 
-@Test func usableSessionKeepsUsableSessionWithoutReimporting() throws {
+@Test func usableSessionKeepsUsableSessionWithoutReimporting() async throws {
     let session = OAuthSession(
         accessToken: "access",
         refreshToken: "refresh",
@@ -762,7 +1035,7 @@ import Testing
     )
     var reimported = false
 
-    let resolved = try QuotaHTTP.usableSession(
+    let resolved = try await QuotaHTTP.usableSession(
         session,
         provider: "Claude Code",
         vendorAction: "Re-login with Claude Code (/login)."
@@ -775,7 +1048,7 @@ import Testing
     #expect(reimported == false)
 }
 
-@Test func usableSessionReimportsExpiredSessionBeforeRequest() throws {
+@Test func usableSessionReimportsExpiredSessionBeforeRequest() async throws {
     let expired = OAuthSession(
         accessToken: "old",
         refreshToken: "old-refresh",
@@ -796,7 +1069,7 @@ import Testing
     )
     var reimportCount = 0
 
-    let resolved = try QuotaHTTP.usableSession(
+    let resolved = try await QuotaHTTP.usableSession(
         expired,
         provider: "Claude Code",
         vendorAction: "Re-login with Claude Code (/login)."
@@ -808,6 +1081,35 @@ import Testing
     #expect(resolved.accessToken == "new")
     #expect(resolved.source == .claudeKeychain(service: "Claude Code-credentials-test"))
     #expect(reimportCount == 1)
+}
+
+@Test func usableSessionPropagatesReauthenticationCancellation() async {
+    let expired = OAuthSession(
+        accessToken: "old",
+        refreshToken: "old-refresh",
+        expiresAt: 1,
+        accountID: nil,
+        subscriptionType: nil,
+        rateLimitTier: nil,
+        source: .tokenTorchCopy
+    )
+
+    do {
+        _ = try await QuotaHTTP.usableSession(
+            expired,
+            provider: "Claude Code",
+            vendorAction: "Re-login with Claude Code (/login)."
+        ) {
+            throw CancellationError()
+        }
+        Issue.record("Expected reauthentication cancellation.")
+    }
+    catch is CancellationError {
+        return
+    }
+    catch {
+        Issue.record("Unexpected error: \(error)")
+    }
 }
 
 @Test func needsAuthorizationErrorMentionsProviderAndRefresh() {

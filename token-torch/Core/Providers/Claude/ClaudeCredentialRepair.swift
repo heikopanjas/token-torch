@@ -1,37 +1,36 @@
 import CryptoKit
-import Darwin
 import Foundation
 
 enum ClaudeCredentialRepair {
-    static let doctorTouchArguments = ["doctor"]
+    static let usageRefreshShellPath = "/bin/zsh"
+    static let usageRefreshShellScript = #"unset ANTHROPIC_API_KEY; exec "$1" -p "/usage""#
 
-    private static let securityPath = "/usr/bin/security"
-    private static let securityTimeout: TimeInterval = 1.5
     private static let repairTimeout: TimeInterval = 20
     private static let pollInterval: TimeInterval = 0.5
     private static let defaultKeychainService = "Claude Code-credentials"
 
     static func repairAndImport(
         baseline: OAuthSession?,
+        interactive: Bool = false,
         claudeExecutablePath: String? = nil,
         timeout: TimeInterval = repairTimeout,
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) async throws -> OAuthSession {
-        if let current = try await currentNoPromptSession(),
+        if let current = try await Self.currentNoPromptSession(interactive: interactive),
             shouldImport(current, comparedTo: baseline)
         {
             try saveTokenTorchCopy(current)
             return current
         }
 
-        let touchResult: Result<Void, Error>
+        let touchResult: Result<String?, Error>
         do {
-            try await touchClaudeCLIAuthPath(
+            let commandOutput = try await Self.refreshClaudeCLIAuthPath(
                 timeout: min(timeout, 12),
                 environment: environment,
                 claudeExecutablePath: claudeExecutablePath
             )
-            touchResult = .success(())
+            touchResult = .success(commandOutput)
         }
         catch {
             touchResult = .failure(error)
@@ -40,7 +39,7 @@ enum ClaudeCredentialRepair {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             try Task.checkCancellation()
-            if let current = try await currentNoPromptSession(),
+            if let current = try await Self.currentNoPromptSession(interactive: interactive),
                 shouldImport(current, comparedTo: baseline)
             {
                 try saveTokenTorchCopy(current)
@@ -50,30 +49,43 @@ enum ClaudeCredentialRepair {
         }
 
         switch touchResult {
-            case .success:
+            case .success(let commandOutput):
                 throw TokenTorchError.claudeRepairFailed(
-                    "Claude Code repair ran, but the Keychain access token did not change. Run `claude doctor` in a terminal (or launch Claude Code), then retry Token Torch refresh."
+                    message:
+                        "Claude Code repair ran, but the Keychain access token did not change. Run `unset ANTHROPIC_API_KEY; claude -p \"/usage\"` in a terminal, then retry Token Torch refresh.",
+                    commandOutput: commandOutput
                 )
             case .failure(let error):
+                let commandOutput: String?
+                if case TokenTorchError.claudeRepairFailed(_, let output) = error {
+                    commandOutput = output
+                }
+                else {
+                    commandOutput = nil
+                }
                 throw TokenTorchError.claudeRepairFailed(
-                    "Claude Code repair did not update credentials: \(error.localizedDescription). Run `claude doctor` in a terminal, then retry Token Torch refresh."
+                    message:
+                        "Claude Code repair did not update credentials: \(error.localizedDescription). Run `unset ANTHROPIC_API_KEY; claude -p \"/usage\"` in a terminal, then retry Token Torch refresh.",
+                    commandOutput: commandOutput
                 )
         }
     }
 
-    static func currentNoPromptSession() async throws -> OAuthSession? {
-        var candidates = fileCandidates()
-        if let keychain = try await currentSecurityCLISession() {
+    static func currentNoPromptSession(interactive: Bool = false) async throws -> OAuthSession? {
+        var candidates = Self.fileCandidates()
+        if let keychain = try await Self.currentSecurityCLISession(interactive: interactive) {
             candidates.append(keychain)
         }
         return VendorCredentialsReader.freshest(candidates)
     }
 
-    static func currentSecurityCLISession() async throws -> OAuthSession? {
+    static func currentSecurityCLISession(interactive: Bool = false) async throws -> OAuthSession? {
         var candidates: [OAuthSession] = []
         for service in ClaudeCredentialPaths.keychainServices(defaultService: defaultKeychainService) {
-            for account in accountCandidates(for: service) {
-                guard let json = try? await readSecurityCLI(service: service, account: account) else { continue }
+            for json in try await SecurityCLIReader.readAllGenericPasswords(
+                service: service,
+                timeout: SecurityCLIReader.timeout(interactive: interactive)
+            ) {
                 if let session = try? ClaudeOAuthParser.parse(json, source: .claudeKeychain(service: service)) {
                     candidates.append(session)
                 }
@@ -108,33 +120,13 @@ enum ClaudeCredentialRepair {
         VendorCredentialCache.store(session, for: .claude)
     }
 
-    private static func readSecurityCLI(service: String, account: String?) async throws -> String {
-        var arguments = ["find-generic-password", "-s", service]
-        if let account, account.isEmpty == false {
-            arguments.append(contentsOf: ["-a", account])
-        }
-        arguments.append("-w")
-
-        let data = try await runCommand(
-            executablePath: securityPath,
-            arguments: arguments,
-            timeout: securityTimeout
-        )
-        let value = String(data: data, encoding: .utf8) ?? ""
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.isEmpty == false else {
-            throw TokenTorchError.missingCredentials("Claude Code Keychain item was empty.")
-        }
-        return trimmed
-    }
-
-    private static func touchClaudeCLIAuthPath(
+    private static func refreshClaudeCLIAuthPath(
         timeout: TimeInterval,
         environment: [String: String],
         claudeExecutablePath: String?
-    ) async throws {
+    ) async throws -> String? {
         guard
-            let claudePath = resolvedExecutable(
+            let claudePath = Self.resolvedExecutable(
                 named: "claude",
                 environment: environment,
                 explicitPath: claudeExecutablePath
@@ -145,135 +137,48 @@ enum ClaudeCredentialRepair {
             )
         }
 
-        _ = try await runCommand(
-            executablePath: claudePath,
-            arguments: Self.doctorTouchArguments,
-            input: "\n",
+        let result = try await ProcessRunner.run(
+            executablePath: Self.usageRefreshShellPath,
+            arguments: Self.usageRefreshShellArguments(claudePath: claudePath),
             timeout: timeout,
             environment: environment,
-            workingDirectory: preparedProbeWorkingDirectory()
+            workingDirectory: Self.preparedProbeWorkingDirectory()
         )
+        return try Self.validateUsageRefreshResult(result, executablePath: claudePath)
     }
 
-    private static func runCommand(
-        executablePath: String,
-        arguments: [String],
-        input: String? = nil,
-        timeout: TimeInterval,
-        environment: [String: String]? = nil,
-        workingDirectory: URL? = nil
-    ) async throws -> Data {
-        try await Task.detached(priority: .utility) {
-            try runCommandSynchronously(
-                executablePath: executablePath,
-                arguments: arguments,
-                input: input,
-                timeout: timeout,
-                environment: environment,
-                workingDirectory: workingDirectory
-            )
-        }.value
+    static func usageRefreshShellArguments(claudePath: String) -> [String] {
+        return ["-c", Self.usageRefreshShellScript, "token-torch-claude-repair", claudePath]
     }
 
-    private static func runCommandSynchronously(
-        executablePath: String,
-        arguments: [String],
-        input: String?,
-        timeout: TimeInterval,
-        environment: [String: String]?,
-        workingDirectory: URL?
-    ) throws -> Data {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: executablePath)
-        process.arguments = arguments
-        process.environment = environment
-        process.currentDirectoryURL = workingDirectory
-
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        process.standardOutput = outputPipe
-        process.standardError = errorPipe
-
-        let inputPipe: Pipe?
-        if input != nil {
-            let pipe = Pipe()
-            process.standardInput = pipe
-            inputPipe = pipe
-        }
-        else {
-            inputPipe = nil
-        }
-
-        do {
-            try process.run()
-        }
-        catch {
-            throw TokenTorchError.message("Failed to launch \(executablePath): \(error.localizedDescription)")
-        }
-
-        var processGroup: pid_t?
-        let pid = process.processIdentifier
-        if setpgid(pid, pid) == 0 {
-            processGroup = pid
-        }
-
-        if let input, let inputPipe {
-            if let data = input.data(using: .utf8) {
-                inputPipe.fileHandleForWriting.write(data)
-            }
-            try? inputPipe.fileHandleForWriting.close()
-        }
-
-        let deadline = Date().addingTimeInterval(timeout)
-        while process.isRunning, Date() < deadline {
-            Thread.sleep(forTimeInterval: 0.02)
-        }
-
-        if process.isRunning == true {
-            terminate(process: process, processGroup: processGroup)
-            throw TokenTorchError.message("\(URL(fileURLWithPath: executablePath).lastPathComponent) timed out.")
-        }
-
-        let output = outputPipe.fileHandleForReading.readDataToEndOfFile()
-        let errorOutput = errorPipe.fileHandleForReading.readDataToEndOfFile()
-        guard process.terminationStatus == 0 else {
-            let message = String(data: errorOutput, encoding: .utf8)?
+    static func validateUsageRefreshResult(_ result: ProcessRunner.Result, executablePath: String) throws -> String? {
+        let commandOutput = Self.commandOutput(from: result)
+        guard result.terminationStatus == 0 else {
+            let message = String(data: result.standardError, encoding: .utf8)?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            let fallback = "\(executablePath) exited with status \(process.terminationStatus)."
-            throw TokenTorchError.message(message?.isEmpty == false ? message ?? fallback : fallback)
+            let fallback = "\(executablePath) exited with status \(result.terminationStatus)."
+            throw TokenTorchError.claudeRepairFailed(
+                message: Redaction.redactSecrets(message?.isEmpty == false ? message ?? fallback : fallback),
+                commandOutput: commandOutput
+            )
         }
-        return output
+        return commandOutput
     }
 
-    private static func terminate(process: Process, processGroup: pid_t?) {
-        guard process.isRunning == true else { return }
-        process.terminate()
-        if let processGroup {
-            kill(-processGroup, SIGTERM)
+    private static func commandOutput(from result: ProcessRunner.Result) -> String? {
+        let standardOutput = String(data: result.standardOutput, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let standardError = String(data: result.standardError, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        var sections: [String] = []
+        if let standardOutput, standardOutput.isEmpty == false {
+            sections.append(standardOutput)
         }
-
-        let deadline = Date().addingTimeInterval(0.4)
-        while process.isRunning, Date() < deadline {
-            Thread.sleep(forTimeInterval: 0.05)
+        if let standardError, standardError.isEmpty == false {
+            sections.append("stderr:\n\(standardError)")
         }
-
-        if process.isRunning == true {
-            if let processGroup {
-                kill(-processGroup, SIGKILL)
-            }
-            kill(process.processIdentifier, SIGKILL)
-        }
-    }
-
-    private static func accountCandidates(for service: String) -> [String?] {
-        let accounts = KeychainReader.genericPasswordMetadata(service: service)
-            .items
-            .compactMap(\.account)
-            .filter { !$0.isEmpty }
-
-        var seen = Set<String>()
-        let uniqueAccounts = accounts.filter { seen.insert($0).inserted }
-        return uniqueAccounts.map(Optional.some) + [nil]
+        guard sections.isEmpty == false else { return nil }
+        return Redaction.redactSecrets(sections.joined(separator: "\n\n"))
     }
 
     private static func fileCandidates() -> [OAuthSession] {

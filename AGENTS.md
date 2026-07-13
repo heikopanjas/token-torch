@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-07-06 (About panel dock restore regression)
+Last updated: 2026-07-12 (same-shell Claude credential repair)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -164,18 +164,20 @@ VERSION                    # Release version source of truth
 
 - Menu bar app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider; routine quota refresh reads only the Token Torch copy
 - Settings **Info** tab lists vendor credential source metadata for transparency. It shows enabled subscription providers that have a Token Torch-owned credential copy and the non-secret vendor source recorded at import time; it must never display raw token/API-key values.
-- Claude Code repair is a narrow exception to the no-subprocess Keychain rule: it may check no-prompt Claude sources and run a timeout-bound `/usr/bin/security find-generic-password` read for Claude Code credentials, then save only Token Torch's own copy. Manual Refresh always attempts repair on auth failure. Automatic (startup/timer) refresh first uses the normal no-prompt importer; when that cannot silently authorize, repair runs only if the opt-in `ProviderPreferences.claudeAutomaticRepair` setting is enabled (default off; Claude Settings tab). The repair touch runs `claude doctor` (no model inference; never use `claude -p`). Repair must never print token values and must never use Claude Code's `refreshToken` against Anthropic's OAuth refresh endpoint. The `claude` executable is located via `ProviderPreferences.claudeCLIPath` (Claude Settings tab) when set, else PATH. Background repair failures on automatic refreshes can post a desktop notification when `ProviderPreferences.notifyOnRepairFailure` is enabled (default on).
+- Vendor-owned Keychain secret fallbacks for Claude Code, Codex, and Cursor run the timeout-bound `/usr/bin/security find-generic-password` tool during both automatic and interactive imports. File/SQLite sources remain preferred. Security.framework still performs metadata-only account enumeration, Token Torch-owned reads, and all writes/deletes. The CLI changes the requesting identity but has no equivalent to `kSecUseAuthenticationUISkip`, so startup/timer imports may still show an authorization dialog.
+- Claude Code repair checks the shared file/Keychain sources, then launches one `/bin/zsh` process that runs `unset ANTHROPIC_API_KEY; exec claude -p "/usage"` when a newer usable session is unavailable, and saves only Token Torch's own credential copy. The unset and Claude invocation must share that process and environment; do not replace this with parent-side environment filtering or separate subprocesses. The command exists solely to trigger Claude Code's subscription credential refresh: its redacted stdout/stderr may be retained only in the in-memory repair error and shown in the menu's copyable error row when repair fails; it must never be parsed, mapped, persisted, logged, used for app usage display, or included in desktop notifications. Manual Refresh always attempts repair on auth failure. Automatic repair runs only if `ProviderPreferences.claudeAutomaticRepair` is enabled (default off; Claude Settings tab). Repair must never print token values or consume Claude Code's `refreshToken` directly. The `claude` executable is located via `ProviderPreferences.claudeCLIPath` when set, else PATH. Background repair failures can post a desktop notification when `ProviderPreferences.notifyOnRepairFailure` is enabled (default on).
 
 ### Key Core modules (`token-torch/Core/`)
 
 - `AnthropicOrgProvider` / `OpenAIOrgProvider` — Admin API usage, workspaces/projects, pagination
 - `ClaudeQuotaProvider` / `CodexQuotaProvider` / `CursorQuotaProvider` / `CopilotQuotaProvider` — subscription quota APIs
-- `ClaudeCredentialRepair` — Claude Code repair path; checks no-prompt Claude sources, reads updated Claude Code OAuth JSON via timeout-bound `/usr/bin/security`, runs `claude doctor` (billing-free health check, no model inference) to trigger proactive OAuth refresh, stores only the Token Torch-owned copy. Runs on manual Refresh always; automatic refresh tries the normal silent importer first and then runs repair only when `ProviderPreferences.claudeAutomaticRepair` is enabled
+- `ClaudeCredentialRepair` — Claude Code repair path; checks credential files and vendor Keychain items through the shared security CLI reader, uses one `/bin/zsh` process for `unset ANTHROPIC_API_KEY; exec claude -p "/usage"` solely to trigger credential refresh, attaches redacted command output only to an in-memory repair failure for the copyable menu error, and stores only the refreshed Token Torch-owned credential copy. Runs on manual Refresh always; automatic repair runs only when `ProviderPreferences.claudeAutomaticRepair` is enabled
+- `SecurityCLIReader` / `ProcessRunner` — exact vendor Keychain secret reads through hard-coded `/usr/bin/security`; async timeout/cancellation, bounded concurrent stdout/stderr draining, and process-group cleanup. Claude account discovery remains a metadata-only Security.framework query.
 - `AppNotification` / `NotificationService` — general desktop notification content model (`AppNotification` factories per use case) and app-layer poster (`NotificationService.bootstrap()` requests authorization on first launch and posts a welcome notification on grant; `post(_:)` delivers any notification). First consumer: Claude repair failure on automatic refreshes, gated by `ProviderPreferences.notifyOnRepairFailure` (default on). Designed for future alerts (e.g. budget warnings) by adding new `AppNotification` factories only
 - `UsageOrchestrator` — parallel fetch across enabled providers (menu bar)
 - `DateRange` — flexible date parsing, RFC 3339, inclusive end boundaries
 - `Redaction` — secret redaction for user-visible output
-- `KeychainReader` — all Keychain I/O via Security framework (no `security` CLI subprocess)
+- `KeychainReader` — Security.framework access for Token Torch-owned secrets, metadata-only enumeration, writes, exact deletes, and prefix reset; never reads vendor-owned secret data
 - `VendorCredentialSourceInfo` / `VendorCredentialImportSourceStore` / `VendorCredentialsReader.vendorCredentialSourceInfo()` — metadata-only source inventory for Settings Info tab; filters to enabled providers with Token Torch-owned credential copies, reads non-secret import-source metadata, and uses Keychain attributes-only queries with UI skipped. Advanced Keychain reset must clear both `VendorCredentialCache` and `VendorCredentialImportSourceStore` so the following interactive refresh truly re-imports vendor credentials.
 
 Anthropic usage requests pass `group_by[]=model&group_by[]=workspace_id` for per-model cost calculation.
@@ -262,7 +264,7 @@ Cursor's `Total usage value` and `Bonus` rows are display-only value-framing fie
 - Never print API keys in terminal output or error messages
 - All user-visible errors pass through `Redaction.redactSecrets()`
 - Use Anthropic Admin API keys only for org billing; regular API keys return 401
-- **Quota credentials are read-only**: never write, refresh, or persist to vendor Keychain entries, auth files, or Cursor `state.vscdb`; token refresh is left to Claude Code, Codex CLI, and Cursor IDE. The Claude repair path may read Claude Code's Keychain item via `/usr/bin/security` only after explicit user action, but must not write vendor storage or consume Claude Code's refresh token.
+- **Quota credentials are read-only**: never write, refresh, or persist to vendor Keychain entries, auth files, or Cursor `state.vscdb`; token refresh is left to Claude Code, Codex CLI, and Cursor IDE. Vendor Keychain secret reads use `/usr/bin/security` in automatic and interactive imports, but must never print secret output, write vendor storage, or consume a vendor refresh token.
 - Always require explicit human confirmation before commits
 
 ### Testing
@@ -298,6 +300,38 @@ Load the `git-workflow` skill before committing. Commit message bodies are optio
 The root `VERSION` file is the release version and release tag source of truth (`v<version>`). `AppVersion.current` in `token-torch/Core/Utilities/AppVersion.swift` must match `VERSION`; app release builds pass `MARKETING_VERSION=$(cat VERSION)` to Xcode. Load the `semantic-versioning` skill before changing `VERSION` and keep version updates in the same commit as the behavior change.
 
 ## Recent Updates & Decisions
+
+### 2026-07-12: Unset Anthropic API key in Claude repair shell
+
+**What**: Claude repair now launches a single `/bin/zsh` process that performs `unset ANTHROPIC_API_KEY` and then `exec`s the configured Claude executable with `-p "/usage"`. The original environment is passed to that shell, so the unset occurs literally in the process that becomes Claude.
+
+**Why**: Removing the variable while constructing a direct child environment did not produce the expected Claude subscription-auth behavior. The refresh requires explicit same-shell unset semantics.
+
+**How**: `ClaudeCredentialRepair`, focused process test, settings copy, README. Version `5.8.1`.
+
+### 2026-07-12: Show Claude repair command output in menu errors
+
+**What**: Failed Claude credential repairs now retain the redacted stdout/stderr from `claude -p "/usage"` in memory and append it to the menu error row. The existing copy control copies both the error and command output. Normal usage rows and desktop notifications receive only the repair error message.
+
+**Why**: Users need the Claude CLI response to diagnose and share repair failures without Token Torch treating that response as a usage-data source.
+
+**How**: `ClaudeCredentialRepair`, `TokenTorchError`, `ProviderReport`, `UsageOrchestrator`, `UsageMenuItemViews`, settings copy, tests, README. Version `5.8.0`.
+
+### 2026-07-12: Refresh Claude credentials through usage command
+
+**What**: Replaced the `claude doctor` repair touch with `claude -p "/usage"` for manual and opted-in automatic repairs. The child environment omits `ANTHROPIC_API_KEY` so Claude Code uses subscription OAuth and can refresh its vendor credential. Token Torch discards the command output and continues to obtain usage only through its existing provider API.
+
+**Why**: User testing identified the usage command as a reliable way to make Claude Code rotate stale subscription credentials. Its output is not an app data source and must never affect Token Torch's usage display.
+
+**How**: `ClaudeCredentialRepair`, Claude Settings copy, tests, README. Version `5.7.1`.
+
+### 2026-07-12: Read vendor Keychain secrets through security CLI
+
+**What**: Claude Code, Codex, and Cursor vendor Keychain fallback reads now use a shared timeout-bound `/usr/bin/security find-generic-password` path during startup/timer and interactive imports. Added an async process runner with cancellation, bounded concurrent output draining, and process cleanup. Security.framework remains responsible for Token Torch-owned secrets, metadata-only account discovery, writes, and deletes.
+
+**Why**: Experimental branch testing aims to avoid vendor-item authorization dialogs caused by Token Torch's changing app identity by making Apple's `security` tool the requester. The CLI cannot suppress authorization UI, so dialog-free behavior is not guaranteed.
+
+**How**: `ProcessRunner`, `SecurityCLIReader`, async vendor import/re-auth flow, shared Claude repair subprocess handling, tests, README. Version `5.7.0`.
 
 ### 2026-07-06: Fix About panel dock icon regression
 

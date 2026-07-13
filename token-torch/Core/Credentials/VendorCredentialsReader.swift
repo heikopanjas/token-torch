@@ -74,58 +74,22 @@ public enum VendorCredentialsReader {
         return session
     }
 
-    // MARK: - Direct vendor read (import only)
-
-    private static func loadClaudeSessionDirect() throws -> OAuthSession {
-        var candidates: [OAuthSession] = []
-        candidates.append(contentsOf: claudeKeychainCandidates(allowUI: false))
-        for path in claudeCredentialPaths() {
-            if let session = try loadClaudeFromFile(path) {
-                candidates.append(session)
-            }
-        }
-        guard let best = freshest(candidates) else {
-            throw TokenTorchError.missingCredentials(claudeMissingMessage)
-        }
-        return best
-    }
-
-    private static func loadCodexSessionDirect() throws -> OAuthSession {
-        for path in codexAuthPaths() {
-            if let session = try loadCodexFromFile(path) {
-                return session
-            }
-        }
-        if let json = try readVendorKeychain(service: codexKeychain, allowUI: false),
-            let session = try? parseCodexJSON(json, source: .codexKeychain)
-        {
-            return session
-        }
-        throw TokenTorchError.missingCredentials(codexMissingMessage)
-    }
-
-    private static func loadCursorSessionDirect() throws -> OAuthSession {
-        if let session = try loadCursorFromSQLite() { return session }
-        if let session = try loadCursorFromKeychain(allowUI: false) { return session }
-        throw TokenTorchError.missingCredentials(cursorMissingMessage)
-    }
-
     // MARK: - Vendor import (menu bar copy model; read-only vendor stores)
 
-    static func importClaudeSessionFromVendor(allowUI: Bool) throws -> OAuthSession {
+    static func importClaudeSessionFromVendor(interactive: Bool) async throws -> OAuthSession {
         var fileCandidates: [OAuthSession] = []
-        for path in claudeCredentialPaths() {
-            if let session = try loadClaudeFromFile(path) {
+        for path in Self.claudeCredentialPaths() {
+            if let session = try Self.loadClaudeFromFile(path) {
                 fileCandidates.append(session)
             }
         }
-        if let bestFile = freshest(fileCandidates), sessionIsUsable(bestFile) {
+        if let bestFile = Self.freshest(fileCandidates), Self.sessionIsUsable(bestFile) {
             return bestFile
         }
 
-        let candidates = fileCandidates + claudeKeychainCandidates(allowUI: allowUI)
-        guard let best = freshest(candidates) else {
-            throw TokenTorchError.missingCredentials(claudeMissingMessage)
+        let candidates = fileCandidates + (try await Self.claudeKeychainCandidates(interactive: interactive))
+        guard let best = Self.freshest(candidates) else {
+            throw TokenTorchError.missingCredentials(Self.claudeMissingMessage)
         }
         return best
     }
@@ -133,11 +97,14 @@ public enum VendorCredentialsReader {
     /// All Claude sessions found across the candidate Keychain services. A service may hold several
     /// items (e.g. Claude Code's live login under the user account plus a stale copy from another
     /// app/account), so every item is parsed and the freshest is chosen by the caller.
-    private static func claudeKeychainCandidates(allowUI: Bool) -> [OAuthSession] {
+    private static func claudeKeychainCandidates(interactive: Bool) async throws -> [OAuthSession] {
         var sessions: [OAuthSession] = []
-        for service in claudeKeychainServices() {
-            for json in readVendorKeychainAll(service: service, allowUI: allowUI) {
-                if let session = try? parseClaudeJSON(json, source: .claudeKeychain(service: service)) {
+        for service in Self.claudeKeychainServices() {
+            for json in try await SecurityCLIReader.readAllGenericPasswords(
+                service: service,
+                timeout: SecurityCLIReader.timeout(interactive: interactive)
+            ) {
+                if let session = try? Self.parseClaudeJSON(json, source: .claudeKeychain(service: service)) {
                     sessions.append(session)
                 }
             }
@@ -145,24 +112,27 @@ public enum VendorCredentialsReader {
         return sessions
     }
 
-    static func importCodexSessionFromVendor(allowUI: Bool) throws -> OAuthSession {
-        for path in codexAuthPaths() {
-            if let session = try loadCodexFromFile(path) {
+    static func importCodexSessionFromVendor(interactive: Bool) async throws -> OAuthSession {
+        for path in Self.codexAuthPaths() {
+            if let session = try Self.loadCodexFromFile(path) {
                 return session
             }
         }
-        if let json = try readVendorKeychain(service: codexKeychain, allowUI: allowUI),
-            let session = try? parseCodexJSON(json, source: .codexKeychain)
+        if let json = try await SecurityCLIReader.readGenericPassword(
+            service: Self.codexKeychain,
+            timeout: SecurityCLIReader.timeout(interactive: interactive)
+        ),
+            let session = try? Self.parseCodexJSON(json, source: .codexKeychain)
         {
             return session
         }
-        throw TokenTorchError.missingCredentials(codexMissingMessage)
+        throw TokenTorchError.missingCredentials(Self.codexMissingMessage)
     }
 
-    static func importCursorSessionFromVendor(allowUI: Bool) throws -> OAuthSession {
-        if let session = try loadCursorFromSQLite() { return session }
-        if let session = try loadCursorFromKeychain(allowUI: allowUI) { return session }
-        throw TokenTorchError.missingCredentials(cursorMissingMessage)
+    static func importCursorSessionFromVendor(interactive: Bool) async throws -> OAuthSession {
+        if let session = try Self.loadCursorFromSQLite() { return session }
+        if let session = try await Self.loadCursorFromKeychain(interactive: interactive) { return session }
+        throw TokenTorchError.missingCredentials(Self.cursorMissingMessage)
     }
 
     static func sessionIsUsable(_ session: OAuthSession) -> Bool {
@@ -277,9 +247,10 @@ public enum VendorCredentialsReader {
         )
     }
 
-    private static func loadCursorFromKeychain(allowUI: Bool) throws -> OAuthSession? {
-        let access = try readVendorKeychain(service: "cursor-access-token", allowUI: allowUI)
-        let refresh = try readVendorKeychain(service: "cursor-refresh-token", allowUI: allowUI)
+    private static func loadCursorFromKeychain(interactive: Bool) async throws -> OAuthSession? {
+        let timeout = SecurityCLIReader.timeout(interactive: interactive)
+        let access = try await SecurityCLIReader.readGenericPassword(service: "cursor-access-token", timeout: timeout)
+        let refresh = try await SecurityCLIReader.readGenericPassword(service: "cursor-refresh-token", timeout: timeout)
         guard let access, let refresh else { return nil }
         return OAuthSession(
             accessToken: access,
@@ -301,14 +272,6 @@ public enum VendorCredentialsReader {
     /// The session with the latest expiry. Used to prefer a live login over a stale same-service item.
     static func freshest(_ sessions: [OAuthSession]) -> OAuthSession? {
         return sessions.max(by: { freshness($0) < freshness($1) })
-    }
-
-    private static func readVendorKeychain(service: String, allowUI: Bool) throws -> String? {
-        try KeychainReader.readGenericPassword(service: service, allowUI: allowUI)
-    }
-
-    private static func readVendorKeychainAll(service: String, allowUI: Bool) -> [String] {
-        KeychainReader.readAllGenericPasswords(service: service, allowUI: allowUI)
     }
 
     private static func readSQLiteValue(dbPath: URL, key: String) throws -> String? {

@@ -10,14 +10,17 @@ public enum ClaudeQuotaProvider {
         claudeExecutablePath: String? = nil
     ) async throws -> SubscriptionQuotaReport {
         // Manual Refresh always repairs on auth failure; automatic refresh only when opted in.
-        if interactive || automaticRepairEnabled {
-            return try await fetchWithRepair(claudeExecutablePath: claudeExecutablePath)
+        if interactive == true || automaticRepairEnabled == true {
+            return try await Self.fetchWithRepair(
+                interactive: interactive,
+                claudeExecutablePath: claudeExecutablePath
+            )
         }
 
-        let reauth: () throws -> OAuthSession = {
-            try VendorCredentialImporter.reimportAfterAuthFailure(provider: .claude, interactive: interactive)
+        let reauth: () async throws -> OAuthSession = {
+            return try await VendorCredentialImporter.reimportAfterAuthFailure(provider: .claude, interactive: interactive)
         }
-        let session = try QuotaHTTP.usableSession(
+        let session = try await QuotaHTTP.usableSession(
             try VendorCredentialsReader.loadClaudeSession(),
             provider: "Claude Code",
             vendorAction: "Re-login with Claude Code (/login).",
@@ -42,8 +45,11 @@ public enum ClaudeQuotaProvider {
         }
     }
 
-    private static func fetchWithRepair(claudeExecutablePath: String?) async throws -> SubscriptionQuotaReport {
-        let session = try await repairableSession(claudeExecutablePath: claudeExecutablePath)
+    private static func fetchWithRepair(interactive: Bool, claudeExecutablePath: String?) async throws -> SubscriptionQuotaReport {
+        let session = try await Self.repairableSession(
+            interactive: interactive,
+            claudeExecutablePath: claudeExecutablePath
+        )
         do {
             return try await fetchUsage(session: session)
         }
@@ -51,6 +57,7 @@ public enum ClaudeQuotaProvider {
             if QuotaHTTP.isQuotaAuthError(error, policy: .strict) {
                 let repaired = try await ClaudeCredentialRepair.repairAndImport(
                     baseline: session,
+                    interactive: interactive,
                     claudeExecutablePath: claudeExecutablePath
                 )
                 return try await fetchUsage(session: repaired)
@@ -62,13 +69,14 @@ public enum ClaudeQuotaProvider {
         }
     }
 
-    private static func repairableSession(claudeExecutablePath: String?) async throws -> OAuthSession {
+    private static func repairableSession(interactive: Bool, claudeExecutablePath: String?) async throws -> OAuthSession {
         let stored = try? VendorCredentialsReader.loadClaudeSession()
         if let stored, VendorCredentialsReader.sessionIsUsable(stored) {
             return stored
         }
         return try await ClaudeCredentialRepair.repairAndImport(
             baseline: stored,
+            interactive: interactive,
             claudeExecutablePath: claudeExecutablePath
         )
     }
@@ -85,7 +93,7 @@ public enum ClaudeQuotaProvider {
 
     private static func fetchUsage(session: OAuthSession) async throws -> SubscriptionQuotaReport {
         let url = URL(string: "https://api.anthropic.com/api/oauth/usage")!
-        var headers = HTTPHeaders.bearerJSON(
+        let headers = HTTPHeaders.bearerJSON(
             token: session.accessToken,
             extra: [
                 "anthropic-beta": "oauth-2025-04-20",
