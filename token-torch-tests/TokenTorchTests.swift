@@ -797,13 +797,64 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
 
 @Test func mapCodexUsageFromSnakeCaseJSON() throws {
     let json = """
-        {"plan_type":"prolite","rate_limit":{"primary_window":{"used_percent":6,"reset_at":1738300000},"secondary_window":{"used_percent":24,"reset_at":1738900000}},"code_review_rate_limit":null,"credits":{"has_credits":false,"balance":"0"}}
+        {"plan_type":"prolite","rate_limit":{"primary_window":{"used_percent":6,"limit_window_seconds":18000,"reset_at":1738300000},"secondary_window":{"used_percent":24,"limit_window_seconds":604800,"reset_at":1738900000}},"code_review_rate_limit":null,"credits":{"has_credits":false,"balance":"0"}}
         """
     let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
     let report = CodexQuotaProvider.mapUsage(response)
-    #expect(report.windows.count == 2)
+    let fiveHour = try #require(report.windows.first { $0.label == "5-hour window" })
+    let sevenDay = try #require(report.windows.first { $0.label == "7-day window" })
+    #expect(fiveHour.usedPercent == 6)
+    #expect(sevenDay.usedPercent == 24)
     #expect(report.planTier == "Pro Lite")
     #expect(report.planPrice == "$100/mo")
+}
+
+@Test func mapCodexRoutesReversedWindowSlotsByDuration() throws {
+    let json = """
+        {"rate_limit":{
+        "primary_window":{"used_percent":73,"limit_window_seconds":604800,"reset_at":1738900000},
+        "secondary_window":{"used_percent":11,"limit_window_seconds":18000,"reset_at":1738300000}}}
+        """
+    let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
+    let report = CodexQuotaProvider.mapUsage(response)
+    let fiveHour = try #require(report.windows.first { $0.label == "5-hour window" })
+    let sevenDay = try #require(report.windows.first { $0.label == "7-day window" })
+
+    #expect(report.windows.map(\.label) == ["5-hour window", "7-day window"])
+    #expect(fiveHour.usedPercent == 11)
+    #expect(sevenDay.usedPercent == 73)
+}
+
+@Test func mapCodexRoutesWeeklyOnlyPrimaryWindowByDuration() throws {
+    let json = """
+        {"rate_limit":{
+        "allowed":false,"limit_reached":true,
+        "primary_window":{"used_percent":41,"limit_window_seconds":604800,"reset_at":1738900000},
+        "secondary_window":null},
+        "rate_limit_reached_type":"primary"}
+        """
+    let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
+    let report = CodexQuotaProvider.mapUsage(response)
+
+    #expect(report.windows.count == 1)
+    #expect(report.windows.first?.label == "7-day window")
+    #expect(report.windows.first?.usedPercent == 41)
+    #expect(report.notes.contains { $0.label == "Rate limit type" && $0.value == "weekly limit" })
+}
+
+@Test func mapCodexUnknownDurationsKeepPositionalFallback() throws {
+    let json = """
+        {"rate_limit":{
+        "primary_window":{"used_percent":12,"limit_window_seconds":86400,"reset_at":1738300000},
+        "secondary_window":{"used_percent":34,"limit_window_seconds":2592000,"reset_at":1738900000}}}
+        """
+    let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
+    let report = CodexQuotaProvider.mapUsage(response)
+    let fiveHour = try #require(report.windows.first { $0.label == "5-hour window" })
+    let sevenDay = try #require(report.windows.first { $0.label == "7-day window" })
+
+    #expect(fiveHour.usedPercent == 12)
+    #expect(sevenDay.usedPercent == 34)
 }
 
 @Test func mapCodexCreditBalanceUsesCreditUnits() throws {
@@ -833,7 +884,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
         {"user_id":"user-x","account_id":"acc","email":"a@b.com","plan_type":"prolite",
         "rate_limit":{"allowed":true,"limit_reached":false,"primary_window":{"used_percent":0,"reset_at":1780254481},"secondary_window":{"used_percent":0,"reset_at":1780841281}},
         "code_review_rate_limit":null,
-        "additional_rate_limits":[{"limit_name":"GPT-5.3-Codex-Spark","metered_feature":"codex_bengalfox","rate_limit":{"allowed":true,"limit_reached":false,"primary_window":{"used_percent":0,"reset_at":1780254481},"secondary_window":{"used_percent":0,"reset_at":1780841281}}}],
+        "additional_rate_limits":[{"limit_name":"GPT-5.3-Codex-Spark","metered_feature":"codex_bengalfox","rate_limit":{"allowed":true,"limit_reached":false,"primary_window":{"used_percent":0,"limit_window_seconds":18000,"reset_at":1780254481},"secondary_window":{"used_percent":0,"limit_window_seconds":604800,"reset_at":1780841281}}}],
         "credits":{"has_credits":false,"unlimited":false,"overage_limit_reached":false,"balance":"0","approx_local_messages":[0,0],"approx_cloud_messages":[0,0]},
         "spend_control":{"reached":false,"individual_limit":null},
         "rate_limit_reached_type":null,"promo":null,"referral_beacon":null,"rate_limit_reset_credits":{"available_count":0}}
@@ -846,6 +897,21 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(!report.windows.contains { $0.label.contains("Spark") })
     // D7: healthy state hides the boolean status notes entirely.
     #expect(report.notes.isEmpty)
+}
+
+@Test func mapCodexRoutesWeeklyOnlyAdditionalWindowByDuration() throws {
+    let json = """
+        {"additional_rate_limits":[{
+        "limit_name":"GPT-5.3-Codex-Spark",
+        "rate_limit":{"primary_window":{"used_percent":7,"limit_window_seconds":604800,"reset_at":1780841281},"secondary_window":null}
+        }]}
+        """
+    let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
+    let report = CodexQuotaProvider.mapUsage(response)
+
+    #expect(report.additionalWindows.count == 1)
+    #expect(report.additionalWindows.first?.label == "GPT-5.3-Codex-Spark (7d)")
+    #expect(report.additionalWindows.first?.usedPercent == 7)
 }
 
 @Test func mapCodexSurfacesRateLimitResetCreditCount() throws {
@@ -865,7 +931,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     let json = """
         {"plan_type":"pro",
         "rate_limit":{"allowed":false,"limit_reached":true,"primary_window":{"used_percent":100,"reset_at":1780254481},"secondary_window":{"used_percent":50,"reset_at":1780841281}},
-        "code_review_rate_limit":{"primary_window":{"used_percent":10,"reset_at":1780254481},"secondary_window":{"used_percent":5,"reset_at":1780841281}},
+        "code_review_rate_limit":{"primary_window":{"used_percent":10,"limit_window_seconds":604800,"reset_at":1780841281},"secondary_window":{"used_percent":5,"limit_window_seconds":18000,"reset_at":1780254481}},
         "credits":{"has_credits":true,"unlimited":true,"overage_limit_reached":true,"balance":"12.5"},
         "spend_control":{"reached":true,"individual_limit":500},
         "rate_limit_reached_type":"secondary","promo":null}
@@ -879,8 +945,10 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(report.notes.contains { $0.label == "Overage limit reached" })
     #expect(report.notes.contains { $0.label == "Spend control reached" })
     #expect(report.notes.contains { $0.label == "Spend limit" })
-    // D1: code review windows surface when non-null.
-    #expect(report.windows.contains { $0.label == "Code review (5h)" })
+    let fiveHourReview = try #require(report.windows.first { $0.label == "Code review (5h)" })
+    let sevenDayReview = try #require(report.windows.first { $0.label == "Code review (7d)" })
+    #expect(fiveHourReview.usedPercent == 5)
+    #expect(sevenDayReview.usedPercent == 10)
 }
 
 @Test func mapClaudeSurfacesExtraUsageNoteAndExcludesSensitive() {

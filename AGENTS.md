@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-07-12 (same-shell Claude credential repair)
+Last updated: 2026-07-16 (Codex duration-based window routing)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -202,6 +202,8 @@ Grand Total: €Z.ZZ ($W.WW)
 
 OpenAI native cost line items such as `chat-latest, input` and `chat-latest, output` are aggregated into one model cost row before display.
 
+Codex `/wham/usage` windows are classified by `limit_window_seconds`: `18000` is the 5-hour window and `604800` is the 7-day window. Do not assume `primary_window` is always 5-hour or `secondary_window` is always weekly because Codex can move a temporarily sole weekly limit into the primary slot. Missing or unknown durations retain the historical positional fallback. Apply the same classification to core, code-review, and additional/model limits, and use it for `rate_limit_reached_type` labels.
+
 Codex `/wham/usage` `credits.balance` is a credit-unit balance, not dollars. Display Codex extra usage as the fixed USD equivalent at `$0.04` per credit plus the whole credit count (for example `$10.00 · 250 credits`), and surface `rate_limit_reset_credits.available_count` as available rate-limit resets when nonzero.
 
 ### Display Currency
@@ -300,6 +302,14 @@ Load the `git-workflow` skill before committing. Commit message bodies are optio
 The root `VERSION` file is the release version and release tag source of truth (`v<version>`). `AppVersion.current` in `token-torch/Core/Utilities/AppVersion.swift` must match `VERSION`; app release builds pass `MARKETING_VERSION=$(cat VERSION)` to Xcode. Load the `semantic-versioning` skill before changing `VERSION` and keep version updates in the same commit as the behavior change.
 
 ## Recent Updates & Decisions
+
+### 2026-07-16: Route Codex windows by duration
+
+**What**: Codex 5-hour and 7-day windows now use each `/wham/usage` window's `limit_window_seconds` instead of fixed primary/secondary slot labels. Core, code-review, additional/model, and reached-type displays share the duration-aware mapping; missing or unknown durations keep the positional fallback.
+
+**Why**: Codex can temporarily place a sole weekly limit in `primary_window`, which made Token Torch label the weekly percentage and reset as the 5-hour window.
+
+**How**: `CodexQuotaProvider`, regression tests, README. Version `5.8.2`.
 
 ### 2026-07-12: Unset Anthropic API key in Claude repair shell
 

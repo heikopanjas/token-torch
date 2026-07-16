@@ -82,6 +82,8 @@ The app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.ve
 
 Quota APIs are undocumented and may change. Reference: [OpenUsage provider docs](https://github.com/robinebers/openusage/tree/main/docs/providers).
 
+Codex 5-hour and 7-day windows are classified from each `/wham/usage` window's `limit_window_seconds` (`18000` and `604800`) rather than assuming `primary_window` and `secondary_window` always have fixed meanings. This keeps weekly-only responses correct when Codex moves the remaining weekly limit into the primary slot; payloads without a recognized duration retain the historical positional fallback.
+
 ## Architecture
 
 | Target | Role |
