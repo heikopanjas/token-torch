@@ -297,7 +297,7 @@ xcodebuild test -scheme token-torch -configuration Debug -destination 'platform=
 
 ## Commit Protocol
 
-Load the `git-workflow` skill before committing. Commit message bodies are optional, but if a body is used, every body line must be a bullet point starting with `-`.
+Load the `git-workflow` skill before committing. Commit message bodies are mandatory, every body line must be a bullet point starting with `-`.
 
 ## Semantic Versioning
 
