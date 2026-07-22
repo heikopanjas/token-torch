@@ -1363,6 +1363,21 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(CopilotQuotaLabels.groupCaption(aiCredits!) == nil)
 }
 
+@Test func mapCopilotQuotaPeriodUsesMonthlyResetBoundary() throws {
+    let response = CopilotQuotaProvider.CopilotUserResponse(
+        assignedDate: "2026-06-01T15:12:42+02:00",
+        quotaResetDateUTC: "2026-08-01T00:00:00.000Z"
+    )
+    let report = CopilotQuotaProvider.mapUsage(response)
+    let periodStart = try #require(report.billingCycleStart)
+    let periodEnd = try #require(report.billingCycleEnd)
+
+    #expect(
+        MenuFormat.quotaPeriodCaption(start: periodStart, end: periodEnd)
+            == "Quota period: 2026-07-01 → 2026-08-01"
+    )
+}
+
 @Test func copilotQuotaLabelsIncludesOverageFieldsWhenCountPositive() {
     let window = QuotaWindow(
         label: "AI Credits",

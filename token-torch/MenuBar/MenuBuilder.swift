@@ -107,7 +107,7 @@ final class MenuBuilder {
                     {
                         menu.addItem(
                             UsageMenuItemViews.caption(
-                                MenuFormat.billingCycleCaption(start: start, end: end)
+                                MenuFormat.quotaPeriodCaption(start: start, end: end)
                             ))
                         if quota.windows.isEmpty == false {
                             menu.addItem(UsageMenuItemViews.menuSpacer())

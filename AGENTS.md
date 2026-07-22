@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-07-16 (Codex duration-based window routing)
+Last updated: 2026-07-22 (Copilot monthly quota period)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -205,6 +205,8 @@ OpenAI native cost line items such as `chat-latest, input` and `chat-latest, out
 Codex `/wham/usage` windows are classified by `limit_window_seconds`: `18000` is the 5-hour window and `604800` is the 7-day window. Do not assume `primary_window` is always 5-hour or `secondary_window` is always weekly because Codex can move a temporarily sole weekly limit into the primary slot. Missing or unknown durations retain the historical positional fallback. Apply the same classification to core, code-review, and additional/model limits, and use it for `rate_limit_reached_type` labels.
 
 Codex `/wham/usage` `credits.balance` is a credit-unit balance, not dollars. Display Codex extra usage as the fixed USD equivalent at `$0.04` per credit plus the whole credit count (for example `$10.00 · 250 credits`), and surface `rate_limit_reset_credits.available_count` as available rate-limit resets when nonzero.
+
+Copilot `/copilot_internal/user` returns the next monthly quota reset, not a subscription billing-cycle start. Derive the displayed **Quota period** by subtracting one UTC calendar month from that reset boundary; never use the persistent `assigned_date` seat-assignment timestamp as a current-period start.
 
 ### Display Currency
 
@@ -1184,3 +1186,11 @@ The root `VERSION` file is the release version and release tag source of truth (
 **What**: Established AGENTS.md as the main development guide for humans and AI agents.
 
 **How**: Single source of truth for architecture, features, and development guidelines.
+
+### 2026-07-22: Derive Copilot monthly quota period
+
+**What**: Copilot now displays a **Quota period** derived as the UTC calendar month preceding its next monthly quota reset. It no longer combines `assigned_date` with `quota_reset_date_utc` as a billing cycle.
+
+**Why**: `assigned_date` is the persistent seat-assignment timestamp, so pairing it with a later monthly reset could falsely display a multi-month billing cycle.
+
+**How**: `CopilotQuotaProvider`, `MenuFormat`, `MenuBuilder`, regression test, README. Version `5.8.3`.
