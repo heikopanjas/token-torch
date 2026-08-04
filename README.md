@@ -7,7 +7,7 @@ Credentials stay on your Mac. Token Torch reads vendor OAuth and Admin keys **re
 ## What it does
 
 | Provider | Org billing (Admin API) | Personal subscription quota |
-|----------|-------------------------|----------------------------|
+| ---------- | ------------------------- | ---------------------------- |
 | **Anthropic** | Token usage + model costs from pricing docs | Claude Code rate limits and plan usage |
 | **OpenAI** | Completions usage + native billed costs aggregated by model | Codex / ChatGPT subscription limits |
 | **Cursor** | Not available | Plan usage (Auto, API, total meters) |
@@ -60,19 +60,19 @@ Menu bar app (Xcode): `Token Torch.app`, code signing, `LSUIElement` for menu-ba
 
 - **General** — **Start at login**, refresh interval, display currency (USD/EUR), **VAT rate (%)**, **Automatically deduct VAT**, **Menu bar icon**, and a **Providers** table for the six menu views (Claude Code, Anthropic API, Codex, OpenAI Platform, Cursor, Copilot): drag rows to reorder, use **Enabled** to turn each view on or off
 - **Claude / Codex / Cursor** — reset imported subscription credentials; Claude repair can ask Claude Code to update its own login, then re-import the updated token into Token Torch; Claude and Codex tabs also include an Admin API key field
-- **Claude** — optional **Automatically repair credentials in the background** (off by default; when on, repair also runs on startup/timer refreshes via `claude -p "/usage"` with `ANTHROPIC_API_KEY` removed from the child environment and may prompt for Keychain access — manual Refresh always repairs on auth failure), optional **Notify me when background credential repair fails** (on by default; desktop notification on automatic repair failure only), and an optional **Claude CLI path** (point at the `claude` executable when it is not found on the login PATH; leave blank to auto-detect)
+- **Claude** — optional **Automatically repair credentials in the background** (off by default; when on, repair also runs on startup/timer refreshes via `ANTHROPIC_API_KEY="" claude -p "/usage"` and may prompt for Keychain access — manual Refresh always repairs on auth failure), optional **Notify me when background credential repair fails** (on by default; desktop notification on automatic repair failure only), and an optional **Claude CLI path** (point at the `claude` executable when it is not found on the login PATH; leave blank to auto-detect)
 - **Codex** — optional **Show additional model usage** (e.g. Codex Spark); extra usage credits are shown as credit units with their fixed USD equivalent (`$0.04` per credit), and available rate-limit reset credits appear when the API reports them
 - **Cursor** — optional **Show Total usage value and Bonus** (off by default) to reveal Cursor's opaque value-framing rows; quota meters and Credits are always shown
 - **Copilot** — GitHub Personal Access Token field with setup guidance
 - **Advanced** — **Reset Keychain…** deletes all Token Torch-owned Keychain items (`com.tokentorch.*`); vendor logins are not touched
 - **Info** — metadata-only view of the vendor source recorded when each enabled subscription credential was imported; Keychain secret values are never displayed
 
-The app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider, so routine refresh reads only Token Torch's copy. When a vendor Keychain fallback is needed, Token Torch invokes the timeout-bound `/usr/bin/security find-generic-password` tool for Claude Code, Codex, and Cursor secrets; file and SQLite sources remain preferred. This changes the requesting identity to Apple's `security` tool, but the tool cannot suppress authorization UI, so startup/timer imports may still show a Keychain dialog. Claude Code repair checks the same sources, then launches one `/bin/zsh` process that runs `unset ANTHROPIC_API_KEY; exec claude -p "/usage"` to trigger Claude Code's subscription credential refresh. The unset and Claude invocation therefore share the same process and environment. If repair fails, its redacted stdout/stderr is kept only with the in-memory error and shown in the menu's copyable error row; it is not added to desktop notifications, persisted, logged, parsed, or used for Token Torch usage display. Repair runs on manual Refresh always, and on automatic refreshes only when **Automatically repair credentials in the background** is enabled on the Claude tab. On first launch, Token Torch requests notification permission; when granted, a welcome notification confirms alerts are enabled. Background repair failures can post a desktop notification when **Notify me when background credential repair fails** is enabled. On first launch after upgrading from **burn**, `CredentialStoreMigration` copies legacy `com.burn.*` Keychain entries.
+The app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider, so routine refresh reads only Token Torch's copy. When a vendor Keychain fallback is needed, Token Torch invokes the timeout-bound `/usr/bin/security find-generic-password` tool for Claude Code, Codex, and Cursor secrets; file and SQLite sources remain preferred. This changes the requesting identity to Apple's `security` tool, but the tool cannot suppress authorization UI, so startup/timer imports may still show a Keychain dialog. Claude Code repair checks the same sources, then launches one `/bin/zsh` process that runs `ANTHROPIC_API_KEY="" exec claude -p "/usage"` to trigger Claude Code's subscription credential refresh. The empty-key assignment and Claude invocation therefore share the same process and environment. If repair fails, its redacted stdout/stderr is kept only with the in-memory error and shown in the menu's copyable error row; it is not added to desktop notifications, persisted, logged, parsed, or used for Token Torch usage display. Repair runs on manual Refresh always, and on automatic refreshes only when **Automatically repair credentials in the background** is enabled on the Claude tab. On first launch, Token Torch requests notification permission; when granted, a welcome notification confirms alerts are enabled. Background repair failures can post a desktop notification when **Notify me when background credential repair fails** is enabled. On first launch after upgrading from **burn**, `CredentialStoreMigration` copies legacy `com.burn.*` Keychain entries.
 
 ### Quota credential sources (macOS)
 
 | Tool | Where Token Torch looks (read-only) |
-|------|-------------------------------------|
+| ------ | ------------------------------------- |
 | Claude Code | `~/.claude/.credentials.json`, then Keychain `Claude Code-credentials` |
 | Codex | `~/.codex/auth.json`, `CODEX_HOME`, `~/.config/codex`, Keychain `Codex Auth` |
 | Cursor | `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb`, Keychain `cursor-access-token` |
@@ -108,7 +108,7 @@ VERSION                    # Release version source of truth
 ### Credential stores
 
 | Store | Purpose |
-|-------|---------|
+| ------- | --------- |
 | `VendorCredentialsReader` / `VendorCredentialImporter` | Read-only import from vendor Keychain/files for subscription quota |
 | `TokenTorchVendorCredentialStore` | Token Torch-owned OAuth copies (`com.tokentorch.vendor.*`) for silent menu bar refresh |
 | `AppKeychainStore` | User-entered Admin keys (`com.tokentorch.keys.<provider>.adminKey`); Copilot PAT |

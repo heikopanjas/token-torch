@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-07-22 (Copilot monthly quota period)
+Last updated: 2026-07-31 (Claude empty API key repair command)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -155,7 +155,7 @@ VERSION                    # Release version source of truth
 ### Credential stores
 
 | Store | Purpose |
-|-------|---------|
+| ------- | --------- |
 | `VendorCredentialsReader` / `VendorCredentialImporter` | Subscription quota OAuth: **read-only** import from vendor files/Keychain; menu bar stores a copy in Token Torch Keychain |
 | `TokenTorchVendorCredentialStore` | Token Torch-owned OAuth copies (`com.tokentorch.vendor.*`) for silent menu bar refresh |
 | `AppKeychainStore` | User-entered Admin keys (`com.tokentorch.keys.<provider>.adminKey`); Copilot PAT (`com.tokentorch.keys.copilot.personalAccessToken`) |
@@ -165,13 +165,13 @@ VERSION                    # Release version source of truth
 - Menu bar app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider; routine quota refresh reads only the Token Torch copy
 - Settings **Info** tab lists vendor credential source metadata for transparency. It shows enabled subscription providers that have a Token Torch-owned credential copy and the non-secret vendor source recorded at import time; it must never display raw token/API-key values.
 - Vendor-owned Keychain secret fallbacks for Claude Code, Codex, and Cursor run the timeout-bound `/usr/bin/security find-generic-password` tool during both automatic and interactive imports. File/SQLite sources remain preferred. Security.framework still performs metadata-only account enumeration, Token Torch-owned reads, and all writes/deletes. The CLI changes the requesting identity but has no equivalent to `kSecUseAuthenticationUISkip`, so startup/timer imports may still show an authorization dialog.
-- Claude Code repair checks the shared file/Keychain sources, then launches one `/bin/zsh` process that runs `unset ANTHROPIC_API_KEY; exec claude -p "/usage"` when a newer usable session is unavailable, and saves only Token Torch's own credential copy. The unset and Claude invocation must share that process and environment; do not replace this with parent-side environment filtering or separate subprocesses. The command exists solely to trigger Claude Code's subscription credential refresh: its redacted stdout/stderr may be retained only in the in-memory repair error and shown in the menu's copyable error row when repair fails; it must never be parsed, mapped, persisted, logged, used for app usage display, or included in desktop notifications. Manual Refresh always attempts repair on auth failure. Automatic repair runs only if `ProviderPreferences.claudeAutomaticRepair` is enabled (default off; Claude Settings tab). Repair must never print token values or consume Claude Code's `refreshToken` directly. The `claude` executable is located via `ProviderPreferences.claudeCLIPath` when set, else PATH. Background repair failures can post a desktop notification when `ProviderPreferences.notifyOnRepairFailure` is enabled (default on).
+- Claude Code repair checks the shared file/Keychain sources, then launches one `/bin/zsh` process that runs `ANTHROPIC_API_KEY="" exec claude -p "/usage"` when a newer usable session is unavailable, and saves only Token Torch's own credential copy. The empty-key assignment and Claude invocation must share that process and environment; do not replace this with parent-side environment filtering or separate subprocesses. The command exists solely to trigger Claude Code's subscription credential refresh: its redacted stdout/stderr may be retained only in the in-memory repair error and shown in the menu's copyable error row when repair fails; it must never be parsed, mapped, persisted, logged, used for app usage display, or included in desktop notifications. Manual Refresh always attempts repair on auth failure. Automatic repair runs only if `ProviderPreferences.claudeAutomaticRepair` is enabled (default off; Claude Settings tab). Repair must never print token values or consume Claude Code's `refreshToken` directly. The `claude` executable is located via `ProviderPreferences.claudeCLIPath` when set, else PATH. Background repair failures can post a desktop notification when `ProviderPreferences.notifyOnRepairFailure` is enabled (default on).
 
 ### Key Core modules (`token-torch/Core/`)
 
 - `AnthropicOrgProvider` / `OpenAIOrgProvider` — Admin API usage, workspaces/projects, pagination
 - `ClaudeQuotaProvider` / `CodexQuotaProvider` / `CursorQuotaProvider` / `CopilotQuotaProvider` — subscription quota APIs
-- `ClaudeCredentialRepair` — Claude Code repair path; checks credential files and vendor Keychain items through the shared security CLI reader, uses one `/bin/zsh` process for `unset ANTHROPIC_API_KEY; exec claude -p "/usage"` solely to trigger credential refresh, attaches redacted command output only to an in-memory repair failure for the copyable menu error, and stores only the refreshed Token Torch-owned credential copy. Runs on manual Refresh always; automatic repair runs only when `ProviderPreferences.claudeAutomaticRepair` is enabled
+- `ClaudeCredentialRepair` — Claude Code repair path; checks credential files and vendor Keychain items through the shared security CLI reader, uses one `/bin/zsh` process for `ANTHROPIC_API_KEY="" exec claude -p "/usage"` solely to trigger credential refresh, attaches redacted command output only to an in-memory repair failure for the copyable menu error, and stores only the refreshed Token Torch-owned credential copy. Runs on manual Refresh always; automatic repair runs only when `ProviderPreferences.claudeAutomaticRepair` is enabled
 - `SecurityCLIReader` / `ProcessRunner` — exact vendor Keychain secret reads through hard-coded `/usr/bin/security`; async timeout/cancellation, bounded concurrent stdout/stderr draining, and process-group cleanup. Claude account discovery remains a metadata-only Security.framework query.
 - `AppNotification` / `NotificationService` — general desktop notification content model (`AppNotification` factories per use case) and app-layer poster (`NotificationService.bootstrap()` requests authorization on first launch and posts a welcome notification on grant; `post(_:)` delivers any notification). First consumer: Claude repair failure on automatic refreshes, gated by `ProviderPreferences.notifyOnRepairFailure` (default on). Designed for future alerts (e.g. budget warnings) by adding new `AppNotification` factories only
 - `UsageOrchestrator` — parallel fetch across enabled providers (menu bar)
@@ -1194,3 +1194,11 @@ The root `VERSION` file is the release version and release tag source of truth (
 **Why**: `assigned_date` is the persistent seat-assignment timestamp, so pairing it with a later monthly reset could falsely display a multi-month billing cycle.
 
 **How**: `CopilotQuotaProvider`, `MenuFormat`, `MenuBuilder`, regression test, README. Version `5.8.3`.
+
+### 2026-07-31: Set empty Anthropic API key for Claude repair
+
+**What**: Claude repair now invokes the configured CLI with `ANTHROPIC_API_KEY=""` instead of unsetting the variable before `claude -p "/usage"`.
+
+**Why**: The explicit empty-value invocation is the required Claude Code subscription-auth behavior.
+
+**How**: `ClaudeCredentialRepair`, focused shell test, Settings copy, README. Version `5.8.4`.

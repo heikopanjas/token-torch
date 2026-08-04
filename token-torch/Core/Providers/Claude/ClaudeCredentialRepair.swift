@@ -3,7 +3,7 @@ import Foundation
 
 enum ClaudeCredentialRepair {
     static let usageRefreshShellPath = "/bin/zsh"
-    static let usageRefreshShellScript = #"unset ANTHROPIC_API_KEY; exec "$1" -p "/usage""#
+    static let usageRefreshShellScript = #"ANTHROPIC_API_KEY="" exec "$1" -p "/usage""#
 
     private static let repairTimeout: TimeInterval = 20
     private static let pollInterval: TimeInterval = 0.5
@@ -52,7 +52,7 @@ enum ClaudeCredentialRepair {
             case .success(let commandOutput):
                 throw TokenTorchError.claudeRepairFailed(
                     message:
-                        "Claude Code repair ran, but the Keychain access token did not change. Run `unset ANTHROPIC_API_KEY; claude -p \"/usage\"` in a terminal, then retry Token Torch refresh.",
+                        "Claude Code repair ran, but the Keychain access token did not change. Run `ANTHROPIC_API_KEY=\"\" claude -p \"/usage\"` in a terminal, then retry Token Torch refresh.",
                     commandOutput: commandOutput
                 )
             case .failure(let error):
@@ -65,7 +65,7 @@ enum ClaudeCredentialRepair {
                 }
                 throw TokenTorchError.claudeRepairFailed(
                     message:
-                        "Claude Code repair did not update credentials: \(error.localizedDescription). Run `unset ANTHROPIC_API_KEY; claude -p \"/usage\"` in a terminal, then retry Token Torch refresh.",
+                        "Claude Code repair did not update credentials: \(error.localizedDescription). Run `ANTHROPIC_API_KEY=\"\" claude -p \"/usage\"` in a terminal, then retry Token Torch refresh.",
                     commandOutput: commandOutput
                 )
         }

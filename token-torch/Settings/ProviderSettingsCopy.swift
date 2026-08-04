@@ -82,7 +82,7 @@ enum ProviderSettingsCopy {
     }
 
     static func claudeAutomaticRepairHint() -> String {
-        "When enabled, \(AppBrand.displayName) may run `unset ANTHROPIC_API_KEY; claude -p \"/usage\"` in one shell process during automatic refreshes so Claude Code refreshes its subscription credentials. On repair failure, command output appears in the copyable menu error but is never used as usage data. This may prompt for Keychain access. Off by default; manual Refresh always repairs on authentication failure."
+        "When enabled, \(AppBrand.displayName) may run `ANTHROPIC_API_KEY=\"\" claude -p \"/usage\"` in one shell process during automatic refreshes so Claude Code refreshes its subscription credentials. On repair failure, command output appears in the copyable menu error but is never used as usage data. This may prompt for Keychain access. Off by default; manual Refresh always repairs on authentication failure."
     }
 
     static func claudeRepairFailureNotificationHint() -> String {

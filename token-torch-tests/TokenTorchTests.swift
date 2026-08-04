@@ -510,12 +510,12 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(unset == executable.path)
 }
 
-@Test func claudeRepairUsesOneShellForUnsetAndUsageCommand() {
+@Test func claudeRepairUsesOneShellForEmptyKeyAndUsageCommand() {
     let claudePath = "/Applications/Claude Code/claude"
     #expect(ClaudeCredentialRepair.usageRefreshShellPath == "/bin/zsh")
     #expect(
         ClaudeCredentialRepair.usageRefreshShellScript
-            == #"unset ANTHROPIC_API_KEY; exec "$1" -p "/usage""#
+            == #"ANTHROPIC_API_KEY="" exec "$1" -p "/usage""#
     )
     #expect(
         ClaudeCredentialRepair.usageRefreshShellArguments(claudePath: claudePath)
@@ -528,16 +528,20 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     )
 }
 
-@Test func claudeRepairShellUnsetsAnthropicAPIKeyBeforeExec() async throws {
+@Test func claudeRepairShellPassesEmptyAnthropicAPIKeyBeforeExec() async throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: directory) }
     let fakeClaude = directory.appendingPathComponent("claude")
     let script = """
         #!/bin/zsh
-        if [[ -n "${ANTHROPIC_API_KEY+x}" ]]; then
-            print -r -- "ANTHROPIC_API_KEY is still set"
+        if [[ "${ANTHROPIC_API_KEY+x}" != "x" ]]; then
+            print -r -- "ANTHROPIC_API_KEY is not set"
             exit 9
+        fi
+        if [[ -n "$ANTHROPIC_API_KEY" ]]; then
+            print -r -- "ANTHROPIC_API_KEY is not empty"
+            exit 10
         fi
         print -r -- "$*|$UNRELATED"
         """
