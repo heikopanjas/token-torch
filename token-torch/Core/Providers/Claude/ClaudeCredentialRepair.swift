@@ -137,7 +137,7 @@ enum ClaudeCredentialRepair {
             )
         }
 
-        let result = try await ProcessRunner.run(
+        let result = try await ProcessRunner.runInPseudoTerminal(
             executablePath: Self.usageRefreshShellPath,
             arguments: Self.usageRefreshShellArguments(claudePath: claudePath),
             timeout: timeout,
@@ -154,15 +154,28 @@ enum ClaudeCredentialRepair {
     static func validateUsageRefreshResult(_ result: ProcessRunner.Result, executablePath: String) throws -> String? {
         let commandOutput = Self.commandOutput(from: result)
         guard result.terminationStatus == 0 else {
-            let message = String(data: result.standardError, encoding: .utf8)?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
             let fallback = "\(executablePath) exited with status \(result.terminationStatus)."
+            let message = Self.failureMessage(from: result) ?? fallback
             throw TokenTorchError.claudeRepairFailed(
-                message: Redaction.redactSecrets(message?.isEmpty == false ? message ?? fallback : fallback),
+                message: Redaction.redactSecrets(message),
                 commandOutput: commandOutput
             )
         }
         return commandOutput
+    }
+
+    private static func failureMessage(from result: ProcessRunner.Result) -> String? {
+        let standardError = String(data: result.standardError, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let standardError, standardError.isEmpty == false {
+            return standardError
+        }
+        let standardOutput = String(data: result.standardOutput, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let standardOutput, standardOutput.isEmpty == false {
+            return standardOutput
+        }
+        return nil
     }
 
     private static func commandOutput(from result: ProcessRunner.Result) -> String? {

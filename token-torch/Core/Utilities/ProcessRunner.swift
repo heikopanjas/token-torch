@@ -88,6 +88,9 @@ enum ProcessRunner {
     private static let terminationGracePeriod: TimeInterval = 0.4
     private static let outputDrainTimeout: TimeInterval = 1
     private static let defaultOutputLimit = 1_048_576
+    private static let defaultPseudoTerminalColumns: UInt16 = 120
+    private static let defaultPseudoTerminalRows: UInt16 = 40
+    private static let defaultTerminalType = "xterm-256color"
 
     static func run(
         executablePath: String,
@@ -98,7 +101,7 @@ enum ProcessRunner {
         workingDirectory: URL? = nil,
         outputLimit: Int = defaultOutputLimit
     ) async throws -> Result {
-        let task = Task.detached(priority: .utility) {
+        return try await Self.runDetached {
             return try Self.runSynchronously(
                 executablePath: executablePath,
                 arguments: arguments,
@@ -108,6 +111,38 @@ enum ProcessRunner {
                 workingDirectory: workingDirectory,
                 outputLimit: outputLimit
             )
+        }
+    }
+
+    /// Runs a process with stdin/stdout/stderr attached to a pseudo-terminal replica.
+    /// Merged terminal output is returned in `standardOutput`; `standardError` is empty.
+    static func runInPseudoTerminal(
+        executablePath: String,
+        arguments: [String],
+        timeout: TimeInterval,
+        environment: [String: String]? = nil,
+        workingDirectory: URL? = nil,
+        outputLimit: Int = defaultOutputLimit,
+        columns: UInt16 = defaultPseudoTerminalColumns,
+        rows: UInt16 = defaultPseudoTerminalRows
+    ) async throws -> Result {
+        return try await Self.runDetached {
+            return try Self.runInPseudoTerminalSynchronously(
+                executablePath: executablePath,
+                arguments: arguments,
+                timeout: timeout,
+                environment: environment,
+                workingDirectory: workingDirectory,
+                outputLimit: outputLimit,
+                columns: columns,
+                rows: rows
+            )
+        }
+    }
+
+    private static func runDetached(_ body: @escaping @Sendable () throws -> Result) async throws -> Result {
+        let task = Task.detached(priority: .utility) {
+            return try body()
         }
         return try await withTaskCancellationHandler {
             return try await task.value
@@ -189,6 +224,156 @@ enum ProcessRunner {
         )
     }
 
+    private static func runInPseudoTerminalSynchronously(
+        executablePath: String,
+        arguments: [String],
+        timeout: TimeInterval,
+        environment: [String: String]?,
+        workingDirectory: URL?,
+        outputLimit: Int,
+        columns: UInt16,
+        rows: UInt16
+    ) throws -> Result {
+        var primaryFD: Int32 = -1
+        var replicaFD: Int32 = -1
+        var size = winsize(ws_row: rows, ws_col: columns, ws_xpixel: 0, ws_ypixel: 0)
+        guard openpty(&primaryFD, &replicaFD, nil, nil, &size) == 0 else {
+            throw Failure.launchFailed(
+                executablePath: executablePath,
+                message: "Could not allocate a pseudo-terminal (\(Self.errorMessage(code: errno)))."
+            )
+        }
+
+        let outputBuffer = OutputBuffer(limit: outputLimit)
+        let pid: pid_t
+        do {
+            pid = try Self.spawnInPseudoTerminal(
+                executablePath: executablePath,
+                arguments: arguments,
+                environment: Self.environmentForPseudoTerminal(environment),
+                workingDirectory: workingDirectory,
+                primaryFD: primaryFD,
+                replicaFD: replicaFD
+            )
+        }
+        catch {
+            close(primaryFD)
+            close(replicaFD)
+            throw error
+        }
+
+        // Child owns the replica; closing the parent copy lets master reads finish after exit.
+        close(replicaFD)
+        Self.startPseudoTerminalReader(primaryFD: primaryFD, buffer: outputBuffer)
+
+        let terminationStatus: Int32
+        do {
+            terminationStatus = try Self.waitForExit(pid: pid, timeout: timeout, executablePath: executablePath)
+        }
+        catch {
+            close(primaryFD)
+            outputBuffer.waitForEndOfFile(timeout: Self.outputDrainTimeout)
+            throw error
+        }
+
+        close(primaryFD)
+        outputBuffer.waitForEndOfFile(timeout: Self.outputDrainTimeout)
+        return Result(
+            standardOutput: outputBuffer.snapshot(),
+            standardError: Data(),
+            terminationStatus: terminationStatus
+        )
+    }
+
+    private static func environmentForPseudoTerminal(_ environment: [String: String]?) -> [String: String] {
+        var values = environment ?? ProcessInfo.processInfo.environment
+        if values["TERM"] == nil || values["TERM"]?.isEmpty == true {
+            values["TERM"] = Self.defaultTerminalType
+        }
+        return values
+    }
+
+    private static func startPseudoTerminalReader(primaryFD: Int32, buffer: OutputBuffer) -> Void {
+        let thread = Thread {
+            var chunk = [UInt8](repeating: 0, count: 4_096)
+            while true == true {
+                let bytesRead = chunk.withUnsafeMutableBufferPointer { pointer in
+                    return read(primaryFD, pointer.baseAddress, pointer.count)
+                }
+                if bytesRead > 0 {
+                    buffer.append(Data(chunk[0 ..< bytesRead]))
+                    continue
+                }
+                if bytesRead == 0 {
+                    buffer.append(Data())
+                    return
+                }
+                if errno == EINTR {
+                    continue
+                }
+                // EIO is the expected signal that the child closed the PTY replica.
+                buffer.append(Data())
+                return
+            }
+        }
+        thread.qualityOfService = .utility
+        thread.start()
+    }
+
+    private static func spawnInPseudoTerminal(
+        executablePath: String,
+        arguments: [String],
+        environment: [String: String],
+        workingDirectory: URL?,
+        primaryFD: Int32,
+        replicaFD: Int32
+    ) throws -> pid_t {
+        var fileActions: posix_spawn_file_actions_t?
+        var attributes: posix_spawnattr_t?
+        guard posix_spawn_file_actions_init(&fileActions) == 0 else {
+            throw Failure.launchFailed(executablePath: executablePath, message: "Could not initialize process attributes.")
+        }
+        defer { posix_spawn_file_actions_destroy(&fileActions) }
+        guard posix_spawnattr_init(&attributes) == 0 else {
+            throw Failure.launchFailed(executablePath: executablePath, message: "Could not initialize process attributes.")
+        }
+        defer { posix_spawnattr_destroy(&attributes) }
+
+        var actionStatus = posix_spawn_file_actions_adddup2(&fileActions, replicaFD, STDIN_FILENO)
+        if actionStatus == 0 {
+            actionStatus = posix_spawn_file_actions_adddup2(&fileActions, replicaFD, STDOUT_FILENO)
+        }
+        if actionStatus == 0 {
+            actionStatus = posix_spawn_file_actions_adddup2(&fileActions, replicaFD, STDERR_FILENO)
+        }
+        if actionStatus == 0 {
+            actionStatus = posix_spawn_file_actions_addclose(&fileActions, primaryFD)
+        }
+        if actionStatus == 0 {
+            actionStatus = posix_spawn_file_actions_addclose(&fileActions, replicaFD)
+        }
+        if let workingDirectory, actionStatus == 0 {
+            actionStatus = workingDirectory.path.withCString {
+                return posix_spawn_file_actions_addchdir_np(&fileActions, $0)
+            }
+        }
+        guard actionStatus == 0 else {
+            throw Failure.launchFailed(
+                executablePath: executablePath,
+                message: Self.errorMessage(code: actionStatus)
+            )
+        }
+
+        try Self.applyProcessGroupAttributes(&attributes, executablePath: executablePath)
+        return try Self.posixSpawn(
+            executablePath: executablePath,
+            arguments: arguments,
+            environment: environment,
+            fileActions: &fileActions,
+            attributes: &attributes
+        )
+    }
+
     private static func spawn(
         executablePath: String,
         arguments: [String],
@@ -252,6 +437,20 @@ enum ProcessRunner {
             )
         }
 
+        try Self.applyProcessGroupAttributes(&attributes, executablePath: executablePath)
+        return try Self.posixSpawn(
+            executablePath: executablePath,
+            arguments: arguments,
+            environment: environment ?? ProcessInfo.processInfo.environment,
+            fileActions: &fileActions,
+            attributes: &attributes
+        )
+    }
+
+    private static func applyProcessGroupAttributes(
+        _ attributes: inout posix_spawnattr_t?,
+        executablePath: String
+    ) throws -> Void {
         let spawnFlags = POSIX_SPAWN_SETPGROUP | POSIX_SPAWN_CLOEXEC_DEFAULT
         var attributeStatus = posix_spawnattr_setflags(&attributes, Int16(spawnFlags))
         if attributeStatus == 0 {
@@ -263,10 +462,17 @@ enum ProcessRunner {
                 message: Self.errorMessage(code: attributeStatus)
             )
         }
+    }
 
+    private static func posixSpawn(
+        executablePath: String,
+        arguments: [String],
+        environment: [String: String],
+        fileActions: inout posix_spawn_file_actions_t?,
+        attributes: inout posix_spawnattr_t?
+    ) throws -> pid_t {
         let argv = CStringArray([executablePath] + arguments)
-        let environmentValues = environment ?? ProcessInfo.processInfo.environment
-        let environmentStrings = environmentValues.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }
+        let environmentStrings = environment.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }
         let environmentPointers = CStringArray(environmentStrings)
         var pid: pid_t = 0
         let spawnStatus = executablePath.withCString { path in

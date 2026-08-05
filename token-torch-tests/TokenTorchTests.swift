@@ -451,31 +451,58 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
             interactive: false,
             error: error
         ))
+    #expect(
+        UsageOrchestrator.shouldReturnNeedsAuthorizationAfterImporterFailure(
+            provider: .claude,
+            preferences: prefs,
+            interactive: false,
+            error: error
+        ) == false
+    )
 
     #expect(
-        !UsageOrchestrator.shouldContinueAfterImporterAuthorizationFailure(
+        UsageOrchestrator.shouldContinueAfterImporterAuthorizationFailure(
             provider: .codex,
             preferences: prefs,
             interactive: false,
             error: error
-        ))
+        ) == false
+    )
+    #expect(
+        UsageOrchestrator.shouldReturnNeedsAuthorizationAfterImporterFailure(
+            provider: .codex,
+            preferences: prefs,
+            interactive: false,
+            error: error
+        )
+    )
 
     #expect(
-        !UsageOrchestrator.shouldContinueAfterImporterAuthorizationFailure(
+        UsageOrchestrator.shouldContinueAfterImporterAuthorizationFailure(
             provider: .claude,
             preferences: prefs,
             interactive: true,
             error: error
-        ))
+        ) == false
+    )
 
     prefs.claudeAutomaticRepair = false
     #expect(
-        !UsageOrchestrator.shouldContinueAfterImporterAuthorizationFailure(
+        UsageOrchestrator.shouldContinueAfterImporterAuthorizationFailure(
             provider: .claude,
             preferences: prefs,
             interactive: false,
             error: error
-        ))
+        ) == false
+    )
+    #expect(
+        UsageOrchestrator.shouldReturnNeedsAuthorizationAfterImporterFailure(
+            provider: .claude,
+            preferences: prefs,
+            interactive: false,
+            error: error
+        )
+    )
 }
 
 @Test func claudeRepairPrefersValidExplicitExecutablePath() {
@@ -552,7 +579,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
         "UNRELATED": "preserved"
     ]
 
-    let result = try await ProcessRunner.run(
+    let result = try await ProcessRunner.runInPseudoTerminal(
         executablePath: ClaudeCredentialRepair.usageRefreshShellPath,
         arguments: ClaudeCredentialRepair.usageRefreshShellArguments(claudePath: fakeClaude.path),
         timeout: 2,
@@ -563,6 +590,84 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
 
     #expect(result.terminationStatus == 0)
     #expect(output == "-p /usage|preserved")
+}
+
+@Test func processRunnerPseudoTerminalExposesTTYToChild() async throws {
+    let result = try await ProcessRunner.runInPseudoTerminal(
+        executablePath: "/bin/zsh",
+        arguments: [
+            "-c",
+            #"if [[ -t 0 && -t 1 && -t 2 ]]; then print -r -- "tty-ok"; else print -r -- "tty-missing"; exit 11; fi"#
+        ],
+        timeout: 2
+    )
+    let output = try #require(String(data: result.standardOutput, encoding: .utf8))
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    #expect(result.terminationStatus == 0)
+    #expect(result.standardError.isEmpty)
+    #expect(output == "tty-ok")
+}
+
+@Test func processRunnerPseudoTerminalMergesStandardStreams() async throws {
+    let result = try await ProcessRunner.runInPseudoTerminal(
+        executablePath: "/bin/zsh",
+        arguments: [
+            "-c",
+            #"print -r -- "out-line"; print -r -- "err-line" >&2"#
+        ],
+        timeout: 2
+    )
+    let output = try #require(String(data: result.standardOutput, encoding: .utf8))
+
+    #expect(result.terminationStatus == 0)
+    #expect(result.standardError.isEmpty)
+    #expect(output.contains("out-line"))
+    #expect(output.contains("err-line"))
+}
+
+@Test func processRunnerPseudoTerminalTimesOut() async {
+    do {
+        _ = try await ProcessRunner.runInPseudoTerminal(
+            executablePath: "/bin/sleep",
+            arguments: ["2"],
+            timeout: 0.05
+        )
+        Issue.record("Expected the pseudo-terminal process to time out.")
+    }
+    catch let error as ProcessRunner.Failure {
+        guard case .timedOut(let commandName) = error else {
+            Issue.record("Expected a timeout failure.")
+            return
+        }
+        #expect(commandName == "sleep")
+    }
+    catch {
+        Issue.record("Unexpected error: \(error)")
+    }
+}
+
+@Test func claudeRepairFailureUsesMergedPseudoTerminalOutput() {
+    let result = ProcessRunner.Result(
+        standardOutput: Data("refresh failed on pty".utf8),
+        standardError: Data(),
+        terminationStatus: 1
+    )
+
+    do {
+        _ = try ClaudeCredentialRepair.validateUsageRefreshResult(
+            result,
+            executablePath: "/usr/local/bin/claude"
+        )
+        Issue.record("Expected Claude repair failure")
+    }
+    catch TokenTorchError.claudeRepairFailed(let message, let commandOutput) {
+        #expect(message == "refresh failed on pty")
+        #expect(commandOutput == "refresh failed on pty")
+    }
+    catch {
+        Issue.record("Unexpected error: \(error)")
+    }
 }
 
 @Test func claudeRepairCapturesUsageCommandOutput() throws {

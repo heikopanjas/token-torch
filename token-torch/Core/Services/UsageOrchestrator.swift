@@ -105,12 +105,12 @@ public struct UsageOrchestrator: Sendable {
                 )
             }
             catch {
-                if Self.shouldContinueAfterImporterAuthorizationFailure(
+                if Self.shouldReturnNeedsAuthorizationAfterImporterFailure(
                     provider: provider,
                     preferences: preferences,
                     interactive: interactive,
                     error: error
-                ), interactive == false, Self.isNeedsAuthorization(error) {
+                ) {
                     return .needsAuthorization(provider: provider, mode: "subscription")
                 }
                 // Interactive failures and Claude automatic importer auth failures fall through;
@@ -163,6 +163,25 @@ public struct UsageOrchestrator: Sendable {
             && interactive == false
             && preferences.claudeAutomaticRepair
             && Self.isNeedsAuthorization(error)
+    }
+
+    /// When true, the importer failure becomes a needs-authorization notice.
+    /// When false, the fetch continues (Claude automatic repair fall-through, or interactive retry).
+    static func shouldReturnNeedsAuthorizationAfterImporterFailure(
+        provider: ProviderID,
+        preferences: ProviderPreferences,
+        interactive: Bool,
+        error: Error
+    ) -> Bool {
+        if Self.shouldContinueAfterImporterAuthorizationFailure(
+            provider: provider,
+            preferences: preferences,
+            interactive: interactive,
+            error: error
+        ) {
+            return false
+        }
+        return interactive == false && Self.isNeedsAuthorization(error)
     }
 
     private func fetchQuota(provider: ProviderID, preferences: ProviderPreferences, interactive: Bool) async throws -> SubscriptionQuotaReport {
