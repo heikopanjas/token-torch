@@ -10,19 +10,9 @@ public enum CredentialSource: Sendable, Equatable, Codable {
     case cursorSqlite
     case cursorKeychain
     case tokenTorchCopy
-}
-
-public struct OAuthSession: Sendable {
-    public let accessToken: String
-    public let refreshToken: String
-    public let expiresAt: Int64?
-    public let accountID: String?
-    public let subscriptionType: String?
-    public let rateLimitTier: String?
-    public let source: CredentialSource
 
     public func sourceLabel() -> String {
-        switch source {
+        switch self {
             case .claudeKeychain(let service):
                 "Keychain \"\(service)\""
             case .claudeFile(let url), .codexFile(let url):
@@ -36,6 +26,20 @@ public struct OAuthSession: Sendable {
             case .tokenTorchCopy:
                 "Token Torch Keychain copy"
         }
+    }
+}
+
+public struct OAuthSession: Sendable {
+    public let accessToken: String
+    public let refreshToken: String
+    public let expiresAt: Int64?
+    public let accountID: String?
+    public let subscriptionType: String?
+    public let rateLimitTier: String?
+    public let source: CredentialSource
+
+    public func sourceLabel() -> String {
+        return self.source.sourceLabel()
     }
 }
 

@@ -65,6 +65,7 @@
 		C0040000000000000095 /* OrgPagination.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000095 /* OrgPagination.swift */; };
 		C0040000000000000096 /* ProcessRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000096 /* ProcessRunner.swift */; };
 		C0040000000000000097 /* SecurityCLIReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000097 /* SecurityCLIReader.swift */; };
+		C0040000000000000098 /* PseudoTerminalChildBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000098 /* PseudoTerminalChildBootstrap.swift */; };
 		B00101000000000000000024 /* SettingsCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000024 /* SettingsCopy.swift */; };
 		B00101000000000000000025 /* SettingsPaneViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000025 /* SettingsPaneViewController.swift */; };
 		C0040000000000000044 /* CodexQuotaProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000043 /* CodexQuotaProvider.swift */; };
@@ -150,6 +151,7 @@
 		C0030000000000000095 /* OrgPagination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgPagination.swift; sourceTree = "<group>"; };
 		C0030000000000000096 /* ProcessRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessRunner.swift; sourceTree = "<group>"; };
 		C0030000000000000097 /* SecurityCLIReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityCLIReader.swift; sourceTree = "<group>"; };
+		C0030000000000000098 /* PseudoTerminalChildBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PseudoTerminalChildBootstrap.swift; sourceTree = "<group>"; };
 		B00102000000000000000024 /* SettingsCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsCopy.swift; sourceTree = "<group>"; };
 		B00102000000000000000025 /* SettingsPaneViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPaneViewController.swift; sourceTree = "<group>"; };
 		C0030000000000000043 /* CodexQuotaProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexQuotaProvider.swift; sourceTree = "<group>"; };
@@ -368,6 +370,7 @@
 				C0030000000000000072 /* JSONValue.swift */,
 				C0030000000000000074 /* PlanBranding.swift */,
 				C0030000000000000096 /* ProcessRunner.swift */,
+				C0030000000000000098 /* PseudoTerminalChildBootstrap.swift */,
 				C0030000000000000076 /* Redaction.swift */,
 				C0030000000000000078 /* TokenTorchError.swift */,
 				C0030000000000000080 /* TokenTorchLog.swift */,
@@ -575,6 +578,7 @@
 				C0040000000000000094 /* FlexibleDoubleDecoding.swift in Sources */,
 				C0040000000000000095 /* OrgPagination.swift in Sources */,
 				C0040000000000000096 /* ProcessRunner.swift in Sources */,
+				C0040000000000000098 /* PseudoTerminalChildBootstrap.swift in Sources */,
 				C0040000000000000097 /* SecurityCLIReader.swift in Sources */,
 				B00101000000000000000024 /* SettingsCopy.swift in Sources */,
 				B00101000000000000000025 /* SettingsPaneViewController.swift in Sources */,

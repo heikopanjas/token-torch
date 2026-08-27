@@ -537,28 +537,77 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(unset == executable.path)
 }
 
+@Test func claudeCredentialPathsMapHashedKeychainServiceToConfigDir() {
+    let configDir = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".config/claude")
+    let service = ClaudeCredentialPaths.keychainService(forConfigDir: configDir)
+    let resolved = ClaudeCredentialPaths.configDir(forKeychainService: service)
+    #expect(resolved == configDir)
+    #expect(
+        ClaudeCredentialPaths.configDir(for: .claudeKeychain(service: service)) == configDir
+    )
+}
+
+@Test func claudeRepairSelectsConfigDirectoryFromBaselineSource() {
+    let configDir = URL(fileURLWithPath: "/Users/example/.config/claude")
+    let service = ClaudeCredentialPaths.keychainService(forConfigDir: configDir)
+    let baseline = OAuthSession(
+        accessToken: "access",
+        refreshToken: "refresh",
+        expiresAt: nil,
+        accountID: nil,
+        subscriptionType: nil,
+        rateLimitTier: nil,
+        source: .claudeKeychain(service: service)
+    )
+    let selected = ClaudeCredentialRepair.selectedRepairConfigDirectory(
+        baseline: baseline,
+        environment: ["CLAUDE_CONFIG_DIR": configDir.path, "HOME": "/Users/example"]
+    )
+    #expect(selected == configDir)
+}
+
 @Test func claudeRepairUsesOneShellForEmptyKeyAndUsageCommand() {
     let claudePath = "/Applications/Claude Code/claude"
+    let configDir = URL(fileURLWithPath: "/Users/example/.config/claude")
     #expect(ClaudeCredentialRepair.usageRefreshShellPath == "/bin/zsh")
     #expect(
         ClaudeCredentialRepair.usageRefreshShellScript
-            == #"ANTHROPIC_API_KEY="" exec "$1" -p "/usage""#
+            == #"CLAUDE_CONFIG_DIR="$2" ANTHROPIC_API_KEY="" exec "$1" -p "/usage""#
     )
     #expect(
-        ClaudeCredentialRepair.usageRefreshShellArguments(claudePath: claudePath)
+        ClaudeCredentialRepair.usageRefreshShellArguments(claudePath: claudePath, configDirectory: configDir)
             == [
                 "-c",
                 ClaudeCredentialRepair.usageRefreshShellScript,
                 "token-torch-claude-repair",
-                claudePath
+                claudePath,
+                configDir.path
             ]
     )
 }
 
-@Test func claudeRepairShellPassesEmptyAnthropicAPIKeyBeforeExec() async throws {
+@Test func claudeRepairReportsAuthenticationEnvironmentStatesWithoutValues() {
+    let states = ClaudeCredentialRepair.authenticationEnvironmentStates(
+        environment: [
+            "ANTHROPIC_API_KEY": "secret-value",
+            "ANTHROPIC_AUTH_TOKEN": "",
+            "CLAUDE_CONFIG_DIR": "/Users/example/.config/claude"
+        ]
+    )
+    let byKey = Dictionary(uniqueKeysWithValues: states.map { ($0.key, $0.state) })
+    #expect(byKey["ANTHROPIC_API_KEY"] == "nonempty")
+    #expect(byKey["ANTHROPIC_AUTH_TOKEN"] == "empty")
+    #expect(byKey["CLAUDE_CODE_OAUTH_TOKEN"] == "unset")
+    #expect(byKey["CLAUDE_CONFIG_DIR"] == "nonempty")
+}
+
+@Test func claudeRepairShellPassesConfigDirAndEmptyAnthropicAPIKeyBeforeExec() async throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: directory) }
+    let configDirectory = directory.appendingPathComponent("claude-config")
+    try FileManager.default.createDirectory(at: configDirectory, withIntermediateDirectories: true)
     let fakeClaude = directory.appendingPathComponent("claude")
     let script = """
         #!/bin/zsh
@@ -570,43 +619,94 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
             print -r -- "ANTHROPIC_API_KEY is not empty"
             exit 10
         fi
-        print -r -- "$*|$UNRELATED"
+        if [[ "$CLAUDE_CONFIG_DIR" != "\(configDirectory.path)" ]]; then
+            print -r -- "CLAUDE_CONFIG_DIR mismatch:$CLAUDE_CONFIG_DIR"
+            exit 11
+        fi
+        print -r -- "$*|$UNRELATED|$CLAUDE_CONFIG_DIR"
         """
     try script.write(to: fakeClaude, atomically: true, encoding: .utf8)
     try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fakeClaude.path)
     let environment = [
         "ANTHROPIC_API_KEY": "must-not-reach-claude",
-        "UNRELATED": "preserved"
+        "UNRELATED": "preserved",
+        "CLAUDE_CONFIG_DIR": "/wrong/profile"
     ]
 
     let result = try await ProcessRunner.runInPseudoTerminal(
         executablePath: ClaudeCredentialRepair.usageRefreshShellPath,
-        arguments: ClaudeCredentialRepair.usageRefreshShellArguments(claudePath: fakeClaude.path),
-        timeout: 2,
+        arguments: ClaudeCredentialRepair.usageRefreshShellArguments(
+            claudePath: fakeClaude.path,
+            configDirectory: configDirectory
+        ),
+        timeout: 5,
         environment: environment
     )
     let output = try #require(String(data: result.standardOutput, encoding: .utf8))
         .trimmingCharacters(in: .whitespacesAndNewlines)
 
     #expect(result.terminationStatus == 0)
-    #expect(output == "-p /usage|preserved")
+    #expect(output == "-p /usage|preserved|\(configDirectory.path)")
 }
 
-@Test func processRunnerPseudoTerminalExposesTTYToChild() async throws {
+@Test func processRunnerPseudoTerminalExposesControllingTerminal() async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+
+    let sourceURL = directory.appendingPathComponent("controlling_terminal_probe.c")
+    let probeURL = directory.appendingPathComponent("controlling_terminal_probe")
+    let source = """
+        #include <fcntl.h>
+        #include <stdio.h>
+        #include <unistd.h>
+
+        int main(void) {
+            if (!isatty(0) || !isatty(1) || !isatty(2)) {
+                puts("tty-missing");
+                return 11;
+            }
+            int tty = open("/dev/tty", O_RDWR);
+            if (tty < 0) {
+                puts("no-dev-tty");
+                return 12;
+            }
+            close(tty);
+            pid_t pid = getpid();
+            pid_t sid = getsid(0);
+            if (sid != pid) {
+                printf("not-session-leader:%d:%d\\n", (int)pid, (int)sid);
+                return 13;
+            }
+            pid_t pgid = getpgrp();
+            pid_t tpgid = tcgetpgrp(0);
+            if (tpgid != pgid) {
+                printf("not-foreground:%d:%d\\n", (int)pgid, (int)tpgid);
+                return 14;
+            }
+            puts("controlling-ok");
+            return 0;
+        }
+        """
+    try source.write(to: sourceURL, atomically: true, encoding: .utf8)
+    let compile = try await ProcessRunner.run(
+        executablePath: "/usr/bin/cc",
+        arguments: ["-o", probeURL.path, sourceURL.path],
+        timeout: 10
+    )
+    #expect(compile.terminationStatus == 0)
+
     let result = try await ProcessRunner.runInPseudoTerminal(
-        executablePath: "/bin/zsh",
-        arguments: [
-            "-c",
-            #"if [[ -t 0 && -t 1 && -t 2 ]]; then print -r -- "tty-ok"; else print -r -- "tty-missing"; exit 11; fi"#
-        ],
-        timeout: 2
+        executablePath: probeURL.path,
+        arguments: [],
+        timeout: 5
     )
     let output = try #require(String(data: result.standardOutput, encoding: .utf8))
         .trimmingCharacters(in: .whitespacesAndNewlines)
 
     #expect(result.terminationStatus == 0)
     #expect(result.standardError.isEmpty)
-    #expect(output == "tty-ok")
+    #expect(output == "controlling-ok")
 }
 
 @Test func processRunnerPseudoTerminalMergesStandardStreams() async throws {

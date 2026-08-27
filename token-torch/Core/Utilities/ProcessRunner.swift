@@ -234,6 +234,13 @@ enum ProcessRunner {
         columns: UInt16,
         rows: UInt16
     ) throws -> Result {
+        guard let bootstrapPath = Self.pseudoTerminalBootstrapExecutablePath() else {
+            throw Failure.launchFailed(
+                executablePath: executablePath,
+                message: "Could not locate the Token Torch pseudo-terminal bootstrap executable."
+            )
+        }
+
         var primaryFD: Int32 = -1
         var replicaFD: Int32 = -1
         var size = winsize(ws_row: rows, ws_col: columns, ws_xpixel: 0, ws_ypixel: 0)
@@ -245,11 +252,12 @@ enum ProcessRunner {
         }
 
         let outputBuffer = OutputBuffer(limit: outputLimit)
+        let bootstrapArguments = [PseudoTerminalChildBootstrap.invocationArgument, executablePath] + arguments
         let pid: pid_t
         do {
             pid = try Self.spawnInPseudoTerminal(
-                executablePath: executablePath,
-                arguments: arguments,
+                executablePath: bootstrapPath,
+                arguments: bootstrapArguments,
                 environment: Self.environmentForPseudoTerminal(environment),
                 workingDirectory: workingDirectory,
                 primaryFD: primaryFD,
@@ -283,6 +291,15 @@ enum ProcessRunner {
             standardError: Data(),
             terminationStatus: terminationStatus
         )
+    }
+
+    private static func pseudoTerminalBootstrapExecutablePath() -> String? {
+        if let executable = Bundle.main.executableURL?.path,
+            FileManager.default.isExecutableFile(atPath: executable) == true
+        {
+            return executable
+        }
+        return nil
     }
 
     private static func environmentForPseudoTerminal(_ environment: [String: String]?) -> [String: String] {
@@ -364,7 +381,7 @@ enum ProcessRunner {
             )
         }
 
-        try Self.applyProcessGroupAttributes(&attributes, executablePath: executablePath)
+        try Self.applySessionAttributes(&attributes, executablePath: executablePath)
         return try Self.posixSpawn(
             executablePath: executablePath,
             arguments: arguments,
@@ -456,6 +473,20 @@ enum ProcessRunner {
         if attributeStatus == 0 {
             attributeStatus = posix_spawnattr_setpgroup(&attributes, 0)
         }
+        guard attributeStatus == 0 else {
+            throw Failure.launchFailed(
+                executablePath: executablePath,
+                message: Self.errorMessage(code: attributeStatus)
+            )
+        }
+    }
+
+    private static func applySessionAttributes(
+        _ attributes: inout posix_spawnattr_t?,
+        executablePath: String
+    ) throws -> Void {
+        let spawnFlags = POSIX_SPAWN_SETSID | POSIX_SPAWN_CLOEXEC_DEFAULT
+        let attributeStatus = posix_spawnattr_setflags(&attributes, Int16(spawnFlags))
         guard attributeStatus == 0 else {
             throw Failure.launchFailed(
                 executablePath: executablePath,
