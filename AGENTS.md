@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-08-05 (Claude repair config dir + controlling terminal)
+Last updated: 2026-09-01 (Claude Fable share row from the usage `limits` array)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -201,6 +201,8 @@ Grand Total: €Z.ZZ ($W.WW)
 ```
 
 OpenAI native cost line items such as `chat-latest, input` and `chat-latest, output` are aggregated into one model cost row before display.
+
+Claude `/api/oauth/usage` reports the weekly **Fable** limit only inside the `limits` array, never as a top-level `seven_day_*` key. `ClaudeQuotaProvider.fableWindow(in:)` selects the entry whose `kind` is `weekly_scoped` and whose `scope.model.display_name` (or `scope.model.id`) contains `fable` case-insensitively — a substring match, so a versioned name such as `Fable 5` still resolves — and `mapUsage` pushes it as **Fable share of 7-day limit** directly after the 7-day window with `skipIfEmpty: false`. That label is deliberate: `weekly_scoped` is a sub-cap carved out of the weekly limit (on Max, up to 50% of it), not an independent pool, so a sibling row named like a separate window misreads as additive. Do not put the 50% figure in the label — the share is plan-dependent, and on Pro, Fable runs on usage credits instead of the weekly limit. Both details are load-bearing: an unstarted Fable window returns `percent` 0 with a null `resets_at`, which `QuotaHelpers.pushWindow` would otherwise drop. The array's `session` and `weekly_all` entries duplicate `five_hour` / `seven_day` and must stay ignored so those rows are not rendered twice. Only Fable is read from `limits`; Opus and Sonnet keep their top-level keys.
 
 Codex `/wham/usage` windows are classified by `limit_window_seconds`: `18000` is the 5-hour window and `604800` is the 7-day window. Do not assume `primary_window` is always 5-hour or `secondary_window` is always weekly because Codex can move a temporarily sole weekly limit into the primary slot. Missing or unknown durations retain the historical positional fallback. Apply the same classification to core, code-review, and additional/model limits, and use it for `rate_limit_reached_type` labels.
 

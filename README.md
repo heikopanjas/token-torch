@@ -84,6 +84,8 @@ Quota APIs are undocumented and may change. Reference: [OpenUsage provider docs]
 
 Codex 5-hour and 7-day windows are classified from each `/wham/usage` window's `limit_window_seconds` (`18000` and `604800`) rather than assuming `primary_window` and `secondary_window` always have fixed meanings. This keeps weekly-only responses correct when Codex moves the remaining weekly limit into the primary slot; payloads without a recognized duration retain the historical positional fallback.
 
+Claude Code's weekly **Fable** limit has no top-level `seven_day_*` key. The `/api/oauth/usage` response reports it only as a `weekly_scoped` entry in the `limits` array, identified by `scope.model.display_name`; the array's `session` and `weekly_all` entries restate `five_hour` and `seven_day` and are ignored. The **Fable share of 7-day limit** row sits directly below the 7-day window and stays visible before the window starts, when Anthropic reports `percent` 0 with a null reset. Fable is not a separate allowance: it draws from the same weekly limit as every other model (on Max, up to half of it), so the row reports how much of that scoped share is spent rather than an additional pool. The label says so explicitly because two stacked percentages otherwise read as independent budgets.
+
 Copilot reports the next monthly quota reset, not a subscription billing-cycle start. Token Torch derives the displayed **Quota period** as the preceding UTC calendar month and does not use Copilot's persistent `assigned_date` seat-assignment timestamp.
 
 ## Architecture

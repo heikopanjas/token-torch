@@ -2,6 +2,8 @@ import Foundation
 
 public enum ClaudeQuotaProvider {
     private static let retryDelays: [UInt64] = [2, 5, 10]
+    private static let weeklyScopedLimitKind = "weekly_scoped"
+    private static let fableModelName = "fable"
     private static let client = HTTPClient()
 
     public static func fetch(
@@ -137,6 +139,52 @@ public enum ClaudeQuotaProvider {
         }
     }
 
+    public struct ClaudeLimitModel: Decodable, Sendable {
+        public let displayName: String?
+        public let id: String?
+
+        public init(displayName: String? = nil, id: String? = nil) {
+            self.displayName = displayName
+            self.id = id
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case displayName = "display_name"
+            case id
+        }
+    }
+
+    public struct ClaudeLimitScope: Decodable, Sendable {
+        public let model: ClaudeLimitModel?
+
+        public init(model: ClaudeLimitModel? = nil) {
+            self.model = model
+        }
+    }
+
+    /// One entry of the `/api/oauth/usage` `limits` array. Only `kind == "weekly_scoped"` entries carry
+    /// per-model limits (such as Fable); `session` and `weekly_all` restate `five_hour` / `seven_day`.
+    public struct ClaudeLimitEntry: Decodable, Sendable {
+        public let kind: String?
+        public let percent: Double?
+        public let resetsAt: String?
+        public let scope: ClaudeLimitScope?
+
+        public init(kind: String? = nil, percent: Double? = nil, resetsAt: String? = nil, scope: ClaudeLimitScope? = nil) {
+            self.kind = kind
+            self.percent = percent
+            self.resetsAt = resetsAt
+            self.scope = scope
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case kind
+            case percent
+            case resetsAt = "resets_at"
+            case scope
+        }
+    }
+
     public struct ClaudeUsageResponse: Decodable, Sendable {
         public let fiveHour: ClaudeUsageWindow?
         public let sevenDay: ClaudeUsageWindow?
@@ -148,6 +196,7 @@ public enum ClaudeQuotaProvider {
         public let tangelo: ClaudeUsageWindow?
         public let iguanaNecktie: ClaudeUsageWindow?
         public let omelettePromotional: ClaudeUsageWindow?
+        public let limits: [ClaudeLimitEntry]?
         public let extraUsage: ClaudeExtraUsage?
 
         public init(
@@ -161,6 +210,7 @@ public enum ClaudeQuotaProvider {
             tangelo: ClaudeUsageWindow? = nil,
             iguanaNecktie: ClaudeUsageWindow? = nil,
             omelettePromotional: ClaudeUsageWindow? = nil,
+            limits: [ClaudeLimitEntry]? = nil,
             extraUsage: ClaudeExtraUsage? = nil
         ) {
             self.fiveHour = fiveHour
@@ -173,6 +223,7 @@ public enum ClaudeQuotaProvider {
             self.tangelo = tangelo
             self.iguanaNecktie = iguanaNecktie
             self.omelettePromotional = omelettePromotional
+            self.limits = limits
             self.extraUsage = extraUsage
         }
 
@@ -187,6 +238,7 @@ public enum ClaudeQuotaProvider {
             case tangelo
             case iguanaNecktie = "iguana_necktie"
             case omelettePromotional = "omelette_promotional"
+            case limits
             case extraUsage = "extra_usage"
         }
     }
@@ -200,6 +252,7 @@ public enum ClaudeQuotaProvider {
         var windows: [QuotaWindow] = []
         pushWindow(&windows, label: "5-hour window", window: response.fiveHour, skipIfEmpty: false)
         pushWindow(&windows, label: "7-day window", window: response.sevenDay, skipIfEmpty: false)
+        pushWindow(&windows, label: "Fable share of 7-day limit", window: Self.fableWindow(in: response.limits), skipIfEmpty: false)
         pushWindow(&windows, label: "7-day Opus window", window: response.sevenDayOpus)
         pushWindow(&windows, label: "7-day Sonnet window", window: response.sevenDaySonnet)
         pushWindow(&windows, label: "7-day Cowork window", window: response.sevenDayCowork)
@@ -224,6 +277,22 @@ public enum ClaudeQuotaProvider {
             }
         }
         return report
+    }
+
+    /// Fable has no top-level `seven_day_*` key; the usage API reports it only as a model-scoped
+    /// entry of the `limits` array, so it must be read from there. An unstarted Fable window comes
+    /// back as `percent: 0` with a null reset, hence the caller pushes it with `skipIfEmpty: false`.
+    /// The model name is matched as a substring so a versioned display name such as `Fable 5` still resolves.
+    private static func fableWindow(in limits: [ClaudeLimitEntry]?) -> ClaudeUsageWindow? {
+        guard let limits else { return nil }
+        for limit in limits where limit.kind == Self.weeklyScopedLimitKind {
+            let displayName = limit.scope?.model?.displayName?.lowercased()
+            let identifier = limit.scope?.model?.id?.lowercased()
+            if displayName?.contains(Self.fableModelName) == true || identifier?.contains(Self.fableModelName) == true {
+                return ClaudeUsageWindow(utilization: limit.percent ?? 0, resetsAt: limit.resetsAt)
+            }
+        }
+        return nil
     }
 
     private static func pushWindow(

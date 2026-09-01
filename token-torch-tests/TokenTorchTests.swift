@@ -91,6 +91,146 @@ import Testing
     #expect(report.credits?.utilizationPercent == 6.54)
 }
 
+@Test func mapClaudeUsageAddsFableWindowBelowSevenDay() {
+    let response = ClaudeQuotaProvider.ClaudeUsageResponse(
+        fiveHour: ClaudeQuotaProvider.ClaudeUsageWindow(utilization: 2, resetsAt: "2026-09-01T19:59:59.764939+00:00"),
+        sevenDay: ClaudeQuotaProvider.ClaudeUsageWindow(utilization: 10, resetsAt: "2026-09-04T08:59:59.764963+00:00"),
+        limits: [
+            // `session` and `weekly_all` restate five_hour / seven_day and must not add rows.
+            ClaudeQuotaProvider.ClaudeLimitEntry(kind: "session", percent: 2, resetsAt: "2026-09-01T19:59:59.764939+00:00"),
+            ClaudeQuotaProvider.ClaudeLimitEntry(kind: "weekly_all", percent: 10, resetsAt: "2026-09-04T08:59:59.764963+00:00"),
+            ClaudeQuotaProvider.ClaudeLimitEntry(
+                kind: "weekly_scoped",
+                percent: 0,
+                resetsAt: nil,
+                scope: ClaudeQuotaProvider.ClaudeLimitScope(model: ClaudeQuotaProvider.ClaudeLimitModel(displayName: "Fable"))
+            )
+        ]
+    )
+    let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max")
+    #expect(report.windows.map { $0.label } == ["5-hour window", "7-day window", "Fable share of 7-day limit"])
+}
+
+@Test func mapClaudeUsageMapsActiveFablePercentAndReset() {
+    let response = ClaudeQuotaProvider.ClaudeUsageResponse(
+        fiveHour: ClaudeQuotaProvider.ClaudeUsageWindow(utilization: 2, resetsAt: nil),
+        sevenDay: ClaudeQuotaProvider.ClaudeUsageWindow(utilization: 10, resetsAt: nil),
+        limits: [
+            ClaudeQuotaProvider.ClaudeLimitEntry(
+                kind: "weekly_scoped",
+                percent: 37,
+                resetsAt: "2026-09-04T08:59:59.764963+00:00",
+                scope: ClaudeQuotaProvider.ClaudeLimitScope(model: ClaudeQuotaProvider.ClaudeLimitModel(displayName: "Fable"))
+            )
+        ]
+    )
+    let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max")
+    let fable = report.windows.first { $0.label == "Fable share of 7-day limit" }
+    #expect(fable?.usedPercent == 37)
+    #expect(fable?.resetsAt != nil)
+}
+
+@Test func mapClaudeUsageMatchesVersionedFableDisplayName() {
+    // The display name is matched as a substring so a future "Fable 5" does not silently drop the row.
+    let response = ClaudeQuotaProvider.ClaudeUsageResponse(
+        fiveHour: ClaudeQuotaProvider.ClaudeUsageWindow(utilization: 2, resetsAt: nil),
+        sevenDay: ClaudeQuotaProvider.ClaudeUsageWindow(utilization: 10, resetsAt: nil),
+        limits: [
+            ClaudeQuotaProvider.ClaudeLimitEntry(
+                kind: "weekly_scoped",
+                percent: 12,
+                resetsAt: "2026-09-04T08:59:59.764963+00:00",
+                scope: ClaudeQuotaProvider.ClaudeLimitScope(model: ClaudeQuotaProvider.ClaudeLimitModel(displayName: "Fable 5"))
+            )
+        ]
+    )
+    let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max")
+    #expect(report.windows.first { $0.label == "Fable share of 7-day limit" }?.usedPercent == 12)
+}
+
+@Test func mapClaudeUsageIgnoresOtherScopedModels() {
+    let response = ClaudeQuotaProvider.ClaudeUsageResponse(
+        fiveHour: ClaudeQuotaProvider.ClaudeUsageWindow(utilization: 2, resetsAt: nil),
+        sevenDay: ClaudeQuotaProvider.ClaudeUsageWindow(utilization: 10, resetsAt: nil),
+        limits: [
+            ClaudeQuotaProvider.ClaudeLimitEntry(
+                kind: "weekly_scoped",
+                percent: 55,
+                resetsAt: "2026-09-04T08:59:59.764963+00:00",
+                scope: ClaudeQuotaProvider.ClaudeLimitScope(model: ClaudeQuotaProvider.ClaudeLimitModel(displayName: "Sonnet"))
+            )
+        ]
+    )
+    let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max")
+    #expect(report.windows.map { $0.label } == ["5-hour window", "7-day window"])
+}
+
+@Test func decodeClaudeUsageLivePayloadSurfacesFableWindow() throws {
+    // Captured verbatim from a live GET /api/oauth/usage response; locks the real wire format.
+    let json = """
+        {
+          "extra_usage": {
+            "credits_ever_enabled": true,
+            "currency": null,
+            "disabled_reason": null,
+            "is_enabled": false,
+            "monthly_limit": null,
+            "used_credits": null,
+            "utilization": null
+          },
+          "five_hour": {
+            "resets_at": "2026-09-01T19:59:59.764939+00:00",
+            "utilization": 2.0
+          },
+          "limits": [
+            {
+              "group": "session",
+              "is_active": false,
+              "kind": "session",
+              "percent": 2,
+              "resets_at": "2026-09-01T19:59:59.764939+00:00",
+              "scope": null,
+              "severity": "normal"
+            },
+            {
+              "group": "weekly",
+              "is_active": true,
+              "kind": "weekly_all",
+              "percent": 10,
+              "resets_at": "2026-09-04T08:59:59.764963+00:00",
+              "scope": null,
+              "severity": "normal"
+            },
+            {
+              "group": "weekly",
+              "is_active": false,
+              "kind": "weekly_scoped",
+              "percent": 0,
+              "resets_at": null,
+              "scope": {
+                "model": { "display_name": "Fable", "id": null },
+                "surface": null
+              },
+              "severity": "normal"
+            }
+          ],
+          "seven_day": {
+            "resets_at": "2026-09-04T08:59:59.764963+00:00",
+            "utilization": 10.0
+          },
+          "seven_day_opus": null,
+          "seven_day_sonnet": null
+        }
+        """
+    let data = Data(json.utf8)
+    let response = try JSONDecoder().decode(ClaudeQuotaProvider.ClaudeUsageResponse.self, from: data)
+    let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max")
+    #expect(report.windows.map { $0.label } == ["5-hour window", "7-day window", "Fable share of 7-day limit"])
+    let fable = report.windows.first { $0.label == "Fable share of 7-day limit" }
+    #expect(fable?.usedPercent == 0)
+    #expect(fable?.resetsAt == nil)
+}
+
 @Test func parseClaudeSecurityCLICredentialJSON() throws {
     let json = """
         {
