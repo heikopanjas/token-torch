@@ -4,6 +4,14 @@ This file is the append-only log of project decisions and notable changes, maint
 
 <!-- {changelog} -->
 
+### 2026-09-01 18:35 (v5.9.0, pin build.sh debug output path)
+
+- build.sh now passes SYMROOT on the debug build and errors out if no app exists at the path it advertises
+- rationale: xcode's global custom build-location preference overrides -derivedDataPath for products, so the script reported .build/Products/Debug while writing to Build/Products, and a two month old app sat at the advertised path and was launched instead of the new build
+- a command line build setting outranks the xcode preference, which makes the output path deterministic on any machine
+- bare xcodebuild test still honors the user preference since it produces nothing that ships
+- no version bump: build tooling only, no shipped behavior change
+
 ### 2026-09-01 18:20 (v5.9.0, migrate historical log to updates.md)
 
 - the full "Recent Updates & Decisions" history from 2025-11-11 through 2026-08-05 moved out of AGENTS.md into this file, verbatim and in its original order

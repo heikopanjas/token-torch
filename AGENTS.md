@@ -38,6 +38,8 @@ When starting a new session, read this entire file and confirm you have understo
 
 Binary output: `./build.sh` → `.build/Products/Debug/Token Torch.app` (Xcode Debug), and `./build.sh --release` → `.build/export/Token Torch.app`.
 
+`build.sh` passes `SYMROOT` explicitly on the Debug build and fails if no app exists at the advertised path afterwards. Both are load-bearing: Xcode's global build-location preference (`IDEBuildLocationStyle=Custom`, e.g. `Build/Products` relative to the workspace) overrides `-derivedDataPath` for the products directory, so without the override the script silently reports a path it never wrote to and a stale app can be launched from it. A command-line build setting outranks that preference. Bare `xcodebuild test` still honors the user's preference, which is fine because it ships nothing.
+
 ```bash
 # Menu bar app
 open token-torch.xcodeproj
