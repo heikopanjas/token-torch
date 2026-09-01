@@ -4,6 +4,18 @@ public enum CodexQuotaProvider {
     static let creditUSDValue = 0.04
 
     private static let client = HTTPClient()
+    private static let fiveHourWindowSeconds: Int64 = 18_000
+    private static let sevenDayWindowSeconds: Int64 = 604_800
+
+    private enum RateWindowKind {
+        case fiveHour
+        case sevenDay
+    }
+
+    private struct RateWindowCandidate {
+        let window: RateLimitWindow
+        let fallbackKind: RateWindowKind
+    }
 
     public static func fetch(interactive: Bool = false) async throws -> SubscriptionQuotaReport {
         return try await QuotaHTTP.fetchSubscriptionQuota(
@@ -27,10 +39,12 @@ public enum CodexQuotaProvider {
     public struct RateLimitWindow: Decodable {
         let usedPercent: Double
         let resetAt: Int64
+        let limitWindowSeconds: Int64?
 
         enum CodingKeys: String, CodingKey {
             case usedPercent = "used_percent"
             case resetAt = "reset_at"
+            case limitWindowSeconds = "limit_window_seconds"
         }
     }
 
@@ -151,20 +165,34 @@ public enum CodexQuotaProvider {
 
         var windows: [QuotaWindow] = []
         if let rateLimit = response.rateLimit {
-            pushRateWindow(&windows, label: "5-hour window", window: rateLimit.primaryWindow)
-            pushRateWindow(&windows, label: "7-day window", window: rateLimit.secondaryWindow)
+            windows.append(
+                contentsOf: Self.classifiedRateWindows(
+                    rateLimit,
+                    labels: (fiveHour: "5-hour window", sevenDay: "7-day window")
+                )
+            )
         }
         if let review = response.codeReviewRateLimit {
-            pushRateWindow(&windows, label: "Code review (5h)", window: review.primaryWindow)
-            pushRateWindow(&windows, label: "Code review (7d)", window: review.secondaryWindow)
+            windows.append(
+                contentsOf: Self.classifiedRateWindows(
+                    review,
+                    labels: (fiveHour: "Code review (5h)", sevenDay: "Code review (7d)")
+                )
+            )
         }
         report.windows = windows
 
         var additional: [QuotaWindow] = []
         for limit in response.additionalRateLimits ?? [] {
             let name = limit.limitName ?? "Additional"
-            pushRateWindow(&additional, label: "\(name) (5h)", window: limit.rateLimit?.primaryWindow)
-            pushRateWindow(&additional, label: "\(name) (7d)", window: limit.rateLimit?.secondaryWindow)
+            if let rateLimit = limit.rateLimit {
+                additional.append(
+                    contentsOf: Self.classifiedRateWindows(
+                        rateLimit,
+                        labels: (fiveHour: "\(name) (5h)", sevenDay: "\(name) (7d)")
+                    )
+                )
+            }
         }
         report.additionalWindows = additional
 
@@ -177,7 +205,12 @@ public enum CodexQuotaProvider {
             notes.append(QuotaNote(label: "Limit reached", value: "yes"))
         }
         if let type = response.rateLimitReachedType {
-            notes.append(QuotaNote(label: "Rate limit type", value: friendlyReachedType(type)))
+            notes.append(
+                QuotaNote(
+                    label: "Rate limit type",
+                    value: Self.friendlyReachedType(type, rateLimit: response.rateLimit)
+                )
+            )
         }
         if response.credits?.unlimited == true {
             notes.append(QuotaNote(label: "Unlimited credits", value: "yes"))
@@ -213,11 +246,84 @@ public enum CodexQuotaProvider {
         return report
     }
 
-    private static func friendlyReachedType(_ type: String) -> String {
+    private static func friendlyReachedType(_ type: String, rateLimit: RateLimitPair?) -> String {
         switch type {
-            case "primary": "5-hour limit"
-            case "secondary": "weekly limit"
-            default: type
+            case "primary":
+                return Self.rateLimitTypeLabel(
+                    window: rateLimit?.primaryWindow,
+                    fallbackKind: .fiveHour
+                )
+            case "secondary":
+                return Self.rateLimitTypeLabel(
+                    window: rateLimit?.secondaryWindow,
+                    fallbackKind: .sevenDay
+                )
+            default:
+                return type
+        }
+    }
+
+    /// Codex can move a temporarily sole weekly limit into `primary_window`, so explicit
+    /// durations take precedence over slot position. Unknown durations keep the legacy fallback.
+    private static func classifiedRateWindows(
+        _ rateLimit: RateLimitPair,
+        labels: (fiveHour: String, sevenDay: String)
+    ) -> [QuotaWindow] {
+        let candidates = [
+            rateLimit.primaryWindow.map {
+                RateWindowCandidate(window: $0, fallbackKind: .fiveHour)
+            },
+            rateLimit.secondaryWindow.map {
+                RateWindowCandidate(window: $0, fallbackKind: .sevenDay)
+            }
+        ].compactMap { $0 }
+        var windows: [QuotaWindow] = []
+        Self.pushRateWindow(
+            &windows,
+            label: labels.fiveHour,
+            window: Self.rateWindowCandidate(kind: .fiveHour, candidates: candidates)
+        )
+        Self.pushRateWindow(
+            &windows,
+            label: labels.sevenDay,
+            window: Self.rateWindowCandidate(kind: .sevenDay, candidates: candidates)
+        )
+        return windows
+    }
+
+    private static func rateWindowCandidate(
+        kind: RateWindowKind,
+        candidates: [RateWindowCandidate]
+    ) -> RateLimitWindow? {
+        if let exact = candidates.first(where: { Self.exactRateWindowKind($0.window) == kind }) {
+            return exact.window
+        }
+        return candidates.first(where: {
+            return Self.exactRateWindowKind($0.window) == nil && $0.fallbackKind == kind
+        })?.window
+    }
+
+    private static func exactRateWindowKind(_ window: RateLimitWindow) -> RateWindowKind? {
+        switch window.limitWindowSeconds {
+            case Self.fiveHourWindowSeconds:
+                return .fiveHour
+            case Self.sevenDayWindowSeconds:
+                return .sevenDay
+            default:
+                return nil
+        }
+    }
+
+    private static func rateLimitTypeLabel(
+        window: RateLimitWindow?,
+        fallbackKind: RateWindowKind
+    ) -> String {
+        let kind = window.flatMap(Self.exactRateWindowKind) ?? fallbackKind
+        switch kind {
+            case .fiveHour:
+                return "5-hour limit"
+            case .sevenDay:
+                return "weekly limit"
         }
     }
 

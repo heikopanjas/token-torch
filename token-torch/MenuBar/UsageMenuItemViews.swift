@@ -88,8 +88,12 @@ enum UsageMenuItemViews {
         return customItem(view: container, height: 28)
     }
 
-    static func errorRow(mode: String, message: String) -> NSMenuItem {
-        let fullMessage = "\(mode): \(message)"
+    static func errorRow(mode: String, message: String, diagnosticOutput: String? = nil) -> NSMenuItem {
+        let fullMessage = Self.errorRowText(
+            mode: mode,
+            message: message,
+            diagnosticOutput: diagnosticOutput
+        )
         let verticalPadding: CGFloat = 4
         let copyGap: CGFloat = 8
         let textWidth = MenuFormat.menuWidth - inset * 2 - MenuFormat.copyButtonSize - copyGap
@@ -99,17 +103,25 @@ enum UsageMenuItemViews {
             options: [.usesLineFragmentOrigin, .usesFontLeading],
             attributes: [.font: font]
         )
-        let maxHeight: CGFloat = 120
+        let hasDiagnosticOutput = diagnosticOutput?.isEmpty == false
+        let maxHeight: CGFloat = hasDiagnosticOutput ? 240 : 120
         let textHeight = min(ceil(boundingRect.height), maxHeight)
         let totalHeight = textHeight + verticalPadding * 2
         let rowView = ErrorRowView(
             fullMessage: fullMessage,
+            copyDescription: hasDiagnosticOutput ? "Copy error and command output" : "Copy error message",
             textWidth: textWidth,
             textHeight: textHeight,
             totalHeight: totalHeight,
             verticalPadding: verticalPadding
         )
         return customItem(view: rowView, height: totalHeight)
+    }
+
+    nonisolated static func errorRowText(mode: String, message: String, diagnosticOutput: String?) -> String {
+        let error = "\(mode): \(message)"
+        guard let diagnosticOutput, diagnosticOutput.isEmpty == false else { return error }
+        return "\(error)\n\nclaude -p \"/usage\" output:\n\(diagnosticOutput)"
     }
 
     static func providerHeader(
@@ -222,18 +234,21 @@ enum UsageMenuItemViews {
 
 private final class ErrorRowView: NSView {
     private let fullMessage: String
+    private let copyDescription: String
     private let copyIcon: NSImageView
     private var copyIconFrame: NSRect = .zero
     private var copyRevertTask: Task<Void, Never>?
 
     init(
         fullMessage: String,
+        copyDescription: String,
         textWidth: CGFloat,
         textHeight: CGFloat,
         totalHeight: CGFloat,
         verticalPadding: CGFloat
     ) {
         self.fullMessage = fullMessage
+        self.copyDescription = copyDescription
         let label = UsageMenuItemViews.labelField(
             fullMessage,
             font: MenuFormat.captionFont,
@@ -259,11 +274,11 @@ private final class ErrorRowView: NSView {
         )
         icon.image = NSImage(
             systemSymbolName: "doc.on.doc",
-            accessibilityDescription: "Copy error"
+            accessibilityDescription: copyDescription
         )
         icon.contentTintColor = .secondaryLabelColor
         icon.imageScaling = .scaleProportionallyDown
-        icon.toolTip = "Copy error message"
+        icon.toolTip = copyDescription
         self.copyIcon = icon
         self.copyIconFrame = icon.frame
 
@@ -293,7 +308,7 @@ private final class ErrorRowView: NSView {
             guard Task.isCancelled == false else { return }
             self?.copyIcon.image = NSImage(
                 systemSymbolName: "doc.on.doc",
-                accessibilityDescription: "Copy error"
+                accessibilityDescription: self?.copyDescription
             )
         }
     }

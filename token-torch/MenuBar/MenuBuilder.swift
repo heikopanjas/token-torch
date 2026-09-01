@@ -107,7 +107,7 @@ final class MenuBuilder {
                     {
                         menu.addItem(
                             UsageMenuItemViews.caption(
-                                MenuFormat.billingCycleCaption(start: start, end: end)
+                                MenuFormat.quotaPeriodCaption(start: start, end: end)
                             ))
                         if quota.windows.isEmpty == false {
                             menu.addItem(UsageMenuItemViews.menuSpacer())
@@ -142,8 +142,14 @@ final class MenuBuilder {
                 appendOrgBilling(to: menu, org: org, pricing: pricing)
             case .needsAuthorization:
                 menu.addItem(UsageMenuItemViews.noticeRow("Click Refresh to authorize Keychain access."))
-            case .error(_, let mode, let message, _):
-                menu.addItem(UsageMenuItemViews.errorRow(mode: mode, message: message))
+            case .error(_, let mode, let message, let diagnosticOutput, _):
+                menu.addItem(
+                    UsageMenuItemViews.errorRow(
+                        mode: mode,
+                        message: message,
+                        diagnosticOutput: diagnosticOutput
+                    )
+                )
         }
     }
 

@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import Testing
 
@@ -90,6 +91,146 @@ import Testing
     #expect(report.credits?.utilizationPercent == 6.54)
 }
 
+@Test func mapClaudeUsageAddsFableWindowBelowSevenDay() {
+    let response = ClaudeQuotaProvider.ClaudeUsageResponse(
+        fiveHour: ClaudeQuotaProvider.ClaudeUsageWindow(utilization: 2, resetsAt: "2026-09-01T19:59:59.764939+00:00"),
+        sevenDay: ClaudeQuotaProvider.ClaudeUsageWindow(utilization: 10, resetsAt: "2026-09-04T08:59:59.764963+00:00"),
+        limits: [
+            // `session` and `weekly_all` restate five_hour / seven_day and must not add rows.
+            ClaudeQuotaProvider.ClaudeLimitEntry(kind: "session", percent: 2, resetsAt: "2026-09-01T19:59:59.764939+00:00"),
+            ClaudeQuotaProvider.ClaudeLimitEntry(kind: "weekly_all", percent: 10, resetsAt: "2026-09-04T08:59:59.764963+00:00"),
+            ClaudeQuotaProvider.ClaudeLimitEntry(
+                kind: "weekly_scoped",
+                percent: 0,
+                resetsAt: nil,
+                scope: ClaudeQuotaProvider.ClaudeLimitScope(model: ClaudeQuotaProvider.ClaudeLimitModel(displayName: "Fable"))
+            )
+        ]
+    )
+    let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max")
+    #expect(report.windows.map { $0.label } == ["5-hour window", "7-day window", "Fable share of 7-day limit"])
+}
+
+@Test func mapClaudeUsageMapsActiveFablePercentAndReset() {
+    let response = ClaudeQuotaProvider.ClaudeUsageResponse(
+        fiveHour: ClaudeQuotaProvider.ClaudeUsageWindow(utilization: 2, resetsAt: nil),
+        sevenDay: ClaudeQuotaProvider.ClaudeUsageWindow(utilization: 10, resetsAt: nil),
+        limits: [
+            ClaudeQuotaProvider.ClaudeLimitEntry(
+                kind: "weekly_scoped",
+                percent: 37,
+                resetsAt: "2026-09-04T08:59:59.764963+00:00",
+                scope: ClaudeQuotaProvider.ClaudeLimitScope(model: ClaudeQuotaProvider.ClaudeLimitModel(displayName: "Fable"))
+            )
+        ]
+    )
+    let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max")
+    let fable = report.windows.first { $0.label == "Fable share of 7-day limit" }
+    #expect(fable?.usedPercent == 37)
+    #expect(fable?.resetsAt != nil)
+}
+
+@Test func mapClaudeUsageMatchesVersionedFableDisplayName() {
+    // The display name is matched as a substring so a future "Fable 5" does not silently drop the row.
+    let response = ClaudeQuotaProvider.ClaudeUsageResponse(
+        fiveHour: ClaudeQuotaProvider.ClaudeUsageWindow(utilization: 2, resetsAt: nil),
+        sevenDay: ClaudeQuotaProvider.ClaudeUsageWindow(utilization: 10, resetsAt: nil),
+        limits: [
+            ClaudeQuotaProvider.ClaudeLimitEntry(
+                kind: "weekly_scoped",
+                percent: 12,
+                resetsAt: "2026-09-04T08:59:59.764963+00:00",
+                scope: ClaudeQuotaProvider.ClaudeLimitScope(model: ClaudeQuotaProvider.ClaudeLimitModel(displayName: "Fable 5"))
+            )
+        ]
+    )
+    let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max")
+    #expect(report.windows.first { $0.label == "Fable share of 7-day limit" }?.usedPercent == 12)
+}
+
+@Test func mapClaudeUsageIgnoresOtherScopedModels() {
+    let response = ClaudeQuotaProvider.ClaudeUsageResponse(
+        fiveHour: ClaudeQuotaProvider.ClaudeUsageWindow(utilization: 2, resetsAt: nil),
+        sevenDay: ClaudeQuotaProvider.ClaudeUsageWindow(utilization: 10, resetsAt: nil),
+        limits: [
+            ClaudeQuotaProvider.ClaudeLimitEntry(
+                kind: "weekly_scoped",
+                percent: 55,
+                resetsAt: "2026-09-04T08:59:59.764963+00:00",
+                scope: ClaudeQuotaProvider.ClaudeLimitScope(model: ClaudeQuotaProvider.ClaudeLimitModel(displayName: "Sonnet"))
+            )
+        ]
+    )
+    let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max")
+    #expect(report.windows.map { $0.label } == ["5-hour window", "7-day window"])
+}
+
+@Test func decodeClaudeUsageLivePayloadSurfacesFableWindow() throws {
+    // Captured verbatim from a live GET /api/oauth/usage response; locks the real wire format.
+    let json = """
+        {
+          "extra_usage": {
+            "credits_ever_enabled": true,
+            "currency": null,
+            "disabled_reason": null,
+            "is_enabled": false,
+            "monthly_limit": null,
+            "used_credits": null,
+            "utilization": null
+          },
+          "five_hour": {
+            "resets_at": "2026-09-01T19:59:59.764939+00:00",
+            "utilization": 2.0
+          },
+          "limits": [
+            {
+              "group": "session",
+              "is_active": false,
+              "kind": "session",
+              "percent": 2,
+              "resets_at": "2026-09-01T19:59:59.764939+00:00",
+              "scope": null,
+              "severity": "normal"
+            },
+            {
+              "group": "weekly",
+              "is_active": true,
+              "kind": "weekly_all",
+              "percent": 10,
+              "resets_at": "2026-09-04T08:59:59.764963+00:00",
+              "scope": null,
+              "severity": "normal"
+            },
+            {
+              "group": "weekly",
+              "is_active": false,
+              "kind": "weekly_scoped",
+              "percent": 0,
+              "resets_at": null,
+              "scope": {
+                "model": { "display_name": "Fable", "id": null },
+                "surface": null
+              },
+              "severity": "normal"
+            }
+          ],
+          "seven_day": {
+            "resets_at": "2026-09-04T08:59:59.764963+00:00",
+            "utilization": 10.0
+          },
+          "seven_day_opus": null,
+          "seven_day_sonnet": null
+        }
+        """
+    let data = Data(json.utf8)
+    let response = try JSONDecoder().decode(ClaudeQuotaProvider.ClaudeUsageResponse.self, from: data)
+    let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max")
+    #expect(report.windows.map { $0.label } == ["5-hour window", "7-day window", "Fable share of 7-day limit"])
+    let fable = report.windows.first { $0.label == "Fable share of 7-day limit" }
+    #expect(fable?.usedPercent == 0)
+    #expect(fable?.resetsAt == nil)
+}
+
 @Test func parseClaudeSecurityCLICredentialJSON() throws {
     let json = """
         {
@@ -111,6 +252,172 @@ import Testing
     #expect(session.rateLimitTier == "default_claude_ai")
     #expect(session.subscriptionType == "pro")
     #expect(session.source == .claudeKeychain(service: "Claude Code-credentials"))
+}
+
+@Test func securityCLIArgumentsKeepServiceAndAccountSeparate() {
+    #expect(
+        SecurityCLIReader.arguments(service: "Claude Code-credentials", account: "test-user")
+            == ["find-generic-password", "-s", "Claude Code-credentials", "-a", "test-user", "-w"]
+    )
+    #expect(
+        SecurityCLIReader.arguments(service: "Codex Auth", account: nil)
+            == ["find-generic-password", "-s", "Codex Auth", "-w"]
+    )
+}
+
+@Test func securityCLIPasswordTrimsOutputAndMapsMissingItem() throws {
+    let success = ProcessRunner.Result(
+        standardOutput: Data("  secret-value\n".utf8),
+        standardError: Data(),
+        terminationStatus: 0
+    )
+    let missing = ProcessRunner.Result(
+        standardOutput: Data(),
+        standardError: Data("not found".utf8),
+        terminationStatus: 44
+    )
+
+    #expect(try SecurityCLIReader.password(from: success, service: "test") == "secret-value")
+    #expect(try SecurityCLIReader.password(from: missing, service: "test") == nil)
+}
+
+@Test func securityCLIEmptyPasswordMapsToNil() throws {
+    let result = ProcessRunner.Result(
+        standardOutput: Data(" \n".utf8),
+        standardError: Data(),
+        terminationStatus: 0
+    )
+
+    #expect(try SecurityCLIReader.password(from: result, service: "test") == nil)
+}
+
+@Test func securityCLITimeoutAllowsInteractiveAuthorization() {
+    #expect(SecurityCLIReader.timeout(interactive: false) == 1.5)
+    #expect(SecurityCLIReader.timeout(interactive: true) == 30)
+}
+
+@Test func processRunnerCapturesConcurrentOutput() async throws {
+    let result = try await ProcessRunner.run(
+        executablePath: "/bin/sh",
+        arguments: [
+            "-c",
+            "i=0; while [ $i -lt 2000 ]; do printf 1234567890; printf abcdefghij >&2; i=$((i+1)); done"
+        ],
+        timeout: 5
+    )
+
+    #expect(result.terminationStatus == 0)
+    #expect(result.standardOutput.count == 20_000)
+    #expect(result.standardError.count == 20_000)
+}
+
+@Test(arguments: Array(0 ..< 20))
+func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
+    let expected = "fast-output-\(iteration)"
+    let result = try await ProcessRunner.run(
+        executablePath: "/usr/bin/printf",
+        arguments: [expected],
+        timeout: 1
+    )
+
+    #expect(String(data: result.standardOutput, encoding: .utf8) == expected)
+}
+
+@Test func processRunnerTimesOut() async {
+    do {
+        _ = try await ProcessRunner.run(
+            executablePath: "/bin/sleep",
+            arguments: ["2"],
+            timeout: 0.05
+        )
+        Issue.record("Expected the process to time out.")
+    }
+    catch let error as ProcessRunner.Failure {
+        guard case .timedOut(let commandName) = error else {
+            Issue.record("Expected a timeout failure.")
+            return
+        }
+        #expect(commandName == "sleep")
+    }
+    catch {
+        Issue.record("Unexpected error: \(error)")
+    }
+}
+
+@Test func processRunnerPropagatesCancellation() async {
+    let task = Task {
+        return try await ProcessRunner.run(
+            executablePath: "/bin/sleep",
+            arguments: ["2"],
+            timeout: 5
+        )
+    }
+    try? await Task.sleep(nanoseconds: 50_000_000)
+    task.cancel()
+
+    do {
+        _ = try await task.value
+        Issue.record("Expected process cancellation.")
+    }
+    catch is CancellationError {
+        return
+    }
+    catch {
+        Issue.record("Unexpected error: \(error)")
+    }
+}
+
+@Test func processRunnerTimeoutKillsDescendants() async throws {
+    let pidURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("token-torch-process-runner-\(UUID().uuidString).pid")
+    defer { try? FileManager.default.removeItem(at: pidURL) }
+
+    do {
+        _ = try await ProcessRunner.run(
+            executablePath: "/bin/sh",
+            arguments: ["-c", "/bin/sleep 5 & echo $! > \"$PID_FILE\"; wait"],
+            timeout: 0.2,
+            environment: ["PID_FILE": pidURL.path]
+        )
+        Issue.record("Expected the process group to time out.")
+    }
+    catch let error as ProcessRunner.Failure {
+        guard case .timedOut = error else {
+            Issue.record("Expected a timeout failure.")
+            return
+        }
+    }
+    catch {
+        Issue.record("Unexpected error: \(error)")
+        return
+    }
+
+    let pidText = try String(contentsOf: pidURL, encoding: .utf8)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    let childPID = try #require(pid_t(pidText))
+    try await Task.sleep(nanoseconds: 300_000_000)
+    errno = 0
+    let probe = Darwin.kill(childPID, 0)
+    #expect(probe == -1)
+    #expect(errno == ESRCH)
+}
+
+@Test func securityCLIReadAllPropagatesPreexistingCancellation() async {
+    let task = Task {
+        return try await SecurityCLIReader.readAllGenericPasswords(service: "Token Torch cancellation test")
+    }
+    task.cancel()
+
+    do {
+        _ = try await task.value
+        Issue.record("Expected Keychain read cancellation.")
+    }
+    catch is CancellationError {
+        return
+    }
+    catch {
+        Issue.record("Unexpected error: \(error)")
+    }
 }
 
 @Test func claudeAccessTokenFingerprintDoesNotExposeToken() {
@@ -284,31 +591,58 @@ import Testing
             interactive: false,
             error: error
         ))
+    #expect(
+        UsageOrchestrator.shouldReturnNeedsAuthorizationAfterImporterFailure(
+            provider: .claude,
+            preferences: prefs,
+            interactive: false,
+            error: error
+        ) == false
+    )
 
     #expect(
-        !UsageOrchestrator.shouldContinueAfterImporterAuthorizationFailure(
+        UsageOrchestrator.shouldContinueAfterImporterAuthorizationFailure(
             provider: .codex,
             preferences: prefs,
             interactive: false,
             error: error
-        ))
+        ) == false
+    )
+    #expect(
+        UsageOrchestrator.shouldReturnNeedsAuthorizationAfterImporterFailure(
+            provider: .codex,
+            preferences: prefs,
+            interactive: false,
+            error: error
+        )
+    )
 
     #expect(
-        !UsageOrchestrator.shouldContinueAfterImporterAuthorizationFailure(
+        UsageOrchestrator.shouldContinueAfterImporterAuthorizationFailure(
             provider: .claude,
             preferences: prefs,
             interactive: true,
             error: error
-        ))
+        ) == false
+    )
 
     prefs.claudeAutomaticRepair = false
     #expect(
-        !UsageOrchestrator.shouldContinueAfterImporterAuthorizationFailure(
+        UsageOrchestrator.shouldContinueAfterImporterAuthorizationFailure(
             provider: .claude,
             preferences: prefs,
             interactive: false,
             error: error
-        ))
+        ) == false
+    )
+    #expect(
+        UsageOrchestrator.shouldReturnNeedsAuthorizationAfterImporterFailure(
+            provider: .claude,
+            preferences: prefs,
+            interactive: false,
+            error: error
+        )
+    )
 }
 
 @Test func claudeRepairPrefersValidExplicitExecutablePath() {
@@ -343,8 +677,274 @@ import Testing
     #expect(unset == executable.path)
 }
 
-@Test func claudeRepairTouchUsesDoctorSubcommand() {
-    #expect(ClaudeCredentialRepair.doctorTouchArguments == ["doctor"])
+@Test func claudeCredentialPathsMapHashedKeychainServiceToConfigDir() {
+    let configDir = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".config/claude")
+    let service = ClaudeCredentialPaths.keychainService(forConfigDir: configDir)
+    let resolved = ClaudeCredentialPaths.configDir(forKeychainService: service)
+    #expect(resolved == configDir)
+    #expect(
+        ClaudeCredentialPaths.configDir(for: .claudeKeychain(service: service)) == configDir
+    )
+}
+
+@Test func claudeRepairSelectsConfigDirectoryFromBaselineSource() {
+    let configDir = URL(fileURLWithPath: "/Users/example/.config/claude")
+    let service = ClaudeCredentialPaths.keychainService(forConfigDir: configDir)
+    let baseline = OAuthSession(
+        accessToken: "access",
+        refreshToken: "refresh",
+        expiresAt: nil,
+        accountID: nil,
+        subscriptionType: nil,
+        rateLimitTier: nil,
+        source: .claudeKeychain(service: service)
+    )
+    let selected = ClaudeCredentialRepair.selectedRepairConfigDirectory(
+        baseline: baseline,
+        environment: ["CLAUDE_CONFIG_DIR": configDir.path, "HOME": "/Users/example"]
+    )
+    #expect(selected == configDir)
+}
+
+@Test func claudeRepairUsesOneShellForEmptyKeyAndUsageCommand() {
+    let claudePath = "/Applications/Claude Code/claude"
+    let configDir = URL(fileURLWithPath: "/Users/example/.config/claude")
+    #expect(ClaudeCredentialRepair.usageRefreshShellPath == "/bin/zsh")
+    #expect(
+        ClaudeCredentialRepair.usageRefreshShellScript
+            == #"CLAUDE_CONFIG_DIR="$2" ANTHROPIC_API_KEY="" exec "$1" -p "/usage""#
+    )
+    #expect(
+        ClaudeCredentialRepair.usageRefreshShellArguments(claudePath: claudePath, configDirectory: configDir)
+            == [
+                "-c",
+                ClaudeCredentialRepair.usageRefreshShellScript,
+                "token-torch-claude-repair",
+                claudePath,
+                configDir.path
+            ]
+    )
+}
+
+@Test func claudeRepairReportsAuthenticationEnvironmentStatesWithoutValues() {
+    let states = ClaudeCredentialRepair.authenticationEnvironmentStates(
+        environment: [
+            "ANTHROPIC_API_KEY": "secret-value",
+            "ANTHROPIC_AUTH_TOKEN": "",
+            "CLAUDE_CONFIG_DIR": "/Users/example/.config/claude"
+        ]
+    )
+    let byKey = Dictionary(uniqueKeysWithValues: states.map { ($0.key, $0.state) })
+    #expect(byKey["ANTHROPIC_API_KEY"] == "nonempty")
+    #expect(byKey["ANTHROPIC_AUTH_TOKEN"] == "empty")
+    #expect(byKey["CLAUDE_CODE_OAUTH_TOKEN"] == "unset")
+    #expect(byKey["CLAUDE_CONFIG_DIR"] == "nonempty")
+}
+
+@Test func claudeRepairShellPassesConfigDirAndEmptyAnthropicAPIKeyBeforeExec() async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let configDirectory = directory.appendingPathComponent("claude-config")
+    try FileManager.default.createDirectory(at: configDirectory, withIntermediateDirectories: true)
+    let fakeClaude = directory.appendingPathComponent("claude")
+    let script = """
+        #!/bin/zsh
+        if [[ "${ANTHROPIC_API_KEY+x}" != "x" ]]; then
+            print -r -- "ANTHROPIC_API_KEY is not set"
+            exit 9
+        fi
+        if [[ -n "$ANTHROPIC_API_KEY" ]]; then
+            print -r -- "ANTHROPIC_API_KEY is not empty"
+            exit 10
+        fi
+        if [[ "$CLAUDE_CONFIG_DIR" != "\(configDirectory.path)" ]]; then
+            print -r -- "CLAUDE_CONFIG_DIR mismatch:$CLAUDE_CONFIG_DIR"
+            exit 11
+        fi
+        print -r -- "$*|$UNRELATED|$CLAUDE_CONFIG_DIR"
+        """
+    try script.write(to: fakeClaude, atomically: true, encoding: .utf8)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fakeClaude.path)
+    let environment = [
+        "ANTHROPIC_API_KEY": "must-not-reach-claude",
+        "UNRELATED": "preserved",
+        "CLAUDE_CONFIG_DIR": "/wrong/profile"
+    ]
+
+    let result = try await ProcessRunner.runInPseudoTerminal(
+        executablePath: ClaudeCredentialRepair.usageRefreshShellPath,
+        arguments: ClaudeCredentialRepair.usageRefreshShellArguments(
+            claudePath: fakeClaude.path,
+            configDirectory: configDirectory
+        ),
+        timeout: 5,
+        environment: environment
+    )
+    let output = try #require(String(data: result.standardOutput, encoding: .utf8))
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    #expect(result.terminationStatus == 0)
+    #expect(output == "-p /usage|preserved|\(configDirectory.path)")
+}
+
+@Test func processRunnerPseudoTerminalExposesControllingTerminal() async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+
+    let sourceURL = directory.appendingPathComponent("controlling_terminal_probe.c")
+    let probeURL = directory.appendingPathComponent("controlling_terminal_probe")
+    let source = """
+        #include <fcntl.h>
+        #include <stdio.h>
+        #include <unistd.h>
+
+        int main(void) {
+            if (!isatty(0) || !isatty(1) || !isatty(2)) {
+                puts("tty-missing");
+                return 11;
+            }
+            int tty = open("/dev/tty", O_RDWR);
+            if (tty < 0) {
+                puts("no-dev-tty");
+                return 12;
+            }
+            close(tty);
+            pid_t pid = getpid();
+            pid_t sid = getsid(0);
+            if (sid != pid) {
+                printf("not-session-leader:%d:%d\\n", (int)pid, (int)sid);
+                return 13;
+            }
+            pid_t pgid = getpgrp();
+            pid_t tpgid = tcgetpgrp(0);
+            if (tpgid != pgid) {
+                printf("not-foreground:%d:%d\\n", (int)pgid, (int)tpgid);
+                return 14;
+            }
+            puts("controlling-ok");
+            return 0;
+        }
+        """
+    try source.write(to: sourceURL, atomically: true, encoding: .utf8)
+    let compile = try await ProcessRunner.run(
+        executablePath: "/usr/bin/cc",
+        arguments: ["-o", probeURL.path, sourceURL.path],
+        timeout: 10
+    )
+    #expect(compile.terminationStatus == 0)
+
+    let result = try await ProcessRunner.runInPseudoTerminal(
+        executablePath: probeURL.path,
+        arguments: [],
+        timeout: 5
+    )
+    let output = try #require(String(data: result.standardOutput, encoding: .utf8))
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    #expect(result.terminationStatus == 0)
+    #expect(result.standardError.isEmpty)
+    #expect(output == "controlling-ok")
+}
+
+@Test func processRunnerPseudoTerminalMergesStandardStreams() async throws {
+    let result = try await ProcessRunner.runInPseudoTerminal(
+        executablePath: "/bin/zsh",
+        arguments: [
+            "-c",
+            #"print -r -- "out-line"; print -r -- "err-line" >&2"#
+        ],
+        timeout: 2
+    )
+    let output = try #require(String(data: result.standardOutput, encoding: .utf8))
+
+    #expect(result.terminationStatus == 0)
+    #expect(result.standardError.isEmpty)
+    #expect(output.contains("out-line"))
+    #expect(output.contains("err-line"))
+}
+
+@Test func processRunnerPseudoTerminalTimesOut() async {
+    do {
+        _ = try await ProcessRunner.runInPseudoTerminal(
+            executablePath: "/bin/sleep",
+            arguments: ["2"],
+            timeout: 0.05
+        )
+        Issue.record("Expected the pseudo-terminal process to time out.")
+    }
+    catch let error as ProcessRunner.Failure {
+        guard case .timedOut(let commandName) = error else {
+            Issue.record("Expected a timeout failure.")
+            return
+        }
+        #expect(commandName == "sleep")
+    }
+    catch {
+        Issue.record("Unexpected error: \(error)")
+    }
+}
+
+@Test func claudeRepairFailureUsesMergedPseudoTerminalOutput() {
+    let result = ProcessRunner.Result(
+        standardOutput: Data("refresh failed on pty".utf8),
+        standardError: Data(),
+        terminationStatus: 1
+    )
+
+    do {
+        _ = try ClaudeCredentialRepair.validateUsageRefreshResult(
+            result,
+            executablePath: "/usr/local/bin/claude"
+        )
+        Issue.record("Expected Claude repair failure")
+    }
+    catch TokenTorchError.claudeRepairFailed(let message, let commandOutput) {
+        #expect(message == "refresh failed on pty")
+        #expect(commandOutput == "refresh failed on pty")
+    }
+    catch {
+        Issue.record("Unexpected error: \(error)")
+    }
+}
+
+@Test func claudeRepairCapturesUsageCommandOutput() throws {
+    let result = ProcessRunner.Result(
+        standardOutput: Data("Claude usage refresh output".utf8),
+        standardError: Data(),
+        terminationStatus: 0
+    )
+
+    let output = try ClaudeCredentialRepair.validateUsageRefreshResult(
+        result,
+        executablePath: "/usr/local/bin/claude"
+    )
+    #expect(output == "Claude usage refresh output")
+}
+
+@Test func claudeRepairFailureCarriesCommandOutput() {
+    let result = ProcessRunner.Result(
+        standardOutput: Data("Claude usage refresh output".utf8),
+        standardError: Data("refresh failed".utf8),
+        terminationStatus: 1
+    )
+
+    do {
+        _ = try ClaudeCredentialRepair.validateUsageRefreshResult(
+            result,
+            executablePath: "/usr/local/bin/claude"
+        )
+        Issue.record("Expected Claude repair failure")
+    }
+    catch TokenTorchError.claudeRepairFailed(let message, let commandOutput) {
+        #expect(message == "refresh failed")
+        #expect(commandOutput == "Claude usage refresh output\n\nstderr:\nrefresh failed")
+    }
+    catch {
+        Issue.record("Unexpected error: \(error)")
+    }
 }
 
 @Test func providerPreferencesNotifyOnRepairFailureDefaultsTrue() throws {
@@ -368,7 +968,13 @@ import Testing
         ProviderFetchResult(
             provider: .claude,
             reports: [
-                .error(provider: .claude, mode: "subscription", message: "repair failed", isRepairFailure: true)
+                .error(
+                    provider: .claude,
+                    mode: "subscription",
+                    message: "repair failed",
+                    diagnosticOutput: "command output",
+                    isRepairFailure: true
+                )
             ])
     ])
     #expect(repairResult.claudeRepairFailureMessage == "repair failed")
@@ -377,10 +983,26 @@ import Testing
         ProviderFetchResult(
             provider: .claude,
             reports: [
-                .error(provider: .claude, mode: "subscription", message: "other error", isRepairFailure: false)
+                .error(
+                    provider: .claude,
+                    mode: "subscription",
+                    message: "other error",
+                    diagnosticOutput: nil,
+                    isRepairFailure: false
+                )
             ])
     ])
     #expect(plainError.claudeRepairFailureMessage == nil)
+}
+
+@Test func errorRowTextIncludesClaudeCommandOutput() {
+    let text = UsageMenuItemViews.errorRowText(
+        mode: "subscription",
+        message: "repair failed",
+        diagnosticOutput: "usage details"
+    )
+
+    #expect(text == "subscription: repair failed\n\nclaude -p \"/usage\" output:\nusage details")
 }
 
 @Test func appNotificationClaudeRepairFailedCarriesMessage() {
@@ -524,13 +1146,64 @@ import Testing
 
 @Test func mapCodexUsageFromSnakeCaseJSON() throws {
     let json = """
-        {"plan_type":"prolite","rate_limit":{"primary_window":{"used_percent":6,"reset_at":1738300000},"secondary_window":{"used_percent":24,"reset_at":1738900000}},"code_review_rate_limit":null,"credits":{"has_credits":false,"balance":"0"}}
+        {"plan_type":"prolite","rate_limit":{"primary_window":{"used_percent":6,"limit_window_seconds":18000,"reset_at":1738300000},"secondary_window":{"used_percent":24,"limit_window_seconds":604800,"reset_at":1738900000}},"code_review_rate_limit":null,"credits":{"has_credits":false,"balance":"0"}}
         """
     let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
     let report = CodexQuotaProvider.mapUsage(response)
-    #expect(report.windows.count == 2)
+    let fiveHour = try #require(report.windows.first { $0.label == "5-hour window" })
+    let sevenDay = try #require(report.windows.first { $0.label == "7-day window" })
+    #expect(fiveHour.usedPercent == 6)
+    #expect(sevenDay.usedPercent == 24)
     #expect(report.planTier == "Pro Lite")
     #expect(report.planPrice == "$100/mo")
+}
+
+@Test func mapCodexRoutesReversedWindowSlotsByDuration() throws {
+    let json = """
+        {"rate_limit":{
+        "primary_window":{"used_percent":73,"limit_window_seconds":604800,"reset_at":1738900000},
+        "secondary_window":{"used_percent":11,"limit_window_seconds":18000,"reset_at":1738300000}}}
+        """
+    let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
+    let report = CodexQuotaProvider.mapUsage(response)
+    let fiveHour = try #require(report.windows.first { $0.label == "5-hour window" })
+    let sevenDay = try #require(report.windows.first { $0.label == "7-day window" })
+
+    #expect(report.windows.map(\.label) == ["5-hour window", "7-day window"])
+    #expect(fiveHour.usedPercent == 11)
+    #expect(sevenDay.usedPercent == 73)
+}
+
+@Test func mapCodexRoutesWeeklyOnlyPrimaryWindowByDuration() throws {
+    let json = """
+        {"rate_limit":{
+        "allowed":false,"limit_reached":true,
+        "primary_window":{"used_percent":41,"limit_window_seconds":604800,"reset_at":1738900000},
+        "secondary_window":null},
+        "rate_limit_reached_type":"primary"}
+        """
+    let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
+    let report = CodexQuotaProvider.mapUsage(response)
+
+    #expect(report.windows.count == 1)
+    #expect(report.windows.first?.label == "7-day window")
+    #expect(report.windows.first?.usedPercent == 41)
+    #expect(report.notes.contains { $0.label == "Rate limit type" && $0.value == "weekly limit" })
+}
+
+@Test func mapCodexUnknownDurationsKeepPositionalFallback() throws {
+    let json = """
+        {"rate_limit":{
+        "primary_window":{"used_percent":12,"limit_window_seconds":86400,"reset_at":1738300000},
+        "secondary_window":{"used_percent":34,"limit_window_seconds":2592000,"reset_at":1738900000}}}
+        """
+    let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
+    let report = CodexQuotaProvider.mapUsage(response)
+    let fiveHour = try #require(report.windows.first { $0.label == "5-hour window" })
+    let sevenDay = try #require(report.windows.first { $0.label == "7-day window" })
+
+    #expect(fiveHour.usedPercent == 12)
+    #expect(sevenDay.usedPercent == 34)
 }
 
 @Test func mapCodexCreditBalanceUsesCreditUnits() throws {
@@ -560,7 +1233,7 @@ import Testing
         {"user_id":"user-x","account_id":"acc","email":"a@b.com","plan_type":"prolite",
         "rate_limit":{"allowed":true,"limit_reached":false,"primary_window":{"used_percent":0,"reset_at":1780254481},"secondary_window":{"used_percent":0,"reset_at":1780841281}},
         "code_review_rate_limit":null,
-        "additional_rate_limits":[{"limit_name":"GPT-5.3-Codex-Spark","metered_feature":"codex_bengalfox","rate_limit":{"allowed":true,"limit_reached":false,"primary_window":{"used_percent":0,"reset_at":1780254481},"secondary_window":{"used_percent":0,"reset_at":1780841281}}}],
+        "additional_rate_limits":[{"limit_name":"GPT-5.3-Codex-Spark","metered_feature":"codex_bengalfox","rate_limit":{"allowed":true,"limit_reached":false,"primary_window":{"used_percent":0,"limit_window_seconds":18000,"reset_at":1780254481},"secondary_window":{"used_percent":0,"limit_window_seconds":604800,"reset_at":1780841281}}}],
         "credits":{"has_credits":false,"unlimited":false,"overage_limit_reached":false,"balance":"0","approx_local_messages":[0,0],"approx_cloud_messages":[0,0]},
         "spend_control":{"reached":false,"individual_limit":null},
         "rate_limit_reached_type":null,"promo":null,"referral_beacon":null,"rate_limit_reset_credits":{"available_count":0}}
@@ -573,6 +1246,21 @@ import Testing
     #expect(!report.windows.contains { $0.label.contains("Spark") })
     // D7: healthy state hides the boolean status notes entirely.
     #expect(report.notes.isEmpty)
+}
+
+@Test func mapCodexRoutesWeeklyOnlyAdditionalWindowByDuration() throws {
+    let json = """
+        {"additional_rate_limits":[{
+        "limit_name":"GPT-5.3-Codex-Spark",
+        "rate_limit":{"primary_window":{"used_percent":7,"limit_window_seconds":604800,"reset_at":1780841281},"secondary_window":null}
+        }]}
+        """
+    let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
+    let report = CodexQuotaProvider.mapUsage(response)
+
+    #expect(report.additionalWindows.count == 1)
+    #expect(report.additionalWindows.first?.label == "GPT-5.3-Codex-Spark (7d)")
+    #expect(report.additionalWindows.first?.usedPercent == 7)
 }
 
 @Test func mapCodexSurfacesRateLimitResetCreditCount() throws {
@@ -592,7 +1280,7 @@ import Testing
     let json = """
         {"plan_type":"pro",
         "rate_limit":{"allowed":false,"limit_reached":true,"primary_window":{"used_percent":100,"reset_at":1780254481},"secondary_window":{"used_percent":50,"reset_at":1780841281}},
-        "code_review_rate_limit":{"primary_window":{"used_percent":10,"reset_at":1780254481},"secondary_window":{"used_percent":5,"reset_at":1780841281}},
+        "code_review_rate_limit":{"primary_window":{"used_percent":10,"limit_window_seconds":604800,"reset_at":1780841281},"secondary_window":{"used_percent":5,"limit_window_seconds":18000,"reset_at":1780254481}},
         "credits":{"has_credits":true,"unlimited":true,"overage_limit_reached":true,"balance":"12.5"},
         "spend_control":{"reached":true,"individual_limit":500},
         "rate_limit_reached_type":"secondary","promo":null}
@@ -606,8 +1294,10 @@ import Testing
     #expect(report.notes.contains { $0.label == "Overage limit reached" })
     #expect(report.notes.contains { $0.label == "Spend control reached" })
     #expect(report.notes.contains { $0.label == "Spend limit" })
-    // D1: code review windows surface when non-null.
-    #expect(report.windows.contains { $0.label == "Code review (5h)" })
+    let fiveHourReview = try #require(report.windows.first { $0.label == "Code review (5h)" })
+    let sevenDayReview = try #require(report.windows.first { $0.label == "Code review (7d)" })
+    #expect(fiveHourReview.usedPercent == 5)
+    #expect(sevenDayReview.usedPercent == 10)
 }
 
 @Test func mapClaudeSurfacesExtraUsageNoteAndExcludesSensitive() {
@@ -698,28 +1388,28 @@ import Testing
     #expect(VendorCredentialCache.claudeSession() == nil)
 }
 
-@Test func ensureImportedSkipsWhenQuotaDisabled() throws {
-    try VendorCredentialImporter.ensureImported(provider: .cursor, quotaEnabled: false)
+@Test func ensureImportedSkipsWhenQuotaDisabled() async throws {
+    try await VendorCredentialImporter.ensureImported(provider: .cursor, quotaEnabled: false)
 }
 
-@Test func ensureImportedForEnabledProvidersSkipsDisabledProviders() throws {
+@Test func ensureImportedForEnabledProvidersSkipsDisabledProviders() async throws {
     var preferences = ProviderPreferences()
     preferences.claude = ProviderModeFlags(subscriptionQuotaEnabled: false, orgBillingEnabled: false)
     preferences.codex = ProviderModeFlags(subscriptionQuotaEnabled: false, orgBillingEnabled: false)
     preferences.cursor = ProviderModeFlags(subscriptionQuotaEnabled: false, orgBillingEnabled: false)
-    try VendorCredentialImporter.ensureImportedForEnabledProviders(preferences: preferences)
+    try await VendorCredentialImporter.ensureImportedForEnabledProviders(preferences: preferences)
 }
 
-@Test func ensureImportedForEnabledProvidersNonInteractiveSkipsDisabledProviders() throws {
+@Test func ensureImportedForEnabledProvidersNonInteractiveSkipsDisabledProviders() async throws {
     var preferences = ProviderPreferences()
     preferences.claude = ProviderModeFlags(subscriptionQuotaEnabled: false, orgBillingEnabled: false)
     preferences.codex = ProviderModeFlags(subscriptionQuotaEnabled: false, orgBillingEnabled: false)
     preferences.cursor = ProviderModeFlags(subscriptionQuotaEnabled: false, orgBillingEnabled: false)
-    try VendorCredentialImporter.ensureImportedForEnabledProviders(preferences: preferences, interactive: false)
+    try await VendorCredentialImporter.ensureImportedForEnabledProviders(preferences: preferences, interactive: false)
 }
 
-@Test func resetAndReimportWithQuotaDisabledOnlyResets() throws {
-    try VendorCredentialImporter.resetAndReimport(provider: .cursor, quotaEnabled: false, interactive: false)
+@Test func resetAndReimportWithQuotaDisabledOnlyResets() async throws {
+    try await VendorCredentialImporter.resetAndReimport(provider: .cursor, quotaEnabled: false, interactive: false)
 }
 
 @Test func requireUsableSessionThrowsForExpiredToken() {
@@ -750,7 +1440,7 @@ import Testing
     try QuotaHTTP.requireUsableSession(session, provider: "Claude Code", vendorAction: "Re-login with Claude Code (/login).")
 }
 
-@Test func usableSessionKeepsUsableSessionWithoutReimporting() throws {
+@Test func usableSessionKeepsUsableSessionWithoutReimporting() async throws {
     let session = OAuthSession(
         accessToken: "access",
         refreshToken: "refresh",
@@ -762,7 +1452,7 @@ import Testing
     )
     var reimported = false
 
-    let resolved = try QuotaHTTP.usableSession(
+    let resolved = try await QuotaHTTP.usableSession(
         session,
         provider: "Claude Code",
         vendorAction: "Re-login with Claude Code (/login)."
@@ -775,7 +1465,7 @@ import Testing
     #expect(reimported == false)
 }
 
-@Test func usableSessionReimportsExpiredSessionBeforeRequest() throws {
+@Test func usableSessionReimportsExpiredSessionBeforeRequest() async throws {
     let expired = OAuthSession(
         accessToken: "old",
         refreshToken: "old-refresh",
@@ -796,7 +1486,7 @@ import Testing
     )
     var reimportCount = 0
 
-    let resolved = try QuotaHTTP.usableSession(
+    let resolved = try await QuotaHTTP.usableSession(
         expired,
         provider: "Claude Code",
         vendorAction: "Re-login with Claude Code (/login)."
@@ -808,6 +1498,35 @@ import Testing
     #expect(resolved.accessToken == "new")
     #expect(resolved.source == .claudeKeychain(service: "Claude Code-credentials-test"))
     #expect(reimportCount == 1)
+}
+
+@Test func usableSessionPropagatesReauthenticationCancellation() async {
+    let expired = OAuthSession(
+        accessToken: "old",
+        refreshToken: "old-refresh",
+        expiresAt: 1,
+        accountID: nil,
+        subscriptionType: nil,
+        rateLimitTier: nil,
+        source: .tokenTorchCopy
+    )
+
+    do {
+        _ = try await QuotaHTTP.usableSession(
+            expired,
+            provider: "Claude Code",
+            vendorAction: "Re-login with Claude Code (/login)."
+        ) {
+            throw CancellationError()
+        }
+        Issue.record("Expected reauthentication cancellation.")
+    }
+    catch is CancellationError {
+        return
+    }
+    catch {
+        Issue.record("Unexpected error: \(error)")
+    }
 }
 
 @Test func needsAuthorizationErrorMentionsProviderAndRefresh() {
@@ -991,6 +1710,21 @@ import Testing
     #expect(items.first(where: { $0.label == "Percent used" })?.value == "3.4%")
     #expect(items.first(where: { $0.label == "Overage" })?.value == "enabled")
     #expect(CopilotQuotaLabels.groupCaption(aiCredits!) == nil)
+}
+
+@Test func mapCopilotQuotaPeriodUsesMonthlyResetBoundary() throws {
+    let response = CopilotQuotaProvider.CopilotUserResponse(
+        assignedDate: "2026-06-01T15:12:42+02:00",
+        quotaResetDateUTC: "2026-08-01T00:00:00.000Z"
+    )
+    let report = CopilotQuotaProvider.mapUsage(response)
+    let periodStart = try #require(report.billingCycleStart)
+    let periodEnd = try #require(report.billingCycleEnd)
+
+    #expect(
+        MenuFormat.quotaPeriodCaption(start: periodStart, end: periodEnd)
+            == "Quota period: 2026-07-01 → 2026-08-01"
+    )
 }
 
 @Test func copilotQuotaLabelsIncludesOverageFieldsWhenCountPositive() {

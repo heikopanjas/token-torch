@@ -209,7 +209,7 @@ enum SettingsLayout {
         target: AnyObject?,
         action: Selector
     ) -> (checkbox: NSButton, hintLabel: NSTextField, newY: CGFloat) {
-        var currentY = y - sectionGapAbove - SettingsStyle.controlHeight
+        let currentY = y - sectionGapAbove - SettingsStyle.controlHeight
         let checkbox = Self.makeCheckbox(
             title: title,
             width: width,

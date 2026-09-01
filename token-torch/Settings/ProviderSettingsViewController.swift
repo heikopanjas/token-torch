@@ -366,29 +366,33 @@ final class ProviderSettingsViewController: SettingsPaneViewController {
     }
 
     @objc private func resetCredentials() {
-        let subscriptionEnabled = preferences.load().flags(for: provider).subscriptionQuotaEnabled
-        if provider == .claude, subscriptionEnabled == true {
-            repairClaudeCredentials()
+        let subscriptionEnabled = self.preferences.load().flags(for: self.provider).subscriptionQuotaEnabled
+        if self.provider == .claude, subscriptionEnabled == true {
+            self.repairClaudeCredentials()
             return
         }
 
-        do {
-            if subscriptionEnabled == true {
-                try VendorCredentialImporter.resetAndReimport(
-                    provider: provider,
-                    quotaEnabled: subscriptionEnabled,
-                    interactive: true
-                )
-                statusLabel.stringValue = "Credentials reset and re-imported."
+        self.resetButton.isEnabled = false
+        Task {
+            defer { self.resetButton.isEnabled = true }
+            do {
+                if subscriptionEnabled == true {
+                    try await VendorCredentialImporter.resetAndReimport(
+                        provider: self.provider,
+                        quotaEnabled: subscriptionEnabled,
+                        interactive: true
+                    )
+                    self.statusLabel.stringValue = "Credentials reset and re-imported."
+                }
+                else {
+                    try VendorCredentialImporter.reset(provider: self.provider)
+                    self.statusLabel.stringValue = "Stored credentials cleared."
+                }
+                NotificationCenter.default.post(name: AppActions.tokenTorchRefreshRequested, object: nil)
             }
-            else {
-                try VendorCredentialImporter.reset(provider: provider)
-                statusLabel.stringValue = "Stored credentials cleared."
+            catch {
+                SettingsLayout.showError(error.localizedDescription, on: self.statusLabel)
             }
-            NotificationCenter.default.post(name: AppActions.tokenTorchRefreshRequested, object: nil)
-        }
-        catch {
-            SettingsLayout.showError(error.localizedDescription, on: statusLabel)
         }
     }
 
@@ -401,6 +405,7 @@ final class ProviderSettingsViewController: SettingsPaneViewController {
                 let baseline = try? VendorCredentialsReader.loadClaudeSession()
                 _ = try await ClaudeCredentialRepair.repairAndImport(
                     baseline: baseline,
+                    interactive: true,
                     claudeExecutablePath: preferences.load().claudeCLIPath
                 )
                 SettingsLayout.showStatus("Claude Code credentials repaired and imported.", on: statusLabel)

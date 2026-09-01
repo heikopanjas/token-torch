@@ -44,11 +44,10 @@ public enum CopilotQuotaProvider {
             accessTypeSKU: response.accessTypeSKU
         )
 
-        let resetAt = parseResetDate(response)
-        if let assigned = response.assignedDate.flatMap(QuotaHelpers.parseRFC3339UTC) {
-            report.billingCycleStart = assigned
-        }
+        let resetAt = Self.parseResetDate(response)
         if let resetAt {
+            // `assigned_date` is the persistent seat-assignment timestamp, not the current quota-period boundary.
+            report.billingCycleStart = Self.monthlyQuotaPeriodStart(endingAt: resetAt)
             report.billingCycleEnd = resetAt
         }
 
@@ -237,6 +236,12 @@ public enum CopilotQuotaProvider {
             return QuotaHelpers.parseRFC3339UTC("\(date)T00:00:00Z")
         }
         return nil
+    }
+
+    private static func monthlyQuotaPeriodStart(endingAt resetAt: Date) -> Date? {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
+        return calendar.date(byAdding: .month, value: -1, to: resetAt)
     }
 
     static func snapshotUsedPercent(_ snapshot: CopilotQuotaSnapshot) -> Double? {

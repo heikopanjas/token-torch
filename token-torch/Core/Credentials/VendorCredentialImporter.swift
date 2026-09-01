@@ -3,9 +3,9 @@ import Foundation
 /// Imports vendor OAuth into Token Torch-owned Keychain copies (read-only vendor access).
 public enum VendorCredentialImporter {
     /// Ensures a usable Token Torch-owned copy exists for `provider`.
-    /// - Parameter interactive: when `false` (startup/timer), vendor Keychain reads never prompt;
-    ///   if no silent source is available the call throws `TokenTorchError.needsAuthorization`.
-    public static func ensureImported(provider: ProviderID, quotaEnabled: Bool, interactive: Bool = false) throws {
+    /// - Parameter interactive: controls how missing credentials are surfaced. Vendor Keychain
+    ///   fallbacks use `/usr/bin/security` for both automatic and interactive imports.
+    public static func ensureImported(provider: ProviderID, quotaEnabled: Bool, interactive: Bool = false) async throws {
         guard quotaEnabled == true else { return }
         guard provider != .copilot else { return }
 
@@ -21,7 +21,7 @@ public enum VendorCredentialImporter {
             return
         }
         do {
-            _ = try importAndSave(provider: provider, interactive: interactive)
+            _ = try await Self.importAndSave(provider: provider, interactive: interactive)
         }
         catch let error as TokenTorchError {
             if interactive == false, case .missingCredentials = error {
@@ -37,20 +37,20 @@ public enum VendorCredentialImporter {
         VendorCredentialCache.invalidate(provider: provider)
     }
 
-    public static func resetAndReimport(provider: ProviderID, quotaEnabled: Bool, interactive: Bool = false) throws {
-        try reset(provider: provider)
+    public static func resetAndReimport(provider: ProviderID, quotaEnabled: Bool, interactive: Bool = false) async throws {
+        try Self.reset(provider: provider)
         guard quotaEnabled == true else { return }
-        _ = try importAndSave(provider: provider, interactive: interactive)
+        _ = try await Self.importAndSave(provider: provider, interactive: interactive)
     }
 
-    public static func reimportAfterAuthFailure(provider: ProviderID, interactive: Bool = false) throws -> OAuthSession {
-        try reset(provider: provider)
-        return try importAndSave(provider: provider, interactive: interactive)
+    public static func reimportAfterAuthFailure(provider: ProviderID, interactive: Bool = false) async throws -> OAuthSession {
+        try Self.reset(provider: provider)
+        return try await Self.importAndSave(provider: provider, interactive: interactive)
     }
 
-    public static func ensureImportedForEnabledProviders(preferences: ProviderPreferences, interactive: Bool = false) throws {
+    public static func ensureImportedForEnabledProviders(preferences: ProviderPreferences, interactive: Bool = false) async throws {
         for provider in ProviderID.allCases {
-            try ensureImported(
+            try await Self.ensureImported(
                 provider: provider,
                 quotaEnabled: preferences.flags(for: provider).subscriptionQuotaEnabled,
                 interactive: interactive
@@ -58,8 +58,8 @@ public enum VendorCredentialImporter {
         }
     }
 
-    private static func importAndSave(provider: ProviderID, interactive: Bool) throws -> OAuthSession {
-        let imported = try importFromVendor(provider: provider, interactive: interactive)
+    private static func importAndSave(provider: ProviderID, interactive: Bool) async throws -> OAuthSession {
+        let imported = try await Self.importFromVendor(provider: provider, interactive: interactive)
         let session = OAuthSession(
             accessToken: imported.accessToken,
             refreshToken: imported.refreshToken,
@@ -75,11 +75,11 @@ public enum VendorCredentialImporter {
         return session
     }
 
-    private static func importFromVendor(provider: ProviderID, interactive: Bool) throws -> OAuthSession {
+    private static func importFromVendor(provider: ProviderID, interactive: Bool) async throws -> OAuthSession {
         switch provider {
-            case .claude: try VendorCredentialsReader.importClaudeSessionFromVendor(allowUI: interactive)
-            case .codex: try VendorCredentialsReader.importCodexSessionFromVendor(allowUI: interactive)
-            case .cursor: try VendorCredentialsReader.importCursorSessionFromVendor(allowUI: interactive)
+            case .claude: return try await VendorCredentialsReader.importClaudeSessionFromVendor(interactive: interactive)
+            case .codex: return try await VendorCredentialsReader.importCodexSessionFromVendor(interactive: interactive)
+            case .cursor: return try await VendorCredentialsReader.importCursorSessionFromVendor(interactive: interactive)
             case .copilot:
                 throw TokenTorchError.unsupported("Copilot uses a GitHub Personal Access Token, not vendor OAuth.")
         }

@@ -4,7 +4,7 @@ description: Git commit message format using conventional commits, with characte
 license: MIT
 metadata:
   author: Heiko Panjas
-  version: "1.0"
+  version: "1.1"
 ---
 
 # Git Workflow Conventions
@@ -17,6 +17,7 @@ character limits, conventional commit types, and examples.
 ## Commit Protocol (CRITICAL)
 
 - **NEVER commit automatically** - always wait for explicit confirmation
+- **NO co-authorship by coding agents** - never add `Co-Authored-By` trailers, `Generated with` footers, or any other attribution naming an AI coding agent
 - **IF A COMMIT MESSAGE HAS A BODY, EVERY BODY LINE MUST BE A BULLET**
 - **BODY BULLETS MUST START WITH `-`**
 - **DO NOT write prose paragraphs in commit message bodies**
@@ -62,12 +63,17 @@ Follow these rules to prevent VSCode terminal crashes and ensure clean git histo
 **Body Rules (MANDATORY WHEN A BODY EXISTS):**
 
 - Add blank line after subject before body
-- Body text is optional for simple commits
+- Body text is mandatory even for simple commits
 - Start every body line with `-`, except wrapped continuation lines
 - Use lowercase text after each bullet marker
 - Wrap each body line at 72 characters maximum
 - Explain what and why, not how
 - Keep it concise
+
+**Footer Rules:**
+
+- Use the footer only for issue references (`#123`) or `BREAKING CHANGE:` notes
+- **Never add co-authorship or attribution for coding agents**: no `Co-Authored-By` trailers, no `Generated with` lines, no AI tool names
 
 **Special Character Safety:**
 
@@ -88,7 +94,7 @@ Follow these rules to prevent VSCode terminal crashes and ensure clean git histo
 Good:
 
 ```text
-feat(api): add KStringTrim function
+feat(api): add FooTrim function
 
 - add trimming function to remove whitespace from
   both ends of string
@@ -112,7 +118,7 @@ feat(api): add a new comprehensive string trimming function that handles all edg
 Bad (special characters):
 
 ```text
-fix: update `KString` with "nested 'quotes'" & $special chars!
+fix: update `Foo` with "nested 'quotes'" & $special chars!
 ```
 
 **Invoking git commit safely:**

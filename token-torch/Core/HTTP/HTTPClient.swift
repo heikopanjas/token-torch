@@ -46,16 +46,19 @@ public enum QuotaHTTP {
         _ session: OAuthSession,
         provider: String,
         vendorAction: String,
-        reauthenticate: () throws -> OAuthSession
-    ) throws -> OAuthSession {
+        reauthenticate: () async throws -> OAuthSession
+    ) async throws -> OAuthSession {
         guard VendorCredentialsReader.sessionIsUsable(session) == false else {
             return session
         }
 
         do {
-            let newSession = try reauthenticate()
-            try requireUsableSession(newSession, provider: provider, vendorAction: vendorAction)
+            let newSession = try await reauthenticate()
+            try Self.requireUsableSession(newSession, provider: provider, vendorAction: vendorAction)
             return newSession
+        }
+        catch is CancellationError {
+            throw CancellationError()
         }
         catch {
             throw VendorCredentialsReader.quotaSessionExpired(
@@ -71,20 +74,20 @@ public enum QuotaHTTP {
         session: OAuthSession,
         vendorAction: String,
         policy: QuotaAuthPolicy,
-        reauthenticate: (() throws -> OAuthSession)? = nil,
+        reauthenticate: (() async throws -> OAuthSession)? = nil,
         fetch: (OAuthSession) async throws -> SubscriptionQuotaReport
     ) async throws -> SubscriptionQuotaReport {
         do {
             return try await fetch(session)
         }
         catch {
-            if isQuotaAuthError(error, policy: policy), let reauthenticate {
-                let newSession = try reauthenticate()
+            if Self.isQuotaAuthError(error, policy: policy), let reauthenticate {
+                let newSession = try await reauthenticate()
                 do {
                     return try await fetch(newSession)
                 }
                 catch let retryError {
-                    if isQuotaAuthError(retryError, policy: policy) {
+                    if Self.isQuotaAuthError(retryError, policy: policy) {
                         throw VendorCredentialsReader.quotaSessionExpired(
                             provider: provider, session: newSession, vendorAction: vendorAction
                         )
@@ -92,7 +95,7 @@ public enum QuotaHTTP {
                     throw retryError
                 }
             }
-            if isQuotaAuthError(error, policy: policy) {
+            if Self.isQuotaAuthError(error, policy: policy) {
                 throw VendorCredentialsReader.quotaSessionExpired(
                     provider: provider, session: session, vendorAction: vendorAction
                 )
@@ -111,8 +114,8 @@ public enum QuotaHTTP {
         let vendorAction = providerID.quotaReloginAction
         let session = try loadSession()
         try Self.requireUsableSession(session, provider: provider, vendorAction: vendorAction)
-        let reauth: () throws -> OAuthSession = {
-            return try VendorCredentialImporter.reimportAfterAuthFailure(provider: providerID, interactive: interactive)
+        let reauth: () async throws -> OAuthSession = {
+            return try await VendorCredentialImporter.reimportAfterAuthFailure(provider: providerID, interactive: interactive)
         }
         return try await Self.fetchWithAuthRecovery(
             provider: provider,

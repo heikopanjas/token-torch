@@ -82,6 +82,7 @@ public struct UsageOrchestrator: Sendable {
                         provider: provider,
                         mode: "org billing",
                         message: Redaction.redactSecrets(error.localizedDescription),
+                        diagnosticOutput: nil,
                         isRepairFailure: false
                     )
                 )
@@ -93,23 +94,23 @@ public struct UsageOrchestrator: Sendable {
 
     private func subscriptionReport(provider: ProviderID, preferences: ProviderPreferences, interactive: Bool) async -> ProviderReport {
         // Manual Claude refresh uses the repair path directly. Automatic refresh still tries the
-        // normal silent importer first, then falls through to repair if that importer cannot authorize.
+        // normal importer first, then falls through to repair if that importer cannot authorize.
         let claudeSelfImports = provider == .claude && interactive
         if provider != .copilot, claudeSelfImports == false {
             do {
-                try VendorCredentialImporter.ensureImported(
+                try await VendorCredentialImporter.ensureImported(
                     provider: provider,
                     quotaEnabled: true,
                     interactive: interactive
                 )
             }
             catch {
-                if Self.shouldContinueAfterImporterAuthorizationFailure(
+                if Self.shouldReturnNeedsAuthorizationAfterImporterFailure(
                     provider: provider,
                     preferences: preferences,
                     interactive: interactive,
                     error: error
-                ), interactive == false, Self.isNeedsAuthorization(error) {
+                ) {
                     return .needsAuthorization(provider: provider, mode: "subscription")
                 }
                 // Interactive failures and Claude automatic importer auth failures fall through;
@@ -125,16 +126,20 @@ public struct UsageOrchestrator: Sendable {
                 return .needsAuthorization(provider: provider, mode: "subscription")
             }
             let isRepairFailure: Bool
-            if case TokenTorchError.claudeRepairFailed = error {
+            let diagnosticOutput: String?
+            if case TokenTorchError.claudeRepairFailed(_, let commandOutput) = error {
                 isRepairFailure = true
+                diagnosticOutput = commandOutput.map(Redaction.redactSecrets)
             }
             else {
                 isRepairFailure = false
+                diagnosticOutput = nil
             }
             return .error(
                 provider: provider,
                 mode: "subscription",
                 message: Redaction.redactSecrets(error.localizedDescription),
+                diagnosticOutput: diagnosticOutput,
                 isRepairFailure: isRepairFailure
             )
         }
@@ -158,6 +163,25 @@ public struct UsageOrchestrator: Sendable {
             && interactive == false
             && preferences.claudeAutomaticRepair
             && Self.isNeedsAuthorization(error)
+    }
+
+    /// When true, the importer failure becomes a needs-authorization notice.
+    /// When false, the fetch continues (Claude automatic repair fall-through, or interactive retry).
+    static func shouldReturnNeedsAuthorizationAfterImporterFailure(
+        provider: ProviderID,
+        preferences: ProviderPreferences,
+        interactive: Bool,
+        error: Error
+    ) -> Bool {
+        if Self.shouldContinueAfterImporterAuthorizationFailure(
+            provider: provider,
+            preferences: preferences,
+            interactive: interactive,
+            error: error
+        ) {
+            return false
+        }
+        return interactive == false && Self.isNeedsAuthorization(error)
     }
 
     private func fetchQuota(provider: ProviderID, preferences: ProviderPreferences, interactive: Bool) async throws -> SubscriptionQuotaReport {

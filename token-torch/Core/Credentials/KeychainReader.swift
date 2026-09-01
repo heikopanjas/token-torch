@@ -35,45 +35,6 @@ enum KeychainReader {
         }
     }
 
-    /// Reads every generic password matching `service` (across all accounts), picking up each item.
-    ///
-    /// A vendor service can hold more than one item — e.g. Claude Code's live login (account = the
-    /// macOS user) plus a stale copy left by another app/account. `kSecMatchLimitOne` returns an
-    /// arbitrary one, and a single `kSecReturnData` + `kSecMatchLimitAll` read fails outright when the
-    /// matches have different access ACLs. So: enumerate accounts via an attributes-only query (which
-    /// never triggers an ACL prompt), then read each item individually so a protected item prompts or
-    /// skips on its own without failing the rest.
-    static func readAllGenericPasswords(service: String, allowUI: Bool = false) -> [String] {
-        var attrQuery = baseQuery(service: service, account: nil)
-        attrQuery[kSecReturnAttributes as String] = true
-        attrQuery[kSecMatchLimit as String] = kSecMatchLimitAll
-        attrQuery[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUISkip
-
-        var result: CFTypeRef?
-        let status = SecItemCopyMatching(attrQuery as CFDictionary, &result)
-
-        let accounts: [String]
-        switch status {
-            case errSecSuccess:
-                let items = (result as? [[String: Any]]) ?? []
-                accounts = items.compactMap { $0[kSecAttrAccount as String] as? String }
-            case errSecItemNotFound:
-                return []
-            default:
-                accounts = []
-        }
-
-        if accounts.isEmpty == true {
-            if let value = try? readGenericPassword(service: service, account: nil, allowUI: allowUI) {
-                return [value]
-            }
-            return []
-        }
-        return accounts.compactMap { account in
-            try? readGenericPassword(service: service, account: account, allowUI: allowUI)
-        }
-    }
-
     /// Enumerates generic-password attributes only. This never requests secret data and never prompts.
     static func genericPasswordMetadata(service: String) -> KeychainMetadataQueryResult {
         var query = baseQuery(service: service, account: nil)

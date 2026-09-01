@@ -7,7 +7,13 @@ SCHEME="token-torch"
 APP_NAME="Token Torch"
 BUILD_DIR="${ROOT}/.build"
 DEBUG_DERIVED_DATA="${ROOT}/.build"
-DEBUG_APP="${ROOT}/.build/Products/Debug/${APP_NAME}.app"
+# SYMROOT must be passed explicitly: Xcode's global build-location preference
+# (IDEBuildLocationStyle=Custom) overrides -derivedDataPath for the products
+# directory, which silently sends the app somewhere else (e.g. ./Build/Products)
+# while the script keeps reporting this path. A build setting on the command
+# line outranks that preference, so the app always lands in DEBUG_APP.
+DEBUG_SYMROOT="${ROOT}/.build/Products"
+DEBUG_APP="${DEBUG_SYMROOT}/Debug/${APP_NAME}.app"
 ARCHIVE_PATH="${BUILD_DIR}/${APP_NAME}.xcarchive"
 EXPORT_PATH="${BUILD_DIR}/export"
 EXPORT_PLIST="${ROOT}/exportOptions.plist"
@@ -176,6 +182,7 @@ build_debug() {
             -configuration Debug \
             -destination "$DEBUG_DESTINATION" \
             -derivedDataPath "$DEBUG_DERIVED_DATA" \
+            SYMROOT="$DEBUG_SYMROOT" \
             clean -quiet
         echo "    Done."
         echo ""
@@ -188,8 +195,19 @@ build_debug() {
         -configuration Debug \
         -destination "$DEBUG_DESTINATION" \
         -derivedDataPath "$DEBUG_DERIVED_DATA" \
+        SYMROOT="$DEBUG_SYMROOT" \
         MARKETING_VERSION="$VERSION" \
         build -quiet
+
+    if [ ! -d "$DEBUG_APP" ]; then
+        echo "Error: build reported success but no app exists at:" >&2
+        echo "  ${DEBUG_APP}" >&2
+        echo "" >&2
+        echo "Xcode redirected the build products. Check the build location:" >&2
+        echo "  defaults read com.apple.dt.Xcode IDEBuildLocationStyle" >&2
+        exit 1
+    fi
+
     echo "    App: ${DEBUG_APP}"
     echo ""
     echo "==> Build complete: ${DEBUG_APP}"
