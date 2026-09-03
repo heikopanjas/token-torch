@@ -87,6 +87,10 @@
 		C0040000000000000081 /* TokenTorchLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000080 /* TokenTorchLog.swift */; };
 		C0040000000000000083 /* TokenTorchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000082 /* TokenTorchTests.swift */; };
 		C004000000000000008A /* VendorCredentialSourceInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000008A /* VendorCredentialSourceInfo.swift */; };
+		C0040000000000000099 /* CappedUsageRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000099 /* CappedUsageRows.swift */; };
+		C004000000000000009A /* UsageAlertEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000009A /* UsageAlertEvaluator.swift */; };
+		B00101000000000000000026 /* NotificationSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000026 /* NotificationSettingsViewController.swift */; };
+		B00101000000000000000027 /* NotificationSettingsCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000027 /* NotificationSettingsCopy.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -173,6 +177,10 @@
 		C0030000000000000080 /* TokenTorchLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTorchLog.swift; sourceTree = "<group>"; };
 		C0030000000000000082 /* TokenTorchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTorchTests.swift; sourceTree = "<group>"; };
 		C003000000000000008A /* VendorCredentialSourceInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VendorCredentialSourceInfo.swift; sourceTree = "<group>"; };
+		C0030000000000000099 /* CappedUsageRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CappedUsageRows.swift; sourceTree = "<group>"; };
+		C003000000000000009A /* UsageAlertEvaluator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageAlertEvaluator.swift; sourceTree = "<group>"; };
+		B00102000000000000000026 /* NotificationSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsViewController.swift; sourceTree = "<group>"; };
+		B00102000000000000000027 /* NotificationSettingsCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsCopy.swift; sourceTree = "<group>"; };
 		C0050000000000000084 /* token-torchTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "token-torchTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -277,6 +285,8 @@
 				B00102000000000000000025 /* SettingsPaneViewController.swift */,
 				B00102000000000000000014 /* ProviderSettingsViewController.swift */,
 				B00102000000000000000017 /* AdvancedSettingsViewController.swift */,
+				B00102000000000000000026 /* NotificationSettingsViewController.swift */,
+				B00102000000000000000027 /* NotificationSettingsCopy.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -332,6 +342,7 @@
 				C003000000000000008C /* AppNotification.swift */,
 				C0030000000000000095 /* OrgPagination.swift */,
 				C0030000000000000033 /* QuotaModels.swift */,
+				C0030000000000000099 /* CappedUsageRows.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -353,6 +364,7 @@
 			isa = PBXGroup;
 			children = (
 				C0030000000000000055 /* UsageOrchestrator.swift */,
+				C003000000000000009A /* UsageAlertEvaluator.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -603,6 +615,10 @@
 				C0040000000000000077 /* Redaction.swift in Sources */,
 				C0040000000000000079 /* TokenTorchError.swift in Sources */,
 				C0040000000000000081 /* TokenTorchLog.swift in Sources */,
+				C0040000000000000099 /* CappedUsageRows.swift in Sources */,
+				C004000000000000009A /* UsageAlertEvaluator.swift in Sources */,
+				B00101000000000000000026 /* NotificationSettingsViewController.swift in Sources */,
+				B00101000000000000000027 /* NotificationSettingsCopy.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

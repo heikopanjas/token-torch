@@ -1771,7 +1771,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
         balanceUSD: nil,
         utilizationPercent: nil
     )
-    #expect(ReportLabels.creditsPercent(credits) == 25)
+    #expect(credits.cappedUsedPercent == 25)
     // A balance row states an amount, not a share of a cap, so it carries no bar.
     let balance = CreditsInfo(
         usedCents: 0,
@@ -1780,7 +1780,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
         balanceUSD: 12.5,
         utilizationPercent: nil
     )
-    #expect(ReportLabels.creditsPercent(balance) == nil)
+    #expect(balance.cappedUsedPercent == nil)
 }
 
 @Test func mapCopilotQuotaPeriodUsesMonthlyResetBoundary() throws {
@@ -1828,4 +1828,235 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(report.windows.count == 2)
     #expect(report.windows.first(where: { $0.label == "Chat" })?.usedPercent == 18)
     #expect(report.windows.first(where: { $0.label == "Completions" })?.usedPercent == 10)
+}
+
+// MARK: - Usage-threshold alerts
+
+@Test func usageLevelThresholdPercentsMatchTheBands() {
+    #expect(UsageLevel.low.thresholdPercent == 0)
+    #expect(UsageLevel.moderate.thresholdPercent == 50)
+    #expect(UsageLevel.high.thresholdPercent == 75)
+    #expect(UsageLevel.severe.thresholdPercent == 87)
+    #expect(UsageLevel.critical.thresholdPercent == 95)
+    #expect(UsageLevel.low < .moderate)
+    #expect(UsageLevel.high < .severe)
+    #expect(UsageLevel.severe < .critical)
+    #expect((UsageLevel.high < .high) == false)
+}
+
+private func makeClaudeQuota(fablePercent: Double? = nil) -> SubscriptionQuotaReport {
+    var quota = SubscriptionQuotaReport.forProvider("Claude")
+    quota.windows = [
+        QuotaWindow(label: "5-hour limit", usedPercent: 40, resetsAt: nil)
+    ]
+    if let fablePercent {
+        quota.windows.append(
+            QuotaWindow(label: QuotaWindowLabel.claudeFableShare, usedPercent: fablePercent, resetsAt: nil))
+    }
+    return quota
+}
+
+@Test func cappedUsageRowKeysDisambiguateDuplicateLabels() {
+    var quota = SubscriptionQuotaReport.forProvider("Codex")
+    quota.additionalWindows = [
+        QuotaWindow(label: "Additional (5h)", usedPercent: 40, resetsAt: nil),
+        QuotaWindow(label: "Additional (5h)", usedPercent: 90, resetsAt: nil)
+    ]
+    var prefs = ProviderPreferences()
+    prefs.showAdditionalModelUsage = true
+
+    let rows = CappedUsageRows.rows(provider: .codex, quota: quota, preferences: prefs)
+    #expect(rows.count == 2)
+    let keys = Set(rows.map(\.key.storageKey))
+    #expect(keys.count == 2)
+    #expect(rows.first?.key.occurrence == 0)
+    #expect(rows.last?.key.occurrence == 1)
+}
+
+@Test func cappedUsageRowsHonorDisplayPreferenceGates() {
+    let quota = makeClaudeQuota(fablePercent: 90)
+    var prefs = ProviderPreferences()
+
+    prefs.showClaudeFableUsage = false
+    let hidden = CappedUsageRows.rows(provider: .claude, quota: quota, preferences: prefs)
+    #expect(hidden.contains { $0.label == QuotaWindowLabel.claudeFableShare } == false)
+
+    prefs.showClaudeFableUsage = true
+    let shown = CappedUsageRows.rows(provider: .claude, quota: quota, preferences: prefs)
+    #expect(shown.contains { $0.label == QuotaWindowLabel.claudeFableShare })
+}
+
+@Test func cappedUsageRowsSkipDisabledSections() {
+    let quota = makeClaudeQuota()
+    let result = AllProvidersResult(results: [
+        ProviderFetchResult(provider: .claude, reports: [.subscription(quota)])
+    ])
+    var prefs = ProviderPreferences()
+    prefs.claude.subscriptionQuotaEnabled = false
+
+    #expect(CappedUsageRows.rows(in: result, preferences: prefs).isEmpty)
+}
+
+@Test func cappedUsageRowsExcludeCodexCreditBalance() {
+    var quota = SubscriptionQuotaReport.forProvider("Codex")
+    quota.windows = [QuotaWindow(label: "5-hour limit", usedPercent: 40, resetsAt: nil)]
+    quota.credits = CreditsInfo(
+        usedCents: 0,
+        limitCents: 0,
+        currency: CreditsInfo.creditUnitsCurrency,
+        balanceUSD: nil,
+        balanceCredits: 250
+    )
+    let prefs = ProviderPreferences()
+
+    let rows = CappedUsageRows.rows(provider: .codex, quota: quota, preferences: prefs)
+    #expect(rows.count == 1)
+    #expect(rows.allSatisfy { $0.key.source == .window })
+}
+
+private func claudeRow(percent: Double, label: String = "5-hour limit") -> CappedUsageRow {
+    CappedUsageRow(
+        key: UsageAlertRowKey(section: ProviderSection(provider: .claude, kind: .subscription), source: .window, label: label),
+        label: label,
+        usedPercent: percent,
+        resetsAt: nil
+    )
+}
+
+@Test func usageAlertEvaluatorNotifiesOnFirstRunForRowsAboveStartLevel() {
+    let section = ProviderSection(provider: .claude, kind: .subscription)
+    let row = claudeRow(percent: 80)
+    let outcome = UsageAlertEvaluator.evaluate(
+        rows: [row],
+        previous: UsageAlertState(),
+        startLevel: .high,
+        reportingSections: [section]
+    )
+    #expect(outcome.alerts.map(\.key) == [row.key])
+    #expect(outcome.state[row.key] == .high)
+}
+
+@Test func usageAlertEvaluatorEscalatesWithoutRepeatingInTheSameBand() {
+    let section = ProviderSection(provider: .claude, kind: .subscription)
+    let key = claudeRow(percent: 80).key
+
+    var state = UsageAlertState()
+    state[key] = .high
+
+    let stillHigh = UsageAlertEvaluator.evaluate(
+        rows: [claudeRow(percent: 82)],
+        previous: state,
+        startLevel: .high,
+        reportingSections: [section]
+    )
+    #expect(stillHigh.alerts.isEmpty)
+
+    let escalated = UsageAlertEvaluator.evaluate(
+        rows: [claudeRow(percent: 90)],
+        previous: state,
+        startLevel: .high,
+        reportingSections: [section]
+    )
+    #expect(escalated.alerts.map(\.key) == [key])
+    #expect(escalated.state[key] == .severe)
+}
+
+@Test func usageAlertEvaluatorReArmsAfterFallingToALowerBand() {
+    let section = ProviderSection(provider: .claude, kind: .subscription)
+    let key = claudeRow(percent: 80).key
+    var state = UsageAlertState()
+    state[key] = .high
+
+    let reset = UsageAlertEvaluator.evaluate(
+        rows: [claudeRow(percent: 10)],
+        previous: state,
+        startLevel: .high,
+        reportingSections: [section]
+    )
+    #expect(reset.alerts.isEmpty)
+    #expect(reset.state[key] == nil)
+
+    let climbedAgain = UsageAlertEvaluator.evaluate(
+        rows: [claudeRow(percent: 80)],
+        previous: reset.state,
+        startLevel: .high,
+        reportingSections: [section]
+    )
+    #expect(climbedAgain.alerts.map(\.key) == [key])
+}
+
+@Test func usageAlertEvaluatorRespectsStartLevel() {
+    let section = ProviderSection(provider: .claude, kind: .subscription)
+
+    let belowSevere = UsageAlertEvaluator.evaluate(
+        rows: [claudeRow(percent: 80)],
+        previous: UsageAlertState(),
+        startLevel: .severe,
+        reportingSections: [section]
+    )
+    #expect(belowSevere.alerts.isEmpty)
+
+    let atSevere = UsageAlertEvaluator.evaluate(
+        rows: [claudeRow(percent: 90)],
+        previous: UsageAlertState(),
+        startLevel: .severe,
+        reportingSections: [section]
+    )
+    #expect(atSevere.alerts.count == 1)
+}
+
+@Test func usageAlertEvaluatorKeepsBandsForSectionsThatDidNotReport() {
+    let key = claudeRow(percent: 80).key
+    var state = UsageAlertState()
+    state[key] = .critical
+
+    // The section produced no rows this refresh (e.g. a transient error) and is absent from
+    // `reportingSections`, so its stored band must survive untouched rather than being pruned.
+    let outcome = UsageAlertEvaluator.evaluate(
+        rows: [],
+        previous: state,
+        startLevel: .high,
+        reportingSections: []
+    )
+    #expect(outcome.state[key] == .critical)
+    #expect(outcome.alerts.isEmpty)
+}
+
+@Test func usageAlertStateDropsUnknownBandsInsteadOfResetting() throws {
+    let json = Data(#"{"a":"high","b":"totally-new-band"}"#.utf8)
+    let state = try JSONDecoder().decode(UsageAlertState.self, from: json)
+    #expect(state.levels == ["a": .high])
+}
+
+@Test func usageAlertStateStoreRoundTripsThroughUserDefaults() throws {
+    let suiteName = "tokentorch.tests.usageAlertState.\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suiteName))
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+
+    let store = UsageAlertStateStore(defaults: defaults)
+    #expect(store.load() == UsageAlertState())
+
+    var state = UsageAlertState()
+    state[claudeRow(percent: 90).key] = .severe
+    store.save(state)
+    #expect(store.load() == state)
+}
+
+@Test func providerPreferencesUsageAlertDefaultsSurviveLegacyJSON() throws {
+    let legacy = """
+        {"claude":{"subscriptionQuotaEnabled":true,"orgBillingEnabled":false},"codex":{"subscriptionQuotaEnabled":true,"orgBillingEnabled":false},"cursor":{"subscriptionQuotaEnabled":true,"orgBillingEnabled":false},"refreshIntervalMinutes":15}
+        """
+    let prefs = try JSONDecoder().decode(ProviderPreferences.self, from: Data(legacy.utf8))
+    #expect(prefs.notifyOnUsageThreshold)
+    #expect(prefs.usageAlertStartLevel == .high)
+}
+
+@Test func appNotificationUsageThresholdReachedCarriesRowsAndStableIdentifier() {
+    let section = ProviderSection(provider: .claude, kind: .subscription)
+    let rows = [claudeRow(percent: 92, label: "7-day limit")]
+    let notification = AppNotification.usageThresholdReached(section: section, rows: rows)
+    #expect(notification.identifier == "token-torch.usage-threshold.\(section.id)")
+    #expect(notification.title.contains(section.heading))
+    #expect(notification.body.contains("7-day limit"))
+    #expect(notification.body.contains("92%"))
 }

@@ -71,6 +71,17 @@ public struct ProviderSection: Codable, Hashable, Sendable, Identifiable {
 
     public var id: String { "\(provider.rawValue).\(kind.rawValue)" }
 
+    /// The exact caption shown for this menu view. Single source shared by the menu headers, the
+    /// Settings provider-order list, and usage-threshold alert titles.
+    public var heading: String {
+        switch provider {
+            case .codex: kind == .subscription ? "Codex" : "OpenAI Platform"
+            case .claude: kind == .subscription ? "Claude Code" : "Anthropic API"
+            case .cursor: kind == .subscription ? "Cursor" : provider.displayName
+            case .copilot: "Copilot"
+        }
+    }
+
     /// Every valid menu view, grouped by provider (subscription then org billing).
     public static var allSections: [ProviderSection] {
         ProviderID.allCases.flatMap { provider -> [ProviderSection] in
@@ -117,6 +128,12 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
     public var claudeCLIPath: String?
     /// When true, post a desktop notification when background Claude Code credential repair fails.
     public var notifyOnRepairFailure: Bool
+    /// When true, post a desktop notification when a capped row's usage climbs into a new band at or
+    /// above `usageAlertStartLevel`. Default on.
+    public var notifyOnUsageThreshold: Bool
+    /// The lowest band that triggers a usage-threshold alert; escalating past it alerts again at each
+    /// higher band. Only `.high` (orange) and `.severe` (red) are offered in Settings. Default `.high`.
+    public var usageAlertStartLevel: UsageLevel
     /// User-chosen order of the six menu views (provider + subscription/org). Normalize via `orderedSections()`.
     public var sectionOrder: [ProviderSection]
     /// Menu bar status item icon (Anthropic, OpenAI, Cursor, or Copilot PDF).
@@ -137,6 +154,8 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         claudeAutomaticRepair: Bool = false,
         claudeCLIPath: String? = nil,
         notifyOnRepairFailure: Bool = true,
+        notifyOnUsageThreshold: Bool = true,
+        usageAlertStartLevel: UsageLevel = .high,
         sectionOrder: [ProviderSection] = ProviderSection.allSections,
         menuBarIcon: MenuBarIconProvider = .cursor
     ) {
@@ -154,6 +173,8 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         self.claudeAutomaticRepair = claudeAutomaticRepair
         self.claudeCLIPath = claudeCLIPath
         self.notifyOnRepairFailure = notifyOnRepairFailure
+        self.notifyOnUsageThreshold = notifyOnUsageThreshold
+        self.usageAlertStartLevel = usageAlertStartLevel
         self.sectionOrder = sectionOrder
         self.menuBarIcon = menuBarIcon
     }
@@ -181,6 +202,8 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         claudeAutomaticRepair = try container.decodeIfPresent(Bool.self, forKey: .claudeAutomaticRepair) ?? false
         claudeCLIPath = try container.decodeIfPresent(String.self, forKey: .claudeCLIPath)
         notifyOnRepairFailure = try container.decodeIfPresent(Bool.self, forKey: .notifyOnRepairFailure) ?? true
+        notifyOnUsageThreshold = try container.decodeIfPresent(Bool.self, forKey: .notifyOnUsageThreshold) ?? true
+        usageAlertStartLevel = try container.decodeIfPresent(UsageLevel.self, forKey: .usageAlertStartLevel) ?? .high
         sectionOrder = try container.decodeIfPresent([ProviderSection].self, forKey: .sectionOrder) ?? ProviderSection.allSections
         menuBarIcon = try container.decodeIfPresent(MenuBarIconProvider.self, forKey: .menuBarIcon) ?? .cursor
     }
@@ -255,6 +278,21 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
     /// First enabled row in the General-tab Providers table (normalized order).
     public var topProviderSection: ProviderSection? {
         orderedSections().first { isSectionEnabled($0) }
+    }
+
+    /// The windows the menu lists for a subscription report, in menu order, after display-only
+    /// gating (`showAdditionalModelUsage`, `showClaudeFableUsage`). Single source for the menu's row
+    /// selection and the usage-threshold alert scan — both must agree on exactly which rows show.
+    public func visibleWindows(provider: ProviderID, quota: SubscriptionQuotaReport) -> [QuotaWindow] {
+        if provider == .cursor {
+            return QuotaWindowLabel.cursorMeters.compactMap { label in
+                quota.windows.first { $0.label == label }
+            }
+        }
+        let mapped = showAdditionalModelUsage == true ? quota.windows + quota.additionalWindows : quota.windows
+        // Fable is a sub-cap of the weekly limit, so it stays in place below the 7-day window rather
+        // than moving to `additionalWindows`; hiding it is display-only.
+        return mapped.filter { showClaudeFableUsage == true || $0.label != QuotaWindowLabel.claudeFableShare }
     }
 }
 

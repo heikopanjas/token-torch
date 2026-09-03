@@ -20,9 +20,6 @@ final class MenuBuilder {
         menu.minimumWidth = MenuFormat.menuWidth
         let prefs = ProviderPreferencesStore.shared.load()
         let pricing = DisplayPriceOptions(preferences: prefs)
-        let showAdditional = prefs.showAdditionalModelUsage
-        let showCursorValueRows = prefs.showCursorUsageValueAndBonus
-        let showClaudeFable = prefs.showClaudeFableUsage
 
         guard prefs.hasAnyEnabledProvider == true else {
             menu.addItem(UsageMenuItemViews.emptyState())
@@ -55,9 +52,7 @@ final class MenuBuilder {
                     provider: section.provider,
                     report: section.report,
                     pricing: pricing,
-                    showAdditional: showAdditional,
-                    showCursorValueRows: showCursorValueRows,
-                    showClaudeFable: showClaudeFable
+                    preferences: prefs
                 )
             }
         }
@@ -76,9 +71,7 @@ final class MenuBuilder {
         provider: ProviderID,
         report: ProviderReport,
         pricing: DisplayPriceOptions,
-        showAdditional: Bool,
-        showCursorValueRows: Bool,
-        showClaudeFable: Bool
+        preferences: ProviderPreferences
     ) {
         let trailing: String? = {
             if case .subscription(let quota) = report {
@@ -95,12 +88,12 @@ final class MenuBuilder {
 
         switch report {
             case .subscription(let quota):
-                if quota.provider == "Cursor" {
+                if provider == .cursor {
                     appendCursorSubscription(
                         to: menu,
                         quota: quota,
                         pricing: pricing,
-                        showValueRows: showCursorValueRows
+                        showValueRows: preferences.showCursorUsageValueAndBonus
                     )
                 }
                 else {
@@ -116,12 +109,7 @@ final class MenuBuilder {
                             menu.addItem(UsageMenuItemViews.menuSpacer())
                         }
                     }
-                    let mapped = showAdditional == true ? quota.windows + quota.additionalWindows : quota.windows
-                    // Fable is a sub-cap of the weekly limit, so it stays in place below the 7-day
-                    // window rather than moving to `additionalWindows`; hiding it is display-only.
-                    let windows = mapped.filter {
-                        showClaudeFable == true || $0.label != QuotaWindowLabel.claudeFableShare
-                    }
+                    let windows = preferences.visibleWindows(provider: provider, quota: quota)
                     for window in windows {
                         if quota.provider == "Copilot" {
                             appendCopilotWindow(to: menu, window: window)
@@ -131,9 +119,9 @@ final class MenuBuilder {
                             menu.addItem(
                                 UsageMenuItemViews.costRow(
                                     label: window.label,
-                                    value: MenuFormat.percentUsed(window.usedPercent),
+                                    value: MenuFormat.percentUsed(window.cappedUsedPercent),
                                     caption: resetCaption,
-                                    usedPercent: window.usedPercent
+                                    usedPercent: window.cappedUsedPercent
                                 ))
                         }
                     }
@@ -148,7 +136,7 @@ final class MenuBuilder {
                             UsageMenuItemViews.costRow(
                                 label: creditsTitle,
                                 value: label,
-                                usedPercent: creditsPercent(for: quota, credits: credits)
+                                usedPercent: quota.creditsRowPercent
                             ))
                     }
                 }
@@ -178,18 +166,13 @@ final class MenuBuilder {
         return ReportLabels.creditsLabel(credits, pricing: pricing)
     }
 
-    /// Codex's row is a credit balance, not a share of a cap, so it never carries a usage bar.
-    private func creditsPercent(for quota: SubscriptionQuotaReport, credits: CreditsInfo) -> Double? {
-        quota.provider == "Codex" ? nil : ReportLabels.creditsPercent(credits)
-    }
-
     private func appendCopilotWindow(to menu: NSMenu, window: QuotaWindow) {
         if let caption = CopilotQuotaLabels.groupCaption(window) {
             menu.addItem(UsageMenuItemViews.caption(caption))
         }
         // A Copilot group's percentage lives on the window, not on its individual rows, so the bar
         // goes under the row that states that percentage.
-        let usedPercent = window.percentRemaining.map { 100 - $0 } ?? window.usedPercent
+        let usedPercent = window.cappedUsedPercent
         for item in ReportLabels.copilotItems(window) {
             menu.addItem(
                 UsageMenuItemViews.costRow(
@@ -212,13 +195,12 @@ final class MenuBuilder {
                     MenuFormat.billingCycleCaption(start: start, end: end)
                 ))
         }
-        let meterLabels = ["Included total usage", "Auto + Composer", "Included API usage"]
-        let meterRows = meterLabels.compactMap { label -> NSMenuItem? in
+        let meterRows = QuotaWindowLabel.cursorMeters.compactMap { label -> NSMenuItem? in
             guard let window = quota.windows.first(where: { $0.label == label }) else { return nil }
             return UsageMenuItemViews.costRow(
                 label: label,
-                value: MenuFormat.percentUsed(window.usedPercent),
-                usedPercent: window.usedPercent
+                value: MenuFormat.percentUsed(window.cappedUsedPercent),
+                usedPercent: window.cappedUsedPercent
             )
         }
         if meterRows.isEmpty == false {
@@ -249,7 +231,7 @@ final class MenuBuilder {
                 UsageMenuItemViews.costRow(
                     label: "Credits",
                     value: credits,
-                    usedPercent: ReportLabels.cursorCreditsPercent(quota)
+                    usedPercent: quota.cursorCreditsPercent
                 ))
         }
     }

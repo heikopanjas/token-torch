@@ -36,6 +36,16 @@ public struct QuotaWindow: Codable, Sendable, Equatable, Identifiable {
     }
 }
 
+extension QuotaWindow {
+    /// The percentage this row actually states. Copilot carries a group's percentage as
+    /// `percentRemaining` rather than `usedPercent`; every other provider leaves `percentRemaining`
+    /// nil, so this collapses to `usedPercent`. Single source for the row's printed text, its usage
+    /// bar, and usage-threshold alerts — they can never disagree.
+    public var cappedUsedPercent: Double {
+        percentRemaining.map { 100 - $0 } ?? usedPercent
+    }
+}
+
 /// A single labeled scalar/flag value surfaced from a provider response that doesn't fit the
 /// window or money layouts (e.g. ChatGPT `allowed`, `spend_control`).
 public struct QuotaNote: Codable, Sendable, Equatable, Identifiable {
@@ -79,6 +89,23 @@ public struct CreditsInfo: Codable, Sendable, Equatable {
     }
 }
 
+extension CreditsInfo {
+    /// The share of the cap actually spent, preferring the server-supplied percentage and falling
+    /// back to a recomputation from cents. nil when there is no cap to be a share of.
+    private var resolvedUsedPercent: Double? {
+        utilizationPercent ?? QuotaHelpers.creditUsedPercent(usedCents: usedCents, limitCents: limitCents)
+    }
+
+    /// The percentage a credits row's usage bar should show, or nil when the row states a balance
+    /// (e.g. Codex `extra_usage`) rather than a share of a cap. Single source for the row's printed
+    /// text, its usage bar, and usage-threshold alerts.
+    public var cappedUsedPercent: Double? {
+        if currency != CreditsInfo.creditUnitsCurrency, balanceUSD != nil { return nil }
+        guard limitCents > 0 else { return nil }
+        return resolvedUsedPercent
+    }
+}
+
 public struct DollarUsage: Codable, Sendable, Equatable {
     public let usedCents: UInt64
     public let limitCents: UInt64
@@ -90,6 +117,14 @@ public struct DollarUsage: Codable, Sendable, Equatable {
         self.limitCents = limitCents
         self.remainingCents = remainingCents
         self.usedPercent = usedPercent
+    }
+}
+
+extension DollarUsage {
+    /// The share of the cap actually spent, preferring the server-supplied percentage and falling
+    /// back to a recomputation from cents. nil when there is no cap to be a share of.
+    public var resolvedUsedPercent: Double? {
+        usedPercent ?? QuotaHelpers.creditUsedPercent(usedCents: usedCents, limitCents: limitCents)
     }
 }
 
@@ -137,29 +172,83 @@ public struct SubscriptionQuotaReport: Codable, Sendable, Equatable {
     }
 }
 
+extension SubscriptionQuotaReport {
+    /// Share of the included allowance Cursor has spent, i.e. the percentage its credits row prints.
+    /// Single source for the row's text, its usage bar, and usage-threshold alerts.
+    public var cursorCreditsPercent: Double? {
+        guard let usage = apiAllowance ?? dollarUsage, usage.limitCents > 0 else { return nil }
+        return usage.resolvedUsedPercent
+    }
+
+    /// The percentage a non-Cursor credits row's usage bar should show, or nil when the row states a
+    /// balance rather than a share of a cap (e.g. Codex `extra_usage`, whose `limitCents` is always 0).
+    public var creditsRowPercent: Double? {
+        credits?.cappedUsedPercent
+    }
+}
+
 /// Window labels the menu has to recognize for opt-in gating, kept in one place so the provider that
 /// produces the row and the menu that hides it cannot drift apart.
 public enum QuotaWindowLabel {
     /// Claude's model-scoped weekly Fable sub-cap; hidden unless `ProviderPreferences.showClaudeFableUsage` is on.
     public static let claudeFableShare = "Fable share of 7-day limit"
+    /// Cursor's three non-additive meters, in menu order. Single source for the menu's row selection
+    /// and the usage-threshold alert scan — both must agree on exactly which windows are meters.
+    public static let cursorMeters = ["Included total usage", "Auto + Composer", "Included API usage"]
 }
 
-/// Severity band of a usage percentage, driving the color of the menu's usage bar.
-public enum UsageLevel: Sendable {
+/// Severity band of a usage percentage, driving the color of the menu's usage bar and, from
+/// `ProviderPreferences.usageAlertStartLevel` upward, desktop usage-threshold alerts.
+public enum UsageLevel: String, Codable, CaseIterable, Comparable, Sendable {
     case low
     case moderate
     case high
     case severe
     case critical
 
+    /// Inclusive lower bound of the band. `level(forPercent:)`, the Settings "Starting at" popup, and
+    /// the alert copy all derive from this, so the band edges are written exactly once.
+    public var thresholdPercent: Double {
+        switch self {
+            case .low: return 0
+            case .moderate: return 50
+            case .high: return 75
+            case .severe: return 87
+            case .critical: return 95
+        }
+    }
+
+    /// Band name used in the Settings popup and alert copy ("Orange", "Red", …).
+    public var alertDisplayName: String {
+        switch self {
+            case .low: return "Green"
+            case .moderate: return "Green"
+            case .high: return "Orange"
+            case .severe: return "Red"
+            case .critical: return "Deep red"
+        }
+    }
+
+    /// Declaration order, `low` lowest. Not derived from `thresholdPercent` so the ordering survives
+    /// even if a future band's threshold were ever revisited.
+    private var rank: Int {
+        switch self {
+            case .low: return 0
+            case .moderate: return 1
+            case .high: return 2
+            case .severe: return 3
+            case .critical: return 4
+        }
+    }
+
+    public static func < (lhs: UsageLevel, rhs: UsageLevel) -> Bool {
+        lhs.rank < rhs.rank
+    }
+
     /// Bands are exclusive upper bounds, so exactly 50% is already `.moderate` and exactly 95%
     /// is already `.critical`.
     public static func level(forPercent percent: Double) -> UsageLevel {
-        if percent < 50 { return .low }
-        if percent < 75 { return .moderate }
-        if percent < 87 { return .high }
-        if percent < 95 { return .severe }
-        return .critical
+        Self.allCases.reversed().first { percent >= $0.thresholdPercent } ?? .low
     }
 }
 
@@ -238,5 +327,11 @@ public enum QuotaHelpers {
     public static func creditUsedPercent(usedCents: UInt64, limitCents: UInt64) -> Double? {
         guard limitCents > 0 else { return nil }
         return Double(usedCents) / Double(limitCents) * 100.0
+    }
+
+    /// "NN%", rounded the same way everywhere a percentage is printed — the menu row, its usage bar's
+    /// implicit value, and a usage-threshold alert all read the identical number.
+    public static func formattedPercent(_ percent: Double) -> String {
+        String(format: "%.0f%%", percent)
     }
 }
