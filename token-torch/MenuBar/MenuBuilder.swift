@@ -22,6 +22,7 @@ final class MenuBuilder {
         let pricing = DisplayPriceOptions(preferences: prefs)
         let showAdditional = prefs.showAdditionalModelUsage
         let showCursorValueRows = prefs.showCursorUsageValueAndBonus
+        let showClaudeFable = prefs.showClaudeFableUsage
 
         guard prefs.hasAnyEnabledProvider == true else {
             menu.addItem(UsageMenuItemViews.emptyState())
@@ -55,7 +56,8 @@ final class MenuBuilder {
                     report: section.report,
                     pricing: pricing,
                     showAdditional: showAdditional,
-                    showCursorValueRows: showCursorValueRows
+                    showCursorValueRows: showCursorValueRows,
+                    showClaudeFable: showClaudeFable
                 )
             }
         }
@@ -75,7 +77,8 @@ final class MenuBuilder {
         report: ProviderReport,
         pricing: DisplayPriceOptions,
         showAdditional: Bool,
-        showCursorValueRows: Bool
+        showCursorValueRows: Bool,
+        showClaudeFable: Bool
     ) {
         let trailing: String? = {
             if case .subscription(let quota) = report {
@@ -113,7 +116,12 @@ final class MenuBuilder {
                             menu.addItem(UsageMenuItemViews.menuSpacer())
                         }
                     }
-                    let windows = showAdditional ? quota.windows + quota.additionalWindows : quota.windows
+                    let mapped = showAdditional == true ? quota.windows + quota.additionalWindows : quota.windows
+                    // Fable is a sub-cap of the weekly limit, so it stays in place below the 7-day
+                    // window rather than moving to `additionalWindows`; hiding it is display-only.
+                    let windows = mapped.filter {
+                        showClaudeFable == true || $0.label != QuotaWindowLabel.claudeFableShare
+                    }
                     for window in windows {
                         if quota.provider == "Copilot" {
                             appendCopilotWindow(to: menu, window: window)
@@ -124,7 +132,8 @@ final class MenuBuilder {
                                 UsageMenuItemViews.costRow(
                                     label: window.label,
                                     value: MenuFormat.percentUsed(window.usedPercent),
-                                    caption: resetCaption
+                                    caption: resetCaption,
+                                    usedPercent: window.usedPercent
                                 ))
                         }
                     }
@@ -135,7 +144,12 @@ final class MenuBuilder {
                         let label = creditsLabel(for: quota, credits: credits, pricing: pricing)
                     {
                         let creditsTitle = ReportLabels.creditsTitle(for: quota.provider)
-                        menu.addItem(UsageMenuItemViews.costRow(label: creditsTitle, value: label))
+                        menu.addItem(
+                            UsageMenuItemViews.costRow(
+                                label: creditsTitle,
+                                value: label,
+                                usedPercent: creditsPercent(for: quota, credits: credits)
+                            ))
                     }
                 }
             case .org(let org):
@@ -164,12 +178,25 @@ final class MenuBuilder {
         return ReportLabels.creditsLabel(credits, pricing: pricing)
     }
 
+    /// Codex's row is a credit balance, not a share of a cap, so it never carries a usage bar.
+    private func creditsPercent(for quota: SubscriptionQuotaReport, credits: CreditsInfo) -> Double? {
+        quota.provider == "Codex" ? nil : ReportLabels.creditsPercent(credits)
+    }
+
     private func appendCopilotWindow(to menu: NSMenu, window: QuotaWindow) {
         if let caption = CopilotQuotaLabels.groupCaption(window) {
             menu.addItem(UsageMenuItemViews.caption(caption))
         }
+        // A Copilot group's percentage lives on the window, not on its individual rows, so the bar
+        // goes under the row that states that percentage.
+        let usedPercent = window.percentRemaining.map { 100 - $0 } ?? window.usedPercent
         for item in ReportLabels.copilotItems(window) {
-            menu.addItem(UsageMenuItemViews.costRow(label: item.label, value: item.value))
+            menu.addItem(
+                UsageMenuItemViews.costRow(
+                    label: item.label,
+                    value: item.value,
+                    usedPercent: item.label == CopilotQuotaLabels.percentUsedLabel ? usedPercent : nil
+                ))
         }
     }
 
@@ -190,7 +217,8 @@ final class MenuBuilder {
             guard let window = quota.windows.first(where: { $0.label == label }) else { return nil }
             return UsageMenuItemViews.costRow(
                 label: label,
-                value: MenuFormat.percentUsed(window.usedPercent)
+                value: MenuFormat.percentUsed(window.usedPercent),
+                usedPercent: window.usedPercent
             )
         }
         if meterRows.isEmpty == false {
@@ -217,7 +245,12 @@ final class MenuBuilder {
             }
         }
         if let credits = ReportLabels.cursorCreditsLabel(quota, pricing: pricing) {
-            menu.addItem(UsageMenuItemViews.costRow(label: "Credits", value: credits))
+            menu.addItem(
+                UsageMenuItemViews.costRow(
+                    label: "Credits",
+                    value: credits,
+                    usedPercent: ReportLabels.cursorCreditsPercent(quota)
+                ))
         }
     }
 

@@ -108,7 +108,7 @@ import Testing
         ]
     )
     let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max")
-    #expect(report.windows.map { $0.label } == ["5-hour window", "7-day window", "Fable share of 7-day limit"])
+    #expect(report.windows.map { $0.label } == ["5-hour window", "7-day window", QuotaWindowLabel.claudeFableShare])
 }
 
 @Test func mapClaudeUsageMapsActiveFablePercentAndReset() {
@@ -125,7 +125,7 @@ import Testing
         ]
     )
     let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max")
-    let fable = report.windows.first { $0.label == "Fable share of 7-day limit" }
+    let fable = report.windows.first { $0.label == QuotaWindowLabel.claudeFableShare }
     #expect(fable?.usedPercent == 37)
     #expect(fable?.resetsAt != nil)
 }
@@ -145,7 +145,7 @@ import Testing
         ]
     )
     let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max")
-    #expect(report.windows.first { $0.label == "Fable share of 7-day limit" }?.usedPercent == 12)
+    #expect(report.windows.first { $0.label == QuotaWindowLabel.claudeFableShare }?.usedPercent == 12)
 }
 
 @Test func mapClaudeUsageIgnoresOtherScopedModels() {
@@ -225,8 +225,8 @@ import Testing
     let data = Data(json.utf8)
     let response = try JSONDecoder().decode(ClaudeQuotaProvider.ClaudeUsageResponse.self, from: data)
     let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max")
-    #expect(report.windows.map { $0.label } == ["5-hour window", "7-day window", "Fable share of 7-day limit"])
-    let fable = report.windows.first { $0.label == "Fable share of 7-day limit" }
+    #expect(report.windows.map { $0.label } == ["5-hour window", "7-day window", QuotaWindowLabel.claudeFableShare])
+    let fable = report.windows.first { $0.label == QuotaWindowLabel.claudeFableShare }
     #expect(fable?.usedPercent == 0)
     #expect(fable?.resetsAt == nil)
 }
@@ -558,6 +558,24 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     let data = try JSONEncoder().encode(prefs)
     let decoded = try JSONDecoder().decode(ProviderPreferences.self, from: data)
     #expect(decoded.showCursorUsageValueAndBonus)
+}
+
+@Test func providerPreferencesClaudeFableSettingRoundTripsThroughCoding() throws {
+    var prefs = ProviderPreferences()
+    #expect(prefs.showClaudeFableUsage == false)
+    prefs.showClaudeFableUsage = true
+    let data = try JSONEncoder().encode(prefs)
+    let decoded = try JSONDecoder().decode(ProviderPreferences.self, from: data)
+    #expect(decoded.showClaudeFableUsage)
+}
+
+@Test func providerPreferencesDecodesLegacyWithoutClaudeFableSetting() throws {
+    // Prefs written before the Fable opt-in must still decode, with the row hidden by default.
+    let legacy = """
+        {"claude":{"subscriptionQuotaEnabled":true,"orgBillingEnabled":false},"codex":{"subscriptionQuotaEnabled":true,"orgBillingEnabled":false},"cursor":{"subscriptionQuotaEnabled":true,"orgBillingEnabled":false},"refreshIntervalMinutes":15}
+        """
+    let prefs = try JSONDecoder().decode(ProviderPreferences.self, from: Data(legacy.utf8))
+    #expect(prefs.showClaudeFableUsage == false)
 }
 
 @Test func providerPreferencesDecodesLegacyWithoutClaudeRepairSettings() throws {
@@ -1710,6 +1728,59 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(items.first(where: { $0.label == "Percent used" })?.value == "3.4%")
     #expect(items.first(where: { $0.label == "Overage" })?.value == "enabled")
     #expect(CopilotQuotaLabels.groupCaption(aiCredits!) == nil)
+    // The menu attaches the usage bar to this row by the shared constant, so the two must agree.
+    #expect(items.contains { $0.label == CopilotQuotaLabels.percentUsedLabel })
+}
+
+@Test func usageLevelBandsUseExclusiveUpperBounds() {
+    #expect(UsageLevel.level(forPercent: 0) == .low)
+    #expect(UsageLevel.level(forPercent: 49.9) == .low)
+    #expect(UsageLevel.level(forPercent: 50) == .moderate)
+    #expect(UsageLevel.level(forPercent: 74.9) == .moderate)
+    #expect(UsageLevel.level(forPercent: 75) == .high)
+    #expect(UsageLevel.level(forPercent: 86.9) == .high)
+    #expect(UsageLevel.level(forPercent: 87) == .severe)
+    #expect(UsageLevel.level(forPercent: 94.9) == .severe)
+    #expect(UsageLevel.level(forPercent: 95) == .critical)
+    #expect(UsageLevel.level(forPercent: 100) == .critical)
+    // Copilot counts overage past the cap; it stays in the top band rather than wrapping.
+    #expect(UsageLevel.level(forPercent: 140) == .critical)
+}
+
+@Test func usageBarIsHiddenBelowOnePercent() {
+    #expect(UsageBarMetrics.showsBar(forPercent: 0) == false)
+    #expect(UsageBarMetrics.showsBar(forPercent: 0.9) == false)
+    #expect(UsageBarMetrics.showsBar(forPercent: 1) == true)
+    #expect(UsageBarMetrics.showsBar(forPercent: 83.3) == true)
+    #expect(UsageBarMetrics.showsBar(forPercent: -5) == false)
+}
+
+@Test func usageBarFillFractionClampsOutsideTheCap() {
+    #expect(UsageBarMetrics.fillFraction(forPercent: 0) == 0)
+    #expect(UsageBarMetrics.fillFraction(forPercent: 62) == 0.62)
+    #expect(UsageBarMetrics.fillFraction(forPercent: 100) == 1)
+    #expect(UsageBarMetrics.fillFraction(forPercent: 105) == 1)
+    #expect(UsageBarMetrics.fillFraction(forPercent: -3) == 0)
+}
+
+@Test func creditsPercentMatchesThePercentageTheRowPrints() {
+    let credits = CreditsInfo(
+        usedCents: 2_500,
+        limitCents: 10_000,
+        currency: "USD",
+        balanceUSD: nil,
+        utilizationPercent: nil
+    )
+    #expect(ReportLabels.creditsPercent(credits) == 25)
+    // A balance row states an amount, not a share of a cap, so it carries no bar.
+    let balance = CreditsInfo(
+        usedCents: 0,
+        limitCents: 0,
+        currency: "USD",
+        balanceUSD: 12.5,
+        utilizationPercent: nil
+    )
+    #expect(ReportLabels.creditsPercent(balance) == nil)
 }
 
 @Test func mapCopilotQuotaPeriodUsesMonthlyResetBoundary() throws {

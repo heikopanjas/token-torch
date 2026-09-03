@@ -48,6 +48,29 @@ enum ReportLabels {
         return MenuFormat.percentUsed(percent, parenthesized: true)
     }
 
+    /// Share of the included allowance Cursor has spent, i.e. the percentage its credits row prints.
+    /// The menu uses it for the row's usage bar, so the bar and the text can never disagree.
+    static func cursorCreditsPercent(_ quota: SubscriptionQuotaReport) -> Double? {
+        guard let usage = quota.apiAllowance ?? quota.dollarUsage, usage.limitCents > 0 else { return nil }
+        return Self.usedPercent(usage)
+    }
+
+    /// Share of a credits pool that is spent, or nil when the row shows a balance instead of a ratio.
+    static func creditsPercent(_ credits: CreditsInfo) -> Double? {
+        if credits.currency != CreditsInfo.creditUnitsCurrency, credits.balanceUSD != nil { return nil }
+        guard credits.limitCents > 0 else { return nil }
+        return Self.usedPercent(credits)
+    }
+
+    private static func usedPercent(_ usage: DollarUsage) -> Double? {
+        usage.usedPercent ?? QuotaHelpers.creditUsedPercent(usedCents: usage.usedCents, limitCents: usage.limitCents)
+    }
+
+    private static func usedPercent(_ credits: CreditsInfo) -> Double? {
+        credits.utilizationPercent
+            ?? QuotaHelpers.creditUsedPercent(usedCents: credits.usedCents, limitCents: credits.limitCents)
+    }
+
     /// Cursor spend counted against the included allowance, e.g. `$333.51/$400.00 (83% used)`.
     /// Styled like Claude's on-demand credits row. The used amount is the same value the previous
     /// Grand Total showed (`apiAllowance`, or `dollarUsage` for team), paired with its limit.
@@ -55,8 +78,7 @@ enum ReportLabels {
         guard let usage = quota.apiAllowance ?? quota.dollarUsage, usage.limitCents > 0 else { return nil }
         let usedText = pricing.formatMinorUnits(usage.usedCents, from: "USD")
         let limitText = pricing.formatMinorUnits(usage.limitCents, from: "USD")
-        let pct = usage.usedPercent ?? QuotaHelpers.creditUsedPercent(usedCents: usage.usedCents, limitCents: usage.limitCents)
-        let pctText = Self.percentUsedSuffix(pct)
+        let pctText = Self.percentUsedSuffix(Self.usedPercent(usage))
         return "\(usedText)/\(limitText)\(pctText)"
     }
 
@@ -64,8 +86,7 @@ enum ReportLabels {
     static func creditsLabel(_ credits: CreditsInfo, pricing: DisplayPriceOptions) -> String? {
         if credits.currency == CreditsInfo.creditUnitsCurrency {
             guard credits.limitCents > 0 || credits.usedCents > 0 else { return nil }
-            let pct = credits.utilizationPercent ?? QuotaHelpers.creditUsedPercent(usedCents: credits.usedCents, limitCents: credits.limitCents)
-            let pctText = Self.percentUsedSuffix(pct)
+            let pctText = Self.percentUsedSuffix(Self.usedPercent(credits))
             return "\(credits.usedCents)/\(credits.limitCents)\(pctText)"
         }
         if let balance = credits.balanceUSD {
@@ -77,8 +98,7 @@ enum ReportLabels {
             credits.limitCents == 0
             ? "unlimited"
             : pricing.formatMinorUnits(credits.limitCents, from: credits.currency)
-        let pct = credits.utilizationPercent ?? QuotaHelpers.creditUsedPercent(usedCents: credits.usedCents, limitCents: credits.limitCents)
-        let pctText = Self.percentUsedSuffix(pct)
+        let pctText = Self.percentUsedSuffix(Self.usedPercent(credits))
         return "\(used)/\(limit)\(pctText)"
     }
 

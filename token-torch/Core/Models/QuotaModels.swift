@@ -137,6 +137,48 @@ public struct SubscriptionQuotaReport: Codable, Sendable, Equatable {
     }
 }
 
+/// Window labels the menu has to recognize for opt-in gating, kept in one place so the provider that
+/// produces the row and the menu that hides it cannot drift apart.
+public enum QuotaWindowLabel {
+    /// Claude's model-scoped weekly Fable sub-cap; hidden unless `ProviderPreferences.showClaudeFableUsage` is on.
+    public static let claudeFableShare = "Fable share of 7-day limit"
+}
+
+/// Severity band of a usage percentage, driving the color of the menu's usage bar.
+public enum UsageLevel: Sendable {
+    case low
+    case moderate
+    case high
+    case severe
+    case critical
+
+    /// Bands are exclusive upper bounds, so exactly 50% is already `.moderate` and exactly 95%
+    /// is already `.critical`.
+    public static func level(forPercent percent: Double) -> UsageLevel {
+        if percent < 50 { return .low }
+        if percent < 75 { return .moderate }
+        if percent < 87 { return .high }
+        if percent < 95 { return .severe }
+        return .critical
+    }
+}
+
+public enum UsageBarMetrics {
+    /// Below this the row carries no bar at all: a track with no perceptible fill is noise, not
+    /// information, and an untouched pool reads better bare.
+    public static let minimumVisiblePercent: Double = 1
+
+    public static func showsBar(forPercent percent: Double) -> Bool {
+        percent >= Self.minimumVisiblePercent
+    }
+
+    /// Usage as a 0...1 fill fraction. Providers can report past their cap (Copilot overage counts
+    /// beyond 100%), so the fraction is clamped rather than trusted.
+    public static func fillFraction(forPercent percent: Double) -> Double {
+        min(max(percent, 0) / 100, 1)
+    }
+}
+
 public enum QuotaHelpers {
     public static func pushWindow(
         _ windows: inout [QuotaWindow],

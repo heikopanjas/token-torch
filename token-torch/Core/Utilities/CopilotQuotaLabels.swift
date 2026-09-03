@@ -2,6 +2,10 @@ import Foundation
 
 /// Display formatting for GitHub Copilot `quota_snapshots` rows mapped into `QuotaWindow`.
 public enum CopilotQuotaLabels {
+    /// The percentage row of a quota group. Shared so the menu can attach the usage bar to that row
+    /// without matching a repeated literal — the percent itself lives on the group's `QuotaWindow`.
+    public static let percentUsedLabel = "Percent used"
+
     /// Quota meter fields only (entitlement / remaining / …).
     public static func metricItems(_ window: QuotaWindow) -> [QuotaNote] {
         var rows: [QuotaNote] = []
@@ -20,7 +24,7 @@ public enum CopilotQuotaLabels {
         // Percent used (only when a percent was previously available)
         if let percentRemaining = window.percentRemaining {
             let usedPercent = 100.0 - percentRemaining
-            rows.append(QuotaNote(label: "Percent used", value: "\(formatNumber(usedPercent))%"))
+            rows.append(QuotaNote(label: Self.percentUsedLabel, value: "\(formatNumber(usedPercent))%"))
         }
         return rows
     }

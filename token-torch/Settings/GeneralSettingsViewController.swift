@@ -44,14 +44,14 @@ final class GeneralSettingsViewController: SettingsPaneViewController {
 
     override var paneHeight: CGFloat { SettingsStyle.generalPaneHeight }
 
-    override func loadView() {
+    override func makeContentView() -> NSView {
         let w = SettingsStyle.paneWidth
         let h = self.paneHeight
         let x = SettingsStyle.contentPadding
         let controlW = w - 2 * x
         var y = h - x - 16
 
-        view = NSView(frame: NSRect(x: 0, y: 0, width: w, height: h))
+        let content = NSView(frame: NSRect(x: 0, y: 0, width: w, height: h))
 
         y -= 6
         startAtLoginToggle = NSButton(
@@ -61,13 +61,13 @@ final class GeneralSettingsViewController: SettingsPaneViewController {
         )
         startAtLoginToggle.frame = NSRect(x: x, y: y, width: controlW, height: 22)
         startAtLoginToggle.autoresizingMask = [.minYMargin, .width]
-        view.addSubview(startAtLoginToggle)
+        content.addSubview(startAtLoginToggle)
 
         y -= 16 + 16
         intervalLabel = NSTextField(labelWithString: "Refresh interval")
         intervalLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
         intervalLabel.autoresizingMask = [.minYMargin, .width]
-        view.addSubview(intervalLabel)
+        content.addSubview(intervalLabel)
 
         y -= 4 + 26
         intervalPopup = NSPopUpButton(frame: NSRect(x: x, y: y, width: controlW, height: 26), pullsDown: false)
@@ -78,13 +78,13 @@ final class GeneralSettingsViewController: SettingsPaneViewController {
         }
         intervalPopup.target = self
         intervalPopup.action = #selector(intervalChanged)
-        view.addSubview(intervalPopup)
+        content.addSubview(intervalPopup)
 
         y -= 16 + 16
         currencyLabel = NSTextField(labelWithString: "Display currency")
         currencyLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
         currencyLabel.autoresizingMask = [.minYMargin, .width]
-        view.addSubview(currencyLabel)
+        content.addSubview(currencyLabel)
 
         y -= 4 + 26
         currencyPopup = NSPopUpButton(frame: NSRect(x: x, y: y, width: controlW, height: 26), pullsDown: false)
@@ -94,13 +94,13 @@ final class GeneralSettingsViewController: SettingsPaneViewController {
         }
         currencyPopup.target = self
         currencyPopup.action = #selector(currencyChanged)
-        view.addSubview(currencyPopup)
+        content.addSubview(currencyPopup)
 
         y -= 16 + 16
         vatLabel = NSTextField(labelWithString: "VAT rate (%)")
         vatLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
         vatLabel.autoresizingMask = [.minYMargin, .width]
-        view.addSubview(vatLabel)
+        content.addSubview(vatLabel)
 
         y -= 4 + 26
         vatField = NSTextField(frame: NSRect(x: x, y: y, width: 120, height: 22))
@@ -109,7 +109,7 @@ final class GeneralSettingsViewController: SettingsPaneViewController {
         vatField.target = self
         vatField.action = #selector(vatChanged)
         vatField.delegate = self
-        view.addSubview(vatField)
+        content.addSubview(vatField)
 
         y -= 16 + 22
         deductVATToggle = NSButton(
@@ -119,13 +119,13 @@ final class GeneralSettingsViewController: SettingsPaneViewController {
         )
         deductVATToggle.frame = NSRect(x: x, y: y, width: controlW, height: 22)
         deductVATToggle.autoresizingMask = [.minYMargin, .width]
-        view.addSubview(deductVATToggle)
+        content.addSubview(deductVATToggle)
 
         y -= 16 + 16
         iconLabel = NSTextField(labelWithString: "Menu bar icon")
         iconLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
         iconLabel.autoresizingMask = [.minYMargin, .width]
-        view.addSubview(iconLabel)
+        content.addSubview(iconLabel)
 
         y -= 4 + 26
         iconPopup = NSPopUpButton(frame: NSRect(x: x, y: y, width: controlW, height: 26), pullsDown: false)
@@ -133,13 +133,13 @@ final class GeneralSettingsViewController: SettingsPaneViewController {
         rebuildIconPopupItems()
         iconPopup.target = self
         iconPopup.action = #selector(iconChanged)
-        view.addSubview(iconPopup)
+        content.addSubview(iconPopup)
 
         y -= 16 + 16
         orderLabel = NSTextField(labelWithString: "Providers")
         orderLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
         orderLabel.autoresizingMask = [.minYMargin, .width]
-        view.addSubview(orderLabel)
+        content.addSubview(orderLabel)
 
         let tableHeight = Self.orderRowHeight * CGFloat(ProviderSection.allSections.count) + Self.orderHeaderHeight + 8
         y -= 4 + tableHeight
@@ -181,7 +181,7 @@ final class GeneralSettingsViewController: SettingsPaneViewController {
         orderTable.registerForDraggedTypes([Self.orderRowType])
         orderTable.draggingDestinationFeedbackStyle = .gap
         scroll.documentView = orderTable
-        view.addSubview(scroll)
+        content.addSubview(scroll)
 
         y -= 16
         infoLabel = SettingsLayout.makeHintLabel(GeneralSettingsCopy.providersTableHint)
@@ -189,7 +189,9 @@ final class GeneralSettingsViewController: SettingsPaneViewController {
         y -= infoHeight
         infoLabel.frame = NSRect(x: x, y: y, width: controlW, height: infoHeight)
         infoLabel.autoresizingMask = [.minYMargin, .width]
-        view.addSubview(infoLabel)
+        content.addSubview(infoLabel)
+
+        return content
     }
 
     override func viewWillAppear() {

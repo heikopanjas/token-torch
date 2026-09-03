@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-09-01 (full updates log moved to `UPDATES.md`; Claude Fable share row from the usage `limits` array)
+Last updated: 2026-09-03 (usage indicator bar under every capped row; Claude Fable share row is opt-in via the Claude Settings tab; settings panes scroll inside the fixed-size settings window)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -203,11 +203,23 @@ OpenAI native cost line items such as `chat-latest, input` and `chat-latest, out
 
 Claude `/api/oauth/usage` reports the weekly **Fable** limit only inside the `limits` array, never as a top-level `seven_day_*` key. `ClaudeQuotaProvider.fableWindow(in:)` selects the entry whose `kind` is `weekly_scoped` and whose `scope.model.display_name` (or `scope.model.id`) contains `fable` case-insensitively — a substring match, so a versioned name such as `Fable 5` still resolves — and `mapUsage` pushes it as **Fable share of 7-day limit** directly after the 7-day window with `skipIfEmpty: false`. That label is deliberate: `weekly_scoped` is a sub-cap carved out of the weekly limit (on Max, up to 50% of it), not an independent pool, so a sibling row named like a separate window misreads as additive. Do not put the 50% figure in the label — the share is plan-dependent, and on Pro, Fable runs on usage credits instead of the weekly limit. Both details are load-bearing: an unstarted Fable window returns `percent` 0 with a null `resets_at`, which `QuotaHelpers.pushWindow` would otherwise drop. The array's `session` and `weekly_all` entries duplicate `five_hour` / `seven_day` and must stay ignored so those rows are not rendered twice. Only Fable is read from `limits`; Opus and Sonnet keep their top-level keys.
 
+The row is opt-in: users reveal it from the Claude Settings tab via `ProviderPreferences.showClaudeFableUsage` (default off). Gating is **display-only** — `ClaudeQuotaProvider` always maps the window, and `MenuBuilder` filters it out by `QuotaWindowLabel.claudeFableShare` (the single shared definition of that label, used by the provider, the menu, and the tests). Never gate it at fetch time, and never move it to `additionalWindows`: `MenuBuilder` appends those after every other window, which would break the deliberate position directly below the 7-day window. Toggling posts `tokenTorchDisplayChanged` and must not refetch.
+
 Codex `/wham/usage` windows are classified by `limit_window_seconds`: `18000` is the 5-hour window and `604800` is the 7-day window. Do not assume `primary_window` is always 5-hour or `secondary_window` is always weekly because Codex can move a temporarily sole weekly limit into the primary slot. Missing or unknown durations retain the historical positional fallback. Apply the same classification to core, code-review, and additional/model limits, and use it for `rate_limit_reached_type` labels.
 
 Codex `/wham/usage` `credits.balance` is a credit-unit balance, not dollars. Display Codex extra usage as the fixed USD equivalent at `$0.04` per credit plus the whole credit count (for example `$10.00 · 250 credits`), and surface `rate_limit_reset_credits.available_count` as available rate-limit resets when nonzero.
 
 Copilot `/copilot_internal/user` returns the next monthly quota reset, not a subscription billing-cycle start. Derive the displayed **Quota period** by subtracting one UTC calendar month from that reset boundary; never use the persistent `assigned_date` seat-assignment timestamp as a current-period start.
+
+### Usage indicator bar
+
+Every menu row that states a **percentage of a cap** carries a 2px bar under it: a full-width track (`.quaternaryLabelColor`) with the used share filled. The rule is exactly that — a row gets a bar if and only if a cap percentage is available, so the Claude/Codex limit windows, Cursor's three meters, Copilot's `Percent used` row, and the credits rows that print `(x% used)` have one, while Codex's credit-balance row, `Overage`, and org-billing cost rows do not.
+
+- `UsageLevel.level(forPercent:)`, `UsageBarMetrics.showsBar(forPercent:)` and `UsageBarMetrics.fillFraction(forPercent:)` in `token-torch/Core/Models/QuotaModels.swift` hold the pure logic (AppKit-free, unit-tested). Bands use exclusive upper bounds: `<50` light green, `<75` dark green, `<87` orange, `<95` light red, else dark red. The fill fraction is clamped because Copilot counts overage past 100%.
+- Below `UsageBarMetrics.minimumVisiblePercent` (1%) the row shows **no bar at all** — not an empty track — and drops the bar band, so an untouched pool keeps its bar-less geometry.
+- `UsageBarView` in `token-torch/MenuBar/UsageMenuItemViews.swift` draws it. The five tones have no semantic system-color equivalent, so each is an `NSColor(name:dynamicProvider:)` pair resolved per appearance; drawing happens in `draw(_:)` (not a layer background) so those colors resolve under the appearance in effect when the menu opens.
+- The bar occupies `barBand` at the bottom of the row, which mostly fits inside the padding the row already reserves — a captioned row grows 1pt, a caption-less row 5pt, and a row without a bar keeps its exact previous geometry. Pass `usedPercent:` to `UsageMenuItemViews.costRow` to add one.
+- A Copilot group's percentage lives on the group's `QuotaWindow`, not on its note rows, so `MenuBuilder` attaches the bar to the row labeled `CopilotQuotaLabels.percentUsedLabel` — a shared constant, like `QuotaWindowLabel.claudeFableShare`. Credits percentages come from `ReportLabels.creditsPercent` / `cursorCreditsPercent`, which reuse the same math the label text prints, so bar and text can never disagree.
 
 ### Display Currency
 
@@ -242,6 +254,12 @@ Flexible parsing via `DateRange.parseDateRange()`:
 Individual plans show `totalPercentUsed`, `autoPercentUsed`, and `apiPercentUsed` as separate non-additive pools. Subscription price (`$200/mo`) is separate from included usage credits.
 
 Cursor's `Total usage value` and `Bonus` rows are display-only value-framing fields from Cursor's private usage API. They are hidden by default; users can reveal both from the Cursor Settings tab via `ProviderPreferences.showCursorUsageValueAndBonus` (default off); toggling it posts `tokenTorchDisplayChanged` and must not refetch or discard the raw decoded values.
+
+### Settings window sizing (CRITICAL)
+
+**Never change the size of the settings window.** Its fixed size is a deliberate, hard-won design decision: the window does not resize when switching tabs, and no pane may grow it to fit its content. Do not "fix" a clipped pane by raising `SettingsStyle.*PaneHeight` into the window, by making `preferredContentSize` report the declared pane height, or by touching `SettingsWindowController.fitWindow`. **If a tab's content does not fit, make it scroll.**
+
+Scrolling is already built in: panes build their content in `SettingsPaneViewController.makeContentView()` (full `paneHeight`, laid out downward from the top, exactly as before) and the base class hosts that view as the document of a scroll view. Subclasses must override `makeContentView()`, never `loadView()`. `viewWillAppear` scrolls a clipped pane back to the top (a non-flipped document view otherwise rests at its last row), and `viewDidLayout` stretches a pane shorter than the window to fill it, preserving the pre-scroll-view behavior for those tabs. Only the Claude tab (800pt) currently overflows and scrolls.
 
 ### About panel
 
