@@ -4,6 +4,18 @@ This file is the append-only log of project decisions and notable changes, maint
 
 <!-- {changelog} -->
 
+### 2026-09-03 15:15 (v5.12.0, notify when a usage limit runs high)
+
+- a desktop notification now fires when a capped row's usage climbs into the orange or red bands (`ProviderPreferences.usageAlertStartLevel`, Orange 75% or Red 87%, Settings → new Notifications tab), escalating once per higher band and re-arming if the row falls back to a lower one (e.g. a window reset)
+- scope is exactly the rows the usage bar already attaches to: `CappedUsageRows` reuses `ProviderPreferences.visibleWindows` and the new `cappedUsedPercent`/`creditsRowPercent`/`cursorCreditsPercent` properties on `QuotaWindow`/`CreditsInfo`/`SubscriptionQuotaReport` in Core, so a row hidden by a display preference or a disabled provider never alerts, and a bar, its printed text, and an alert can never disagree
+- `UsageAlertEvaluator` is a pure state machine persisted via `UsageAlertStateStore` (UserDefaults, `AppBrand.usageAlertStateKey`), keyed per row by a `UsageAlertRowKey` that disambiguates same-label duplicates (e.g. two Codex additional limits with no `limit_name`) and never encodes a percentage or reset time, so the key doesn't churn every window rotation
+- `UsageLevel` moved from a plain enum to `String`-backed + `Comparable` so its band can be stored and ranked; its band edges now live once as `thresholdPercent`, feeding `level(forPercent:)`, the Settings popup titles, and the alert copy
+- `MenuBarViewModel.evaluateUsageAlerts` runs and persists state on every refresh (interactive or not) so an escalation the user already saw isn't re-announced by the next timer tick, but only posts when the toggle is on, so enabling it mid-band doesn't burst a backlog
+- rationale: the usage bar's color only helps while the menu is open; this surfaces the same signal without requiring the user to check
+- the Notifications settings tab is new rather than an addition to the General tab, because `SettingsWindowController` sizes the settings window from `SettingsStyle.generalPaneHeight` at launch — growing that pane grows the window itself, which AGENTS.md's settings-window sizing rule forbids; a non-first tab has no such constraint
+- extracted `ReportLabels.creditsPercent`/`cursorCreditsPercent` and their private `usedPercent` helpers, and `MenuBuilder.creditsPercent(for:credits:)` and its Cursor meter label literal, into the new Core properties above and `QuotaWindowLabel.cursorMeters`/`ProviderSection.heading`, so the alert scan and the menu read one definition instead of two
+- version bump: 5.11.0 to 5.12.0 (MINOR - new user-facing feature, backward compatible)
+
 ### 2026-09-03 14:25 (v5.11.0, hide the usage bar below one percent)
 
 - a row whose usage is under 1 percent now shows no bar at all rather than an empty track, and drops the bar band so it keeps its bar-less geometry

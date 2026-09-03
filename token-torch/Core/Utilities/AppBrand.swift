@@ -9,6 +9,8 @@ public enum AppBrand {
     public static let bundleIdentifier = "com.panjas.tokentorch"
     public static let preferencesKey = "tokentorch.providerPreferences"
     public static let migrationFlagKey = "tokentorch.migratedFromBurn"
+    /// Last usage band each capped row alerted at (`UsageAlertState`), so a relaunch doesn't re-notify.
+    public static let usageAlertStateKey = "tokentorch.usageAlertState"
     /// User-Agent required by Anthropic's undocumented `/api/oauth/usage` endpoint. Requests with a
     /// non `claude-code/*` agent are routed to an aggressive rate-limit bucket and return persistent 429s.
     public static let claudeUsageUserAgent = "claude-code/2.1.0"

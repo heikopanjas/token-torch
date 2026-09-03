@@ -7,6 +7,7 @@ extension NSToolbarItem.Identifier {
     fileprivate static let tokenTorchCodex = NSToolbarItem.Identifier("tokentorch.settings.codex")
     fileprivate static let tokenTorchCursor = NSToolbarItem.Identifier("tokentorch.settings.cursor")
     fileprivate static let tokenTorchCopilot = NSToolbarItem.Identifier("tokentorch.settings.copilot")
+    fileprivate static let tokenTorchNotifications = NSToolbarItem.Identifier("tokentorch.settings.notifications")
     fileprivate static let tokenTorchAdvanced = NSToolbarItem.Identifier("tokentorch.settings.advanced")
 }
 
@@ -19,6 +20,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private let codexController: ProviderSettingsViewController
     private let cursorController: ProviderSettingsViewController
     private let copilotController: ProviderSettingsViewController
+    private let notificationsController: NotificationSettingsViewController
     private let advancedController: AdvancedSettingsViewController
     private var selectedIdentifier = NSToolbarItem.Identifier.tokenTorchGeneral
 
@@ -30,6 +32,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
         codexController = ProviderSettingsViewController(provider: .codex)
         cursorController = ProviderSettingsViewController(provider: .cursor)
         copilotController = ProviderSettingsViewController(provider: .copilot)
+        notificationsController = NotificationSettingsViewController()
         advancedController = AdvancedSettingsViewController()
 
         super.init(
@@ -98,6 +101,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     @objc private func showCodex() { switchToTab(.tokenTorchCodex) }
     @objc private func showCursor() { switchToTab(.tokenTorchCursor) }
     @objc private func showCopilot() { switchToTab(.tokenTorchCopilot) }
+    @objc private func showNotifications() { switchToTab(.tokenTorchNotifications) }
     @objc private func showAdvanced() { switchToTab(.tokenTorchAdvanced) }
 
     private func switchToTab(_ identifier: NSToolbarItem.Identifier) {
@@ -121,6 +125,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             SettingsStyle.providerQuotaOnlyPaneHeight,
             SettingsStyle.providerPaneHeight,
             SettingsStyle.copilotPaneHeight,
+            SettingsStyle.notificationsPaneHeight,
             SettingsStyle.advancedPaneHeight
         )
     }
@@ -149,6 +154,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             case .tokenTorchCodex: codexController
             case .tokenTorchCursor: cursorController
             case .tokenTorchCopilot: copilotController
+            case .tokenTorchNotifications: notificationsController
             case .tokenTorchAdvanced: advancedController
             default: generalController
         }
@@ -178,6 +184,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             case .tokenTorchCodex: "Codex"
             case .tokenTorchCursor: "Cursor"
             case .tokenTorchCopilot: "Copilot"
+            case .tokenTorchNotifications: "Notifications"
             case .tokenTorchAdvanced: "Advanced"
             default: "\(AppBrand.displayName) Settings"
         }
@@ -192,6 +199,7 @@ extension SettingsWindowController: NSToolbarDelegate {
             .tokenTorchCodex,
             .tokenTorchCursor,
             .tokenTorchCopilot,
+            .tokenTorchNotifications,
             .tokenTorchAdvanced,
             .tokenTorchInfo
         ]
@@ -247,6 +255,12 @@ extension SettingsWindowController: NSToolbarDelegate {
                 item.paletteLabel = "Copilot"
                 item.image = ProviderIcons.settingsToolbarImage(for: .copilot)
                 item.action = #selector(showCopilot)
+                item.target = self
+            case .tokenTorchNotifications:
+                item.toolTip = "Notifications"
+                item.paletteLabel = "Notifications"
+                item.image = Self.toolbarSymbolIcon("bell", label: "Notifications")
+                item.action = #selector(showNotifications)
                 item.target = self
             case .tokenTorchAdvanced:
                 item.toolTip = "Advanced"

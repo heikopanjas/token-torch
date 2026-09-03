@@ -404,7 +404,7 @@ extension GeneralSettingsViewController: NSTableViewDataSource, NSTableViewDeleg
         imageView.translatesAutoresizingMaskIntoConstraints = false
         cell.addSubview(imageView)
         cell.imageView = imageView
-        let textField = NSTextField(labelWithString: ReportLabels.heading(provider: section.provider, kind: section.kind))
+        let textField = NSTextField(labelWithString: section.heading)
         textField.translatesAutoresizingMaskIntoConstraints = false
         cell.addSubview(textField)
         cell.textField = textField

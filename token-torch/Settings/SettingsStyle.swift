@@ -24,4 +24,5 @@ enum SettingsStyle {
     static let providerQuotaOnlyPaneHeight: CGFloat = 320
     static let copilotPaneHeight: CGFloat = 340
     static let advancedPaneHeight: CGFloat = 280
+    static let notificationsPaneHeight: CGFloat = 280
 }
