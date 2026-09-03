@@ -9,32 +9,32 @@ final class InfoSettingsViewController: SettingsPaneViewController {
 
     override var paneHeight: CGFloat { SettingsStyle.infoPaneHeight }
 
-    override func loadView() {
+    override func makeContentView() -> NSView {
         let w = SettingsStyle.paneWidth
         let h = self.paneHeight
         let x = SettingsStyle.contentPadding
         let controlW = w - 2 * x
         var y = h - SettingsStyle.contentPadding - 16
 
-        view = NSView(frame: NSRect(x: 0, y: 0, width: w, height: h))
+        let content = NSView(frame: NSRect(x: 0, y: 0, width: w, height: h))
 
         sectionLabel = NSTextField(labelWithString: "Current Vendor Credential Sources")
         sectionLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
         sectionLabel.autoresizingMask = [.minYMargin, .width]
-        view.addSubview(sectionLabel)
+        content.addSubview(sectionLabel)
 
         hintLabel = SettingsLayout.makeHintLabel(InfoSettingsCopy.vendorCredentialSourcesHint)
         let hintHeight = SettingsLayout.measuredHintHeight(hintLabel, width: controlW)
         y -= 4 + hintHeight
         hintLabel.frame = NSRect(x: x, y: y, width: controlW, height: hintHeight)
-        view.addSubview(hintLabel)
+        content.addSubview(hintLabel)
 
         y -= SettingsLayout.groupedControlGap + 22
         refreshButton = NSButton(title: "Refresh Info", target: self, action: #selector(refreshInfo))
         refreshButton.bezelStyle = .rounded
         refreshButton.frame = NSRect(x: x, y: y, width: 110, height: 22)
         refreshButton.autoresizingMask = [.minYMargin]
-        view.addSubview(refreshButton)
+        content.addSubview(refreshButton)
 
         y -= 16
         let scrollFrame = NSRect(x: x, y: SettingsStyle.contentPadding, width: controlW, height: max(y - SettingsStyle.contentPadding, 160))
@@ -51,7 +51,9 @@ final class InfoSettingsViewController: SettingsPaneViewController {
         textView.font = .monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
         textView.textContainerInset = NSSize(width: 8, height: 8)
         scroll.documentView = textView
-        view.addSubview(scroll)
+        content.addSubview(scroll)
+
+        return content
     }
 
     override func viewWillAppear() {

@@ -77,6 +77,10 @@ enum ProviderSettingsCopy {
         "When enabled, shows Cursor's estimated Total usage value and Bonus rows. Off by default; the quota meters and Credits row are always visible."
     }
 
+    static func claudeFableUsageHint() -> String {
+        "When enabled, shows the weekly Fable sub-cap carved out of your 7-day limit in the Claude Code menu view. Off by default to keep the menu concise; the 5-hour and 7-day windows are always visible."
+    }
+
     static func claudeBackgroundRepairSectionTitle() -> String {
         "Background credential repair"
     }

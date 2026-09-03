@@ -108,6 +108,8 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
     public var showAdditionalModelUsage: Bool
     /// When true, show Cursor's opaque value-framing rows (Total usage value and Bonus). Default off (hidden).
     public var showCursorUsageValueAndBonus: Bool
+    /// When true, show Claude's weekly Fable sub-cap row in the Claude Code menu view. Default off (hidden).
+    public var showClaudeFableUsage: Bool
     /// When true, Claude Code credential repair may run during automatic (startup/timer) refreshes,
     /// which can launch the `claude` CLI and prompt for Keychain access. Default off (manual Refresh always repairs).
     public var claudeAutomaticRepair: Bool
@@ -131,6 +133,7 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         automaticallyDeductVAT: Bool = false,
         showAdditionalModelUsage: Bool = false,
         showCursorUsageValueAndBonus: Bool = false,
+        showClaudeFableUsage: Bool = false,
         claudeAutomaticRepair: Bool = false,
         claudeCLIPath: String? = nil,
         notifyOnRepairFailure: Bool = true,
@@ -147,6 +150,7 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         self.automaticallyDeductVAT = automaticallyDeductVAT
         self.showAdditionalModelUsage = showAdditionalModelUsage
         self.showCursorUsageValueAndBonus = showCursorUsageValueAndBonus
+        self.showClaudeFableUsage = showClaudeFableUsage
         self.claudeAutomaticRepair = claudeAutomaticRepair
         self.claudeCLIPath = claudeCLIPath
         self.notifyOnRepairFailure = notifyOnRepairFailure
@@ -173,6 +177,7 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         showAdditionalModelUsage = try container.decodeIfPresent(Bool.self, forKey: .showAdditionalModelUsage) ?? false
         showCursorUsageValueAndBonus =
             try container.decodeIfPresent(Bool.self, forKey: .showCursorUsageValueAndBonus) ?? false
+        showClaudeFableUsage = try container.decodeIfPresent(Bool.self, forKey: .showClaudeFableUsage) ?? false
         claudeAutomaticRepair = try container.decodeIfPresent(Bool.self, forKey: .claudeAutomaticRepair) ?? false
         claudeCLIPath = try container.decodeIfPresent(String.self, forKey: .claudeCLIPath)
         notifyOnRepairFailure = try container.decodeIfPresent(Bool.self, forKey: .notifyOnRepairFailure) ?? true

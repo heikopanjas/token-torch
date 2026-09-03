@@ -16,6 +16,8 @@ final class ProviderSettingsViewController: SettingsPaneViewController {
     private var additionalUsageHintLabel: NSTextField?
     private var cursorValueRowsToggle: NSButton?
     private var cursorValueRowsHintLabel: NSTextField?
+    private var claudeFableToggle: NSButton?
+    private var claudeFableHintLabel: NSTextField?
     private var automaticRepairToggle: NSButton?
     private var notifyRepairFailureToggle: NSButton?
     private var notifyRepairHintLabel: NSTextField?
@@ -56,27 +58,27 @@ final class ProviderSettingsViewController: SettingsPaneViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override func loadView() {
+    override func makeContentView() -> NSView {
         let w = SettingsStyle.paneWidth
         let h = self.paneHeight
         let x = SettingsStyle.contentPadding
         let controlW = w - 2 * x
         var y = h - SettingsStyle.contentPadding - 22
 
-        view = NSView(frame: NSRect(x: 0, y: 0, width: w, height: h))
+        let content = NSView(frame: NSRect(x: 0, y: 0, width: w, height: h))
 
         if usesVendorOAuth == true {
             resetButton = NSButton(title: "Reset subscription credentials", target: self, action: #selector(resetCredentials))
             resetButton.bezelStyle = .rounded
             resetButton.frame = NSRect(x: x, y: y, width: 240, height: 22)
             resetButton.autoresizingMask = [.minYMargin]
-            view.addSubview(resetButton)
+            content.addSubview(resetButton)
 
             resetHintLabel = SettingsLayout.makeHintLabel(ProviderSettingsCopy.resetHint(for: provider))
             let resetHintHeight = SettingsLayout.measuredHintHeight(resetHintLabel, width: controlW)
             y -= SettingsLayout.groupedControlGap + resetHintHeight
             resetHintLabel.frame = NSRect(x: x, y: y, width: controlW, height: resetHintHeight)
-            view.addSubview(resetHintLabel)
+            content.addSubview(resetHintLabel)
         }
 
         if provider == .claude {
@@ -84,7 +86,7 @@ final class ProviderSettingsViewController: SettingsPaneViewController {
             let sectionLabel = NSTextField(labelWithString: ProviderSettingsCopy.claudeBackgroundRepairSectionTitle())
             sectionLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
             sectionLabel.autoresizingMask = [.minYMargin, .width]
-            view.addSubview(sectionLabel)
+            content.addSubview(sectionLabel)
 
             y -= SettingsLayout.groupedControlGap + 22
             let repairToggle = NSButton(
@@ -94,14 +96,14 @@ final class ProviderSettingsViewController: SettingsPaneViewController {
             )
             repairToggle.frame = NSRect(x: x, y: y, width: controlW, height: 22)
             repairToggle.autoresizingMask = [.minYMargin, .width]
-            view.addSubview(repairToggle)
+            content.addSubview(repairToggle)
             automaticRepairToggle = repairToggle
 
             let repairHint = SettingsLayout.makeHintLabel(ProviderSettingsCopy.claudeAutomaticRepairHint())
             let repairHintHeight = SettingsLayout.measuredHintHeight(repairHint, width: controlW)
             y -= SettingsLayout.groupedControlGap + repairHintHeight
             repairHint.frame = NSRect(x: x, y: y, width: controlW, height: repairHintHeight)
-            view.addSubview(repairHint)
+            content.addSubview(repairHint)
 
             y -= Self.sectionGap + 22
             let notifyToggle = NSButton(
@@ -111,28 +113,28 @@ final class ProviderSettingsViewController: SettingsPaneViewController {
             )
             notifyToggle.frame = NSRect(x: x, y: y, width: controlW, height: 22)
             notifyToggle.autoresizingMask = [.minYMargin, .width]
-            view.addSubview(notifyToggle)
+            content.addSubview(notifyToggle)
             notifyRepairFailureToggle = notifyToggle
 
             let notifyHint = SettingsLayout.makeHintLabel(ProviderSettingsCopy.claudeRepairFailureNotificationHint())
             let notifyHintHeight = SettingsLayout.measuredHintHeight(notifyHint, width: controlW)
             y -= SettingsLayout.groupedControlGap + notifyHintHeight
             notifyHint.frame = NSRect(x: x, y: y, width: controlW, height: notifyHintHeight)
-            view.addSubview(notifyHint)
+            content.addSubview(notifyHint)
             notifyRepairHintLabel = notifyHint
 
             y -= Self.sectionGap + 16
             let pathLabel = NSTextField(labelWithString: "Claude CLI path")
             pathLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
             pathLabel.autoresizingMask = [.minYMargin, .width]
-            view.addSubview(pathLabel)
+            content.addSubview(pathLabel)
             claudeCLIPathLabel = pathLabel
 
             let pathHint = SettingsLayout.makeHintLabel(ProviderSettingsCopy.claudeCLIPathHint())
             let pathHintHeight = SettingsLayout.measuredHintHeight(pathHint, width: controlW)
             y -= 4 + pathHintHeight
             pathHint.frame = NSRect(x: x, y: y, width: controlW, height: pathHintHeight)
-            view.addSubview(pathHint)
+            content.addSubview(pathHint)
             claudeCLIPathHintLabel = pathHint
 
             y -= SettingsLayout.groupedControlGap + 22
@@ -143,21 +145,21 @@ final class ProviderSettingsViewController: SettingsPaneViewController {
             pathField.placeholderString = "/opt/homebrew/bin/claude"
             pathField.autoresizingMask = [.minYMargin, .width]
             pathField.delegate = self
-            view.addSubview(pathField)
+            content.addSubview(pathField)
             claudeCLIPathField = pathField
 
             let browseButton = NSButton(title: "Browse…", target: self, action: #selector(browseClaudeCLIPath))
             browseButton.bezelStyle = .rounded
             browseButton.frame = NSRect(x: w - x - browseWidth, y: y, width: browseWidth, height: 22)
             browseButton.autoresizingMask = [.minYMargin, .minXMargin]
-            view.addSubview(browseButton)
+            content.addSubview(browseButton)
             claudeCLIPathBrowseButton = browseButton
         }
 
         if self.usesPersonalAccessToken == true {
             y = h - SettingsStyle.contentPadding - SettingsStyle.labelHeight
             let tokenSection = SettingsLayout.addSecureFieldSection(
-                to: self.view,
+                to: content,
                 title: "GitHub Personal Access Token",
                 hint: ProviderSettingsCopy.personalAccessTokenHint(),
                 placeholder: "github_pat_…",
@@ -184,7 +186,7 @@ final class ProviderSettingsViewController: SettingsPaneViewController {
             y -= Self.sectionGap + SettingsStyle.labelHeight
             let adminHint = ProviderSettingsCopy.adminKeyHint(for: self.provider)
             let adminSection = SettingsLayout.addSecureFieldSection(
-                to: self.view,
+                to: content,
                 title: "Admin API key",
                 hint: adminHint,
                 placeholder: "Admin key",
@@ -209,7 +211,7 @@ final class ProviderSettingsViewController: SettingsPaneViewController {
 
         if self.provider == .codex {
             let codexToggle = SettingsLayout.addCheckboxWithHint(
-                to: self.view,
+                to: content,
                 title: "Show additional model usage (e.g. Codex Spark)",
                 hint: ProviderSettingsCopy.additionalModelUsageHint(),
                 width: controlW,
@@ -226,7 +228,7 @@ final class ProviderSettingsViewController: SettingsPaneViewController {
 
         if self.provider == .cursor {
             let cursorToggle = SettingsLayout.addCheckboxWithHint(
-                to: self.view,
+                to: content,
                 title: "Show Total usage value and Bonus",
                 hint: ProviderSettingsCopy.cursorValueRowsHint(),
                 width: controlW,
@@ -241,9 +243,28 @@ final class ProviderSettingsViewController: SettingsPaneViewController {
             y = cursorToggle.newY
         }
 
+        if self.provider == .claude {
+            let fableToggle = SettingsLayout.addCheckboxWithHint(
+                to: content,
+                title: "Show Fable usage",
+                hint: ProviderSettingsCopy.claudeFableUsageHint(),
+                width: controlW,
+                x: x,
+                y: y,
+                sectionGapAbove: Self.sectionGap,
+                target: self,
+                action: #selector(self.claudeFableUsageChanged)
+            )
+            self.claudeFableToggle = fableToggle.checkbox
+            self.claudeFableHintLabel = fableToggle.hintLabel
+            y = fableToggle.newY
+        }
+
         y -= SettingsStyle.labelHeight + SettingsStyle.labelHeight
         self.statusLabel = SettingsLayout.makeStatusLabel(width: controlW, y: y)
-        self.view.addSubview(self.statusLabel)
+        content.addSubview(self.statusLabel)
+
+        return content
     }
 
     override func viewWillAppear() {
@@ -251,6 +272,7 @@ final class ProviderSettingsViewController: SettingsPaneViewController {
         let prefs = preferences.load()
         additionalUsageToggle?.state = prefs.showAdditionalModelUsage ? .on : .off
         cursorValueRowsToggle?.state = prefs.showCursorUsageValueAndBonus ? .on : .off
+        claudeFableToggle?.state = prefs.showClaudeFableUsage ? .on : .off
         automaticRepairToggle?.state = prefs.claudeAutomaticRepair ? .on : .off
         notifyRepairFailureToggle?.state = prefs.notifyOnRepairFailure ? .on : .off
         claudeCLIPathField?.stringValue = prefs.claudeCLIPath ?? ""
@@ -273,6 +295,13 @@ final class ProviderSettingsViewController: SettingsPaneViewController {
     @objc private func cursorValueRowsChanged() {
         var prefs = preferences.load()
         prefs.showCursorUsageValueAndBonus = cursorValueRowsToggle?.state == .on
+        preferences.save(prefs)
+        NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
+    }
+
+    @objc private func claudeFableUsageChanged() {
+        var prefs = preferences.load()
+        prefs.showClaudeFableUsage = claudeFableToggle?.state == .on
         preferences.save(prefs)
         NotificationCenter.default.post(name: AppActions.tokenTorchDisplayChanged, object: nil)
     }

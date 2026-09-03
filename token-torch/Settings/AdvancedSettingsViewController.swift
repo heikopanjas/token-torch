@@ -9,25 +9,25 @@ final class AdvancedSettingsViewController: SettingsPaneViewController {
 
     override var paneHeight: CGFloat { SettingsStyle.advancedPaneHeight }
 
-    override func loadView() {
+    override func makeContentView() -> NSView {
         let w = SettingsStyle.paneWidth
         let h = self.paneHeight
         let x = SettingsStyle.contentPadding
         let controlW = w - 2 * x
         var y = h - SettingsStyle.contentPadding - 16
 
-        view = NSView(frame: NSRect(x: 0, y: 0, width: w, height: h))
+        let content = NSView(frame: NSRect(x: 0, y: 0, width: w, height: h))
 
         sectionLabel = NSTextField(labelWithString: "Reset Keychain")
         sectionLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
         sectionLabel.autoresizingMask = [.minYMargin, .width]
-        view.addSubview(sectionLabel)
+        content.addSubview(sectionLabel)
 
         hintLabel = SettingsLayout.makeHintLabel(AdvancedSettingsCopy.resetKeychainHint)
         let hintHeight = SettingsLayout.measuredHintHeight(hintLabel, width: controlW)
         y -= 4 + hintHeight
         hintLabel.frame = NSRect(x: x, y: y, width: controlW, height: hintHeight)
-        view.addSubview(hintLabel)
+        content.addSubview(hintLabel)
 
         y -= SettingsLayout.groupedControlGap + 22
         resetButton = NSButton(title: "Reset Keychain…", target: self, action: #selector(resetKeychain))
@@ -36,7 +36,7 @@ final class AdvancedSettingsViewController: SettingsPaneViewController {
         resetButton.contentTintColor = .systemRed
         resetButton.frame = NSRect(x: x, y: y, width: 160, height: 22)
         resetButton.autoresizingMask = [.minYMargin]
-        view.addSubview(resetButton)
+        content.addSubview(resetButton)
 
         y -= 16 + 16
         statusLabel = NSTextField(labelWithString: "")
@@ -44,7 +44,9 @@ final class AdvancedSettingsViewController: SettingsPaneViewController {
         statusLabel.autoresizingMask = [.minYMargin, .width]
         statusLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
         statusLabel.textColor = .secondaryLabelColor
-        view.addSubview(statusLabel)
+        content.addSubview(statusLabel)
+
+        return content
     }
 
     @objc private func resetKeychain() {

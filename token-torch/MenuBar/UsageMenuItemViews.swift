@@ -6,6 +6,13 @@ enum UsageMenuItemViews {
     /// Space added below a row that has an attached caption, so the row+caption group reads as
     /// separate from the next item. Caption-less rows stay compact.
     private static let rowSpacing: CGFloat = 7
+    private static let barHeight: CGFloat = 2
+    private static let barBottomPad: CGFloat = 3
+    private static let barTopGap: CGFloat = 3
+    /// Vertical space a usage bar claims at the bottom of a row. It mostly fits inside the padding a
+    /// row already reserves, so adding a bar barely changes row height and a row without one is
+    /// laid out exactly as before.
+    private static var barBand: CGFloat { Self.barBottomPad + Self.barHeight + Self.barTopGap }
 
     static func customItem(view: NSView, height: CGFloat) -> NSMenuItem {
         let item = NSMenuItem()
@@ -57,14 +64,21 @@ enum UsageMenuItemViews {
         )
     }
 
-    static func costRow(label: String, value: String, caption: String? = nil) -> NSMenuItem {
+    /// `usedPercent` draws a 2px usage bar under the row; pass it only for a percentage of a cap.
+    static func costRow(
+        label: String,
+        value: String,
+        caption: String? = nil,
+        usedPercent: Double? = nil
+    ) -> NSMenuItem {
         twoColumnRow(
             label: label,
             value: value,
             valueColor: .labelColor,
             font: MenuFormat.costRowBoldFont,
             height: 22,
-            caption: caption
+            caption: caption,
+            usedPercent: usedPercent
         )
     }
 
@@ -173,7 +187,8 @@ enum UsageMenuItemViews {
         valueColor: NSColor,
         font: NSFont,
         height: CGFloat,
-        caption: String? = nil
+        caption: String? = nil,
+        usedPercent: Double? = nil
     ) -> NSMenuItem {
         // Caption-less rows are kept compact (small symmetric padding) so the menu stays short when
         // many providers are enabled. A row WITH a caption renders it inside the same item with a
@@ -183,15 +198,32 @@ enum UsageMenuItemViews {
         let textHeight = height - 8
         let captionHeight: CGFloat = 13
         let intraGap: CGFloat = 2
+        // The usage bar sits at the very bottom, below the caption, and only pushes the content up
+        // when the padding that row already reserves is not deep enough to clear it. A barely-used
+        // pool gets no bar and no band, so that row keeps its bar-less geometry.
+        let barPercent = usedPercent.flatMap { UsageBarMetrics.showsBar(forPercent: $0) ? $0 : nil }
+        let contentBottom = max(barPercent == nil ? 0 : Self.barBand, caption == nil ? topPad : rowSpacing)
         let captionField: NSTextField? = caption.map { text in
             let field = labelField(text, font: MenuFormat.captionFont, color: .secondaryLabelColor)
             field.lineBreakMode = .byTruncatingTail
-            field.frame = NSRect(x: inset, y: rowSpacing, width: MenuFormat.menuWidth - inset * 2, height: captionHeight)
+            field.frame = NSRect(x: inset, y: contentBottom, width: MenuFormat.menuWidth - inset * 2, height: captionHeight)
             return field
         }
-        let mainY: CGFloat = captionField == nil ? topPad : rowSpacing + captionHeight + intraGap
+        let mainY: CGFloat = captionField == nil ? contentBottom : contentBottom + captionHeight + intraGap
         let totalHeight: CGFloat = mainY + textHeight + topPad
         let container = NSView(frame: NSRect(x: 0, y: 0, width: MenuFormat.menuWidth, height: totalHeight))
+        if let barPercent {
+            container.addSubview(
+                UsageBarView(
+                    percent: barPercent,
+                    frame: NSRect(
+                        x: inset,
+                        y: Self.barBottomPad,
+                        width: MenuFormat.menuWidth - inset * 2,
+                        height: Self.barHeight
+                    )
+                ))
+        }
         if let captionField {
             container.addSubview(captionField)
         }
@@ -229,6 +261,64 @@ enum UsageMenuItemViews {
         field.drawsBackground = false
         field.isEditable = false
         return field
+    }
+}
+
+/// The 2px usage indicator drawn under a limit row: a full-width track with the used share filled
+/// in a color that escalates with the level. Drawn in `draw(_:)` rather than a layer background so
+/// each `NSColor` resolves under the appearance in effect when the menu opens.
+private final class UsageBarView: NSView {
+    private let percent: Double
+
+    /// Five bands with no semantic system-color equivalent, so each tone is supplied per appearance.
+    private static func color(for level: UsageLevel) -> NSColor {
+        switch level {
+            case .low: Self.dynamic(light: (0.30, 0.76, 0.37), dark: (0.34, 0.82, 0.42))
+            case .moderate: Self.dynamic(light: (0.12, 0.54, 0.22), dark: (0.18, 0.64, 0.29))
+            case .high: Self.dynamic(light: (0.94, 0.63, 0.13), dark: (1.00, 0.69, 0.23))
+            case .severe: Self.dynamic(light: (0.94, 0.42, 0.37), dark: (1.00, 0.49, 0.44))
+            case .critical: Self.dynamic(light: (0.75, 0.15, 0.15), dark: (0.89, 0.23, 0.23))
+        }
+    }
+
+    init(percent: Double, frame: NSRect) {
+        self.percent = percent
+        super.init(frame: frame)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.quaternaryLabelColor.setFill()
+        self.bounds.fill()
+
+        let fraction = UsageBarMetrics.fillFraction(forPercent: self.percent)
+        guard fraction > 0 else { return }
+        Self.color(for: UsageLevel.level(forPercent: self.percent)).setFill()
+        NSRect(
+            x: self.bounds.minX,
+            y: self.bounds.minY,
+            width: (self.bounds.width * fraction).rounded(),
+            height: self.bounds.height
+        ).fill()
+    }
+
+    private static func dynamic(
+        light: (red: CGFloat, green: CGFloat, blue: CGFloat),
+        dark: (red: CGFloat, green: CGFloat, blue: CGFloat)
+    ) -> NSColor {
+        NSColor(name: nil) { appearance in
+            let components = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
+            return NSColor(
+                srgbRed: components.red,
+                green: components.green,
+                blue: components.blue,
+                alpha: 1
+            )
+        }
     }
 }
 

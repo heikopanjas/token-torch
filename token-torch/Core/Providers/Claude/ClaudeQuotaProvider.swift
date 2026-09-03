@@ -252,7 +252,12 @@ public enum ClaudeQuotaProvider {
         var windows: [QuotaWindow] = []
         pushWindow(&windows, label: "5-hour window", window: response.fiveHour, skipIfEmpty: false)
         pushWindow(&windows, label: "7-day window", window: response.sevenDay, skipIfEmpty: false)
-        pushWindow(&windows, label: "Fable share of 7-day limit", window: Self.fableWindow(in: response.limits), skipIfEmpty: false)
+        pushWindow(
+            &windows,
+            label: QuotaWindowLabel.claudeFableShare,
+            window: Self.fableWindow(in: response.limits),
+            skipIfEmpty: false
+        )
         pushWindow(&windows, label: "7-day Opus window", window: response.sevenDayOpus)
         pushWindow(&windows, label: "7-day Sonnet window", window: response.sevenDaySonnet)
         pushWindow(&windows, label: "7-day Cowork window", window: response.sevenDayCowork)

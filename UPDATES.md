@@ -4,6 +4,39 @@ This file is the append-only log of project decisions and notable changes, maint
 
 <!-- {changelog} -->
 
+### 2026-09-03 14:25 (v5.11.0, hide the usage bar below one percent)
+
+- a row whose usage is under 1 percent now shows no bar at all rather than an empty track, and drops the bar band so it keeps its bar-less geometry
+- the threshold lives in Core as UsageBarMetrics.minimumVisiblePercent with a showsBar helper, applied once in the row builder so every provider gets it without a repeated check
+- rationale: a track with no perceptible fill reads as clutter on the untouched pools (fable, an unstarted codex window, spark), and the percentage is already stated in the row
+- no version bump: refines the usage bar added in the unreleased 5.11.0
+
+### 2026-09-03 13:55 (v5.11.0, usage indicator bar under capped rows)
+
+- every menu row that states a percentage of a cap now carries a 2px bar: a full-width track with the used share filled, colored by band - under 50 light green, under 75 dark green, under 87 orange, under 95 light red, else dark red
+- the rule is bar iff a cap percentage exists, so the claude and codex limit windows, cursor's three meters, copilot's percent used row, and the credits rows that print (x% used) get one, while codex's credit balance row, overage, and org billing cost rows do not
+- the percent to color mapping and the clamped fill fraction live in Core as pure, unit-tested helpers; the fraction is clamped because copilot counts overage past 100 percent
+- the five tones have no semantic system color equivalent, so each is a dynamic provider color pair and the bar draws in draw(_:) rather than a layer background, keeping the palette appearance-correct like the rest of the menu
+- the bar sits in padding the row already reserved, so a captioned row grows 1pt, a caption-less row 5pt, and a row without a bar is laid out exactly as before
+- a copilot group's percentage lives on the group window rather than its note rows, so the bar attaches to the row named by the new shared CopilotQuotaLabels.percentUsedLabel constant instead of a repeated literal
+- credits bars reuse the same percent math the credits label text prints, so the bar and the printed percentage cannot disagree
+- rationale: reading the menu meant parsing a number on every row to find the pool about to run out; length plus color makes that a glance
+- version bump: 5.10.0 to 5.11.0 (MINOR - new user-facing display feature, backward compatible)
+
+### 2026-09-03 (v5.10.0, fable row is opt-in on the claude tab)
+
+- the Claude tab gained a **Show Fable usage** checkbox, default off, so the Fable share of 7-day limit row is now hidden unless the user asks for it
+- the row is still fetched and mapped on every refresh; only the menu hides it, so toggling rebuilds the cached menu without a refetch, matching the codex spark and cursor value-row toggles
+- the fable row keeps its position directly below the 7-day window rather than moving into additionalWindows, because a sub-cap listed after the other windows reads as an additive pool
+- the label moved into a shared QuotaWindowLabel.claudeFableShare constant so the provider that produces the row, the menu that hides it, and the tests all match by construction instead of by repeated string literal
+- the claude settings pane height is unchanged: the pane already had room below the admin key buttons for the checkbox and its hint
+- settings panes now scroll: SettingsPaneViewController hosts each pane as the document of a scroll view, and panes build their content in makeContentView() instead of overriding loadView()
+- a clipped pane opens scrolled to its top, and a pane shorter than the window still stretches to fill it, so every tab except claude looks and behaves exactly as before
+- the settings window size is unchanged and must stay that way: it is a deliberate design decision, so a tab whose content does not fit scrolls rather than growing the window - noted as a rule in AGENTS.md
+- rationale: the claude tab is 800pt inside a fixed 720pt window, so the bottom 160pt - the save/clear status row, and now the fable checkbox - was unreachable
+- rationale: users who never run fable carried a permanent 0 percent row, and the project already had this exact opt-in pattern twice
+- version bump: 5.9.0 to 5.10.0 (MINOR - new user-facing setting, backward compatible; prefs written before the flag decode with the row hidden)
+
 ### 2026-09-01 18:35 (v5.9.0, pin build.sh debug output path)
 
 - build.sh now passes SYMROOT on the debug build and errors out if no app exists at the path it advertises
