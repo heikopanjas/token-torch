@@ -4,6 +4,16 @@ This file is the append-only log of project decisions and notable changes, maint
 
 <!-- {changelog} -->
 
+### 2026-10-04 15:32 (v5.13.0, copilot monthly window row)
+
+- the copilot section now starts with a **Monthly window** row like the claude and codex windows: percent used, the monthly reset as a caption, and the usage bar; the detail rows below state amounts, with **Usage** now in credits (`667 credits`) instead of percent
+- free-tier chat and completions groups are labeled **Chat (monthly)** and **Completions (monthly)** and keep plain counts
+- dropped the **Quota period** line, since the reset caption already shows the end date and countdown; with no remaining reader, copilot no longer sets `billingCycleStart` / `billingCycleEnd`, and `monthlyQuotaPeriodStart` and `MenuFormat.quotaPeriodCaption` were removed
+- `MenuBuilder` renders every non-cursor window through one `appendWindowRow`, and copilot only adds its unit rows; the bar-on-a-detail-row lookup (`percentUsedLabel`) and the group caption are gone
+- the renamed window changes copilot's usage alert key, so a user already in the orange or red band may get one alert for the renamed row
+- rationale, by user decision: line copilot up with the other two subscription sections
+- no version bump: lands in the unreleased 5.13.0
+
 ### 2026-10-04 15:23 (v5.13.0, copilot overage used row)
 
 - the copilot overage count row is now **Overage used** with a unit (`500 credits`), pairing with **Overage limit** `10000 credits`; it still appears only when `overage_count` is above 0

@@ -46,12 +46,8 @@ public enum CopilotQuotaProvider {
             accessTypeSKU: response.accessTypeSKU
         )
 
+        // The windows' reset date; `assigned_date` is the persistent seat-assignment timestamp, not a quota boundary.
         let resetAt = Self.parseResetDate(response)
-        if let resetAt {
-            // `assigned_date` is the persistent seat-assignment timestamp, not the current quota-period boundary.
-            report.billingCycleStart = Self.monthlyQuotaPeriodStart(endingAt: resetAt)
-            report.billingCycleEnd = resetAt
-        }
 
         var windows: [QuotaWindow] = []
 
@@ -255,12 +251,6 @@ public enum CopilotQuotaProvider {
         return nil
     }
 
-    private static func monthlyQuotaPeriodStart(endingAt resetAt: Date) -> Date? {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
-        return calendar.date(byAdding: .month, value: -1, to: resetAt)
-    }
-
     static func snapshotUsedPercent(_ snapshot: CopilotQuotaSnapshot) -> Double? {
         guard snapshot.unlimited == false else { return nil }
         let entitlement = snapshot.entitlement ?? 0
@@ -296,9 +286,9 @@ public enum CopilotQuotaProvider {
 
     private static func snapshotLabel(for key: String) -> String {
         switch key {
-            case "chat": "Chat"
-            case "completions": "Completions"
-            case Self.premiumInteractionsKey: CopilotQuotaLabels.aiCreditsLabel
+            case "chat": CopilotQuotaLabels.chatWindowLabel
+            case "completions": CopilotQuotaLabels.completionsWindowLabel
+            case Self.premiumInteractionsKey: CopilotQuotaLabels.monthlyWindowLabel
             default: key.replacingOccurrences(of: "_", with: " ").capitalized
         }
     }
@@ -311,14 +301,14 @@ public enum CopilotQuotaProvider {
     ) {
         pushFreeWindow(
             &windows,
-            label: "Chat",
+            label: CopilotQuotaLabels.chatWindowLabel,
             limit: monthly.chat,
             remaining: limited.chat,
             resetAt: resetAt
         )
         pushFreeWindow(
             &windows,
-            label: "Completions",
+            label: CopilotQuotaLabels.completionsWindowLabel,
             limit: monthly.completions,
             remaining: limited.completions,
             resetAt: resetAt

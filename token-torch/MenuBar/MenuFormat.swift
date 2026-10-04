@@ -20,10 +20,6 @@ enum MenuFormat {
         return "Billing cycle: \(Self.billingCycleDate(start)) → \(Self.billingCycleDate(end))"
     }
 
-    static func quotaPeriodCaption(start: Date, end: Date) -> String {
-        return "Quota period: \(Self.billingCycleDate(start)) → \(Self.billingCycleDate(end))"
-    }
-
     static func billingCycleCaption(start: String, end: String?) -> String {
         if let end {
             return "Billing cycle: \(start) → \(end)"

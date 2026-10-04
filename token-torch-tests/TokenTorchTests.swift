@@ -1676,7 +1676,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
         ]
     )
     let report = CopilotQuotaProvider.mapUsage(response)
-    #expect(report.windows.map(\.label) == ["Chat", "Completions"])
+    #expect(report.windows.map(\.label) == [CopilotQuotaLabels.chatWindowLabel, CopilotQuotaLabels.completionsWindowLabel])
 }
 
 @Test func mapCopilotIndividualMaxUsage() {
@@ -1708,7 +1708,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(report.planTier == "Max")
     #expect(report.planPrice == "$100/mo")
     #expect(report.windows.count == 1)
-    let aiCredits = report.windows.first { $0.label == CopilotQuotaLabels.aiCreditsLabel }
+    let aiCredits = report.windows.first { $0.label == CopilotQuotaLabels.monthlyWindowLabel }
     #expect(aiCredits?.entitlement == 20000)
     #expect(aiCredits?.remaining == 19333)
     #expect(aiCredits?.quotaRemaining == 19333.4)
@@ -1716,18 +1716,15 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(aiCredits?.overagePermitted == true)
     #expect(aiCredits?.overageCount == 0)
     #expect(report.credits == nil)
-    #expect(report.billingCycleEnd != nil)
+    #expect(aiCredits?.resetsAt == QuotaHelpers.parseRFC3339UTC("2026-07-01T00:00:00.000Z"))
     let items = CopilotQuotaLabels.displayItems(aiCredits!)
     #expect(
         items.map(\.label) == [
             "Entitlement", "Usage", "Overage"
         ])
     #expect(items.first(where: { $0.label == "Entitlement" })?.value == "20000 credits")
-    #expect(items.first(where: { $0.label == "Usage" })?.value == "3% used")
+    #expect(items.first(where: { $0.label == "Usage" })?.value == "667 credits")
     #expect(items.first(where: { $0.label == "Overage" })?.value == "enabled")
-    #expect(CopilotQuotaLabels.groupCaption(aiCredits!) == nil)
-    // The menu attaches the usage bar to this row by the shared constant, so the two must agree.
-    #expect(items.contains { $0.label == CopilotQuotaLabels.percentUsedLabel })
 }
 
 @Test func usageLevelBandsUseExclusiveUpperBounds() {
@@ -1781,24 +1778,9 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(balance.cappedUsedPercent == nil)
 }
 
-@Test func mapCopilotQuotaPeriodUsesMonthlyResetBoundary() throws {
-    let response = CopilotQuotaProvider.CopilotUserResponse(
-        assignedDate: "2026-06-01T15:12:42+02:00",
-        quotaResetDateUTC: "2026-08-01T00:00:00.000Z"
-    )
-    let report = CopilotQuotaProvider.mapUsage(response)
-    let periodStart = try #require(report.billingCycleStart)
-    let periodEnd = try #require(report.billingCycleEnd)
-
-    #expect(
-        MenuFormat.quotaPeriodCaption(start: periodStart, end: periodEnd)
-            == "Quota period: 2026-07-01 → 2026-08-01"
-    )
-}
-
 @Test func copilotQuotaLabelsIncludesOverageFieldsWhenUsedPositive() {
     let window = QuotaWindow(
-        label: "AI Credits",
+        label: CopilotQuotaLabels.monthlyWindowLabel,
         usedPercent: 105,
         resetsAt: nil,
         entitlement: 20000,
@@ -1824,8 +1806,8 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     let report = CopilotQuotaProvider.mapUsage(response)
     #expect(report.planTier == "Free")
     #expect(report.windows.count == 2)
-    #expect(report.windows.first(where: { $0.label == "Chat" })?.usedPercent == 18)
-    #expect(report.windows.first(where: { $0.label == "Completions" })?.usedPercent == 10)
+    #expect(report.windows.first(where: { $0.label == CopilotQuotaLabels.chatWindowLabel })?.usedPercent == 18)
+    #expect(report.windows.first(where: { $0.label == CopilotQuotaLabels.completionsWindowLabel })?.usedPercent == 10)
 }
 
 // MARK: - Usage-threshold alerts
@@ -2148,7 +2130,7 @@ private func claudeRow(percent: Double, label: String = "5-hour limit") -> Cappe
 @Test func copilotQuotaLabelsIncludeOverageLimitOnlyWhenOverageEnabled() {
     func window(overagePermitted: Bool) -> QuotaWindow {
         QuotaWindow(
-            label: "AI Credits",
+            label: CopilotQuotaLabels.monthlyWindowLabel,
             usedPercent: 0,
             resetsAt: nil,
             entitlement: 20000,
@@ -2248,7 +2230,7 @@ private func claudeRow(percent: Double, label: String = "5-hour limit") -> Cappe
 }
 
 @Test func copilotFreeTierGroupsShowBareCounts() {
-    let chat = QuotaWindow(label: "Chat", usedPercent: 9, resetsAt: nil, entitlement: 200, remaining: 182, percentRemaining: 91)
+    let chat = QuotaWindow(label: CopilotQuotaLabels.chatWindowLabel, usedPercent: 9, resetsAt: nil, entitlement: 200, remaining: 182, percentRemaining: 91)
     let items = CopilotQuotaLabels.displayItems(chat)
-    #expect(items == [QuotaNote(label: "Entitlement", value: "200"), QuotaNote(label: "Usage", value: "9% used")])
+    #expect(items == [QuotaNote(label: "Entitlement", value: "200"), QuotaNote(label: "Usage", value: "18")])
 }

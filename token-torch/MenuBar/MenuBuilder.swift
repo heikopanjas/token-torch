@@ -97,40 +97,11 @@ final class MenuBuilder {
                     )
                 }
                 else {
-                    if quota.provider == "Copilot",
-                        let start = quota.billingCycleStart,
-                        let end = quota.billingCycleEnd
-                    {
-                        menu.addItem(
-                            UsageMenuItemViews.caption(
-                                MenuFormat.quotaPeriodCaption(start: start, end: end)
-                            ))
-                        if quota.windows.isEmpty == false {
-                            menu.addItem(UsageMenuItemViews.menuSpacer())
-                        }
-                    }
                     let windows = preferences.visibleWindows(provider: provider, quota: quota)
                     for window in windows {
+                        appendWindowRow(to: menu, window: window, pricing: pricing)
                         if quota.provider == "Copilot" {
-                            appendCopilotWindow(to: menu, window: window)
-                        }
-                        else {
-                            let caption =
-                                (window.label == QuotaWindowLabel.claudeCloudSessionCredit)
-                                ? window.resetsAt.map(MenuFormat.expiryCaption)
-                                : window.resetsAt.map(MenuFormat.resetCaption)
-                            // Window dollar amounts are granted allowances (e.g. the cloud session credit), not
-                            // VAT-inclusive charges, so they are converted but never VAT-deducted.
-                            let value =
-                                window.dollarUsage.map { ReportLabels.dollarUsageLabel($0, pricing: pricing.withoutVATDeduction) }
-                                ?? MenuFormat.percentUsed(window.cappedUsedPercent)
-                            menu.addItem(
-                                UsageMenuItemViews.costRow(
-                                    label: window.label,
-                                    value: value,
-                                    caption: caption ?? MenuFormat.noResetCaption,
-                                    usedPercent: window.cappedUsedPercent
-                                ))
+                            appendCopilotDetails(to: menu, window: window)
                         }
                     }
                     for note in quota.notes {
@@ -174,20 +145,31 @@ final class MenuBuilder {
         return ReportLabels.creditsLabel(credits, pricing: pricing)
     }
 
-    private func appendCopilotWindow(to menu: NSMenu, window: QuotaWindow) {
-        if let caption = CopilotQuotaLabels.groupCaption(window) {
-            menu.addItem(UsageMenuItemViews.caption(caption))
-        }
-        // A Copilot group's percentage lives on the window, not on its individual rows, so the bar
-        // goes under the row that states that percentage.
-        let usedPercent = window.cappedUsedPercent
+    /// One window row, the same for every non-Cursor provider: percent (or dollar amounts), reset or expiry
+    /// caption, and the usage bar.
+    private func appendWindowRow(to menu: NSMenu, window: QuotaWindow, pricing: DisplayPriceOptions) {
+        let caption =
+            (window.label == QuotaWindowLabel.claudeCloudSessionCredit)
+            ? window.resetsAt.map(MenuFormat.expiryCaption)
+            : window.resetsAt.map(MenuFormat.resetCaption)
+        // Window dollar amounts are granted allowances (e.g. the cloud session credit), not
+        // VAT-inclusive charges, so they are converted but never VAT-deducted.
+        let value =
+            window.dollarUsage.map { ReportLabels.dollarUsageLabel($0, pricing: pricing.withoutVATDeduction) }
+            ?? MenuFormat.percentUsed(window.cappedUsedPercent)
+        menu.addItem(
+            UsageMenuItemViews.costRow(
+                label: window.label,
+                value: value,
+                caption: caption ?? MenuFormat.noResetCaption,
+                usedPercent: window.cappedUsedPercent
+            ))
+    }
+
+    /// Copilot's unit rows under its window row (entitlement, usage and overage); the window row carries the bar.
+    private func appendCopilotDetails(to menu: NSMenu, window: QuotaWindow) {
         for item in ReportLabels.copilotItems(window) {
-            menu.addItem(
-                UsageMenuItemViews.costRow(
-                    label: item.label,
-                    value: item.value,
-                    usedPercent: item.label == CopilotQuotaLabels.percentUsedLabel ? usedPercent : nil
-                ))
+            menu.addItem(UsageMenuItemViews.costRow(label: item.label, value: item.value))
         }
     }
 
