@@ -367,4 +367,9 @@ public enum QuotaHelpers {
     public static func formattedPercent(_ percent: Double) -> String {
         String(format: "%.0f%%", percent)
     }
+
+    /// `3% used`: the value text of every row that states a share of a cap.
+    public static func formattedPercentUsed(_ percent: Double) -> String {
+        return "\(Self.formattedPercent(percent)) used"
+    }
 }

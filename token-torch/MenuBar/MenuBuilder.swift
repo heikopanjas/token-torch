@@ -169,7 +169,7 @@ final class MenuBuilder {
         pricing: DisplayPriceOptions
     ) -> String? {
         if quota.provider == "Codex" {
-            return ReportLabels.codexCreditsLabel(credits, pricing: pricing)
+            return ReportLabels.codexCreditsLabel(credits)
         }
         return ReportLabels.creditsLabel(credits, pricing: pricing)
     }

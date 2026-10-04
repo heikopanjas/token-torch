@@ -298,7 +298,7 @@ public enum CopilotQuotaProvider {
         switch key {
             case "chat": "Chat"
             case "completions": "Completions"
-            case Self.premiumInteractionsKey: "AI Credits"
+            case Self.premiumInteractionsKey: CopilotQuotaLabels.aiCreditsLabel
             default: key.replacingOccurrences(of: "_", with: " ").capitalized
         }
     }

@@ -1238,12 +1238,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(credits.balanceUSD == nil)
     #expect(credits.balanceCredits == 250)
 
-    let label = try #require(
-        ReportLabels.codexCreditsLabel(
-            credits,
-            pricing: DisplayPriceOptions(currency: .usd)
-        ))
-    #expect(label == "$10.00 · 250 credits")
+    #expect(ReportLabels.codexCreditsLabel(credits) == "250 credits")
 }
 
 @Test func mapChatGptSurfacesNotesAndAdditionalWindows() throws {
@@ -1713,7 +1708,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(report.planTier == "Max")
     #expect(report.planPrice == "$100/mo")
     #expect(report.windows.count == 1)
-    let aiCredits = report.windows.first { $0.label == "AI Credits" }
+    let aiCredits = report.windows.first { $0.label == CopilotQuotaLabels.aiCreditsLabel }
     #expect(aiCredits?.entitlement == 20000)
     #expect(aiCredits?.remaining == 19333)
     #expect(aiCredits?.quotaRemaining == 19333.4)
@@ -1725,11 +1720,10 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     let items = CopilotQuotaLabels.displayItems(aiCredits!)
     #expect(
         items.map(\.label) == [
-            "Entitlement credits", "Used credits", "Percent used", "Overage"
+            "Entitlement", "Usage", "Overage"
         ])
-    #expect(items.first(where: { $0.label == "Entitlement credits" })?.value == "20000")
-    #expect(items.first(where: { $0.label == "Used credits" })?.value == "667")
-    #expect(items.first(where: { $0.label == "Percent used" })?.value == "3.4%")
+    #expect(items.first(where: { $0.label == "Entitlement" })?.value == "20000 credits")
+    #expect(items.first(where: { $0.label == "Usage" })?.value == "3% used")
     #expect(items.first(where: { $0.label == "Overage" })?.value == "enabled")
     #expect(CopilotQuotaLabels.groupCaption(aiCredits!) == nil)
     // The menu attaches the usage bar to this row by the shared constant, so the two must agree.
@@ -2167,7 +2161,7 @@ private func claudeRow(percent: Double, label: String = "5-hour limit") -> Cappe
     }
     let enabled = CopilotQuotaLabels.displayItems(window(overagePermitted: true)).map(\.label)
     #expect(enabled.suffix(2) == ["Overage", "Overage limit"])
-    #expect(CopilotQuotaLabels.displayItems(window(overagePermitted: true)).contains { $0.label == "Overage limit" && $0.value == "10000" })
+    #expect(CopilotQuotaLabels.displayItems(window(overagePermitted: true)).contains { $0.label == "Overage limit" && $0.value == "10000 credits" })
     #expect(CopilotQuotaLabels.displayItems(window(overagePermitted: false)).contains { $0.label == "Overage limit" } == false)
 }
 
@@ -2251,4 +2245,10 @@ private func claudeRow(percent: Double, label: String = "5-hour limit") -> Cappe
     #expect(net == "€0.00/€\(String(format: "%.2f", 250 * Pricing.usdToEUR)) (0% used)")
     #expect(pricing.withoutVATDeduction.currency == .eur)
     #expect(pricing.automaticallyDeductVAT == true)
+}
+
+@Test func copilotFreeTierGroupsShowBareCounts() {
+    let chat = QuotaWindow(label: "Chat", usedPercent: 9, resetsAt: nil, entitlement: 200, remaining: 182, percentRemaining: 91)
+    let items = CopilotQuotaLabels.displayItems(chat)
+    #expect(items == [QuotaNote(label: "Entitlement", value: "200"), QuotaNote(label: "Usage", value: "9% used")])
 }

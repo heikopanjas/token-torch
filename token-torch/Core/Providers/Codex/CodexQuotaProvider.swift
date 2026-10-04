@@ -1,8 +1,6 @@
 import Foundation
 
 public enum CodexQuotaProvider {
-    static let creditUSDValue = 0.04
-
     private static let client = HTTPClient()
     static let usageURL = URL(string: "https://chatgpt.com/backend-api/wham/usage")!
     private static let fiveHourWindowSeconds: Int64 = 18_000

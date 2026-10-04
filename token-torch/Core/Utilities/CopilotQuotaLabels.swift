@@ -4,27 +4,21 @@ import Foundation
 public enum CopilotQuotaLabels {
     /// The percentage row of a quota group. Shared so the menu can attach the usage bar to that row
     /// without matching a repeated literal — the percent itself lives on the group's `QuotaWindow`.
-    public static let percentUsedLabel = "Percent used"
+    public static let percentUsedLabel = "Usage"
 
-    /// Quota meter fields only (entitlement / remaining / …).
+    /// The `premium_interactions` group. Its counts are AI credits; the free-tier Chat and Completions
+    /// groups count messages and completions, so only this group's amounts carry a "credits" unit.
+    public static let aiCreditsLabel = "AI Credits"
+
+    /// Quota meter fields, worded like the Claude and Codex rows (`20000 credits`, `3% used`).
     public static func metricItems(_ window: QuotaWindow) -> [QuotaNote] {
         var rows: [QuotaNote] = []
         if let entitlement = window.entitlement {
-            rows.append(QuotaNote(label: "Entitlement credits", value: String(entitlement)))
+            rows.append(QuotaNote(label: "Entitlement", value: Self.amount(entitlement, in: window)))
         }
-        // Used credits (prefer exact computation when possible)
-        if let entitlement = window.entitlement, let remaining = window.remaining {
-            let used = max(0, entitlement - remaining)
-            rows.append(QuotaNote(label: "Used credits", value: String(used)))
-        }
-        else if let entitlement = window.entitlement, let percentRemaining = window.percentRemaining {
-            let used = Int((Double(entitlement) * (100.0 - percentRemaining) / 100.0).rounded())
-            rows.append(QuotaNote(label: "Used credits", value: String(used)))
-        }
-        // Percent used (only when a percent was previously available)
-        if let percentRemaining = window.percentRemaining {
-            let usedPercent = 100.0 - percentRemaining
-            rows.append(QuotaNote(label: Self.percentUsedLabel, value: "\(formatNumber(usedPercent))%"))
+        // Only when a percent was reported; `cappedUsedPercent` is the same value the bar draws.
+        if window.percentRemaining != nil {
+            rows.append(QuotaNote(label: Self.percentUsedLabel, value: QuotaHelpers.formattedPercentUsed(window.cappedUsedPercent)))
         }
         return rows
     }
@@ -39,7 +33,7 @@ public enum CopilotQuotaLabels {
     public static func overageLimitNote(_ window: QuotaWindow) -> QuotaNote? {
         guard window.overagePermitted == true else { return nil }
         guard let overageEntitlement = window.overageEntitlement, overageEntitlement > 0 else { return nil }
-        return QuotaNote(label: "Overage limit", value: String(overageEntitlement))
+        return QuotaNote(label: "Overage limit", value: Self.amount(overageEntitlement, in: window))
     }
 
     public static func overageCountNote(_ window: QuotaWindow) -> QuotaNote? {
@@ -49,7 +43,7 @@ public enum CopilotQuotaLabels {
 
     /// Group captions shown in the menu/CLI (nil for premium_interactions — rows only).
     public static func groupCaption(_ window: QuotaWindow) -> String? {
-        window.label == "AI Credits" ? nil : window.label
+        (window.label == Self.aiCreditsLabel) ? nil : window.label
     }
 
     /// All rows for one quota group, in display order.
@@ -61,9 +55,8 @@ public enum CopilotQuotaLabels {
         return rows
     }
 
-    private static func formatNumber(_ value: Double) -> String {
-        value.truncatingRemainder(dividingBy: 1) == 0
-            ? String(format: "%.0f", value)
-            : String(format: "%.1f", value)
+    /// `20000 credits` for the AI Credits group, a bare count for the free-tier Chat / Completions groups.
+    private static func amount(_ count: Int, in window: QuotaWindow) -> String {
+        return (window.label == Self.aiCreditsLabel) ? "\(count) credits" : String(count)
     }
 }

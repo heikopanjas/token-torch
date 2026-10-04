@@ -32,7 +32,7 @@ enum MenuFormat {
     }
 
     static func percentUsed(_ percent: Double, parenthesized: Bool = false) -> String {
-        let core = "\(QuotaHelpers.formattedPercent(percent)) used"
+        let core = QuotaHelpers.formattedPercentUsed(percent)
         if parenthesized == true {
             return " (\(core))"
         }

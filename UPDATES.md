@@ -4,6 +4,21 @@ This file is the append-only log of project decisions and notable changes, maint
 
 <!-- {changelog} -->
 
+### 2026-10-04 15:14 (v5.13.0, align copilot rows with claude and codex)
+
+- copilot group rows now read **Entitlement** `20000 credits` (was Entitlement credits `20000`), **Usage** `3% used` (was Percent used `3.4%`), and **Overage limit** `10000 credits`; the **Used credits** row is gone
+- the usage percent now uses the same whole-percent text as the claude and codex windows, via the new `QuotaHelpers.formattedPercentUsed`, which `MenuFormat.percentUsed` now also uses
+- the "credits" unit applies only to the ai credits group (`CopilotQuotaLabels.aiCreditsLabel`); free-tier chat and completions groups count messages and completions, so they keep bare numbers
+- rationale, by user decision: the three subscription sections should read the same way, with the amount and its unit on the right
+- no version bump: lands in the unreleased 5.13.0
+
+### 2026-10-04 15:07 (v5.13.0, codex extra usage as credits only)
+
+- the codex extra usage row now shows only the credit count (`250 credits`) instead of a money value plus credits (`€7.18 · 250 credits`)
+- removed the fixed $0.04 per-credit constant (`CodexQuotaProvider.creditUSDValue`); `ReportLabels.codexCreditsLabel` no longer takes pricing options
+- rationale, by user decision: `/wham/usage` reports credits only, so the money value was our own estimate; the hard-coded rate could drift from openai's pricing, and automatic vat deduction treated credits as vat-inclusive charges, which may not hold for granted credits
+- no version bump: lands in the unreleased 5.13.0
+
 ### 2026-10-04 14:58 (v5.13.0, codex pro plan names)
 
 - codex plans now use openai's current price-based names: `prolite` shows as pro 100 (was pro lite), `pro` as pro 200 (was pro), and the newly recognized `promax` as pro 500 at $500/mo
