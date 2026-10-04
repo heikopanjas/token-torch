@@ -1796,7 +1796,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     )
 }
 
-@Test func copilotQuotaLabelsIncludesOverageFieldsWhenCountPositive() {
+@Test func copilotQuotaLabelsIncludesOverageFieldsWhenUsedPositive() {
     let window = QuotaWindow(
         label: "AI Credits",
         usedPercent: 105,
@@ -1809,7 +1809,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
         overagePermitted: true
     )
     let items = CopilotQuotaLabels.displayItems(window)
-    #expect(items.contains(where: { $0.label == "Overage count" && $0.value == "500" }))
+    #expect(items.contains(where: { $0.label == "Overage used" && $0.value == "500 credits" }))
     #expect(items.contains(where: { $0.label == "Overage" && $0.value == "enabled" }))
 }
 

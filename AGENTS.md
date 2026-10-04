@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-10-04 (Copilot rows worded like Claude and Codex)
+Last updated: 2026-10-04 (Copilot Overage used row in credits)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -237,7 +237,7 @@ Every menu row that states a **percentage of a cap** carries a 2px bar under it:
 - Below `UsageBarMetrics.minimumVisiblePercent` (1%) the row shows **no bar at all** — not an empty track — and drops the bar band, so an untouched pool keeps its bar-less geometry.
 - `UsageBarView` in `token-torch/MenuBar/UsageMenuItemViews.swift` draws it. The five tones have no semantic system-color equivalent, so each is an `NSColor(name:dynamicProvider:)` pair resolved per appearance; drawing happens in `draw(_:)` (not a layer background) so those colors resolve under the appearance in effect when the menu opens.
 - The bar occupies `barBand` at the bottom of the row, which mostly fits inside the padding the row already reserves — a captioned row grows 1pt, a caption-less row 5pt, and a row without a bar keeps its exact previous geometry. Pass `usedPercent:` to `UsageMenuItemViews.costRow` to add one.
-- Copilot group rows are worded like the Claude and Codex rows: **Entitlement** `20000 credits`, **Usage** `3% used` (`QuotaHelpers.formattedPercentUsed`, the same whole-percent text as `MenuFormat.percentUsed`), **Overage**, **Overage limit** `10000 credits`. There is no separate used-credits row. The "credits" unit applies only to the `CopilotQuotaLabels.aiCreditsLabel` group: the free-tier Chat and Completions groups count messages and completions, so they show bare numbers.
+- Copilot group rows are worded like the Claude and Codex rows: **Entitlement** `20000 credits`, **Usage** `3% used` (`QuotaHelpers.formattedPercentUsed`, the same whole-percent text as `MenuFormat.percentUsed`), **Overage**, **Overage limit** `10000 credits`, and **Overage used** `500 credits` (from `overage_count`, only when above 0). There is no separate used-credits row. The "credits" unit applies only to the `CopilotQuotaLabels.aiCreditsLabel` group: the free-tier Chat and Completions groups count messages and completions, so they show bare numbers.
 - A Copilot group's percentage lives on the group's `QuotaWindow`, not on its note rows, so `MenuBuilder` attaches the bar to the row labeled `CopilotQuotaLabels.percentUsedLabel` — a shared constant, like `QuotaWindowLabel.claudeFableShare`. `QuotaWindow.cappedUsedPercent`, `CreditsInfo.cappedUsedPercent`, `SubscriptionQuotaReport.cursorCreditsPercent` / `.creditsRowPercent` in `QuotaModels.swift` are the single source of every percentage a row can print — `MenuBuilder`, `ReportLabels`' label formatters, and the usage-threshold alert scan all read the same value, so a bar, its printed text, and an alert can never disagree.
 - `ProviderPreferences.visibleWindows(provider:quota:)` is the single source for which windows a subscription report's menu section lists (Cursor's `QuotaWindowLabel.cursorMeters`, or the `showAdditionalModelUsage` / `showClaudeFableUsage` gates elsewhere) — `MenuBuilder` and the alert row scan (`CappedUsageRows`) both call it, so a row hidden by a display preference never alerts either.
 

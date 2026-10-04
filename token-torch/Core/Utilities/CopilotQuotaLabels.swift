@@ -36,9 +36,10 @@ public enum CopilotQuotaLabels {
         return QuotaNote(label: "Overage limit", value: Self.amount(overageEntitlement, in: window))
     }
 
-    public static func overageCountNote(_ window: QuotaWindow) -> QuotaNote? {
+    /// Usage beyond the included amount, named to pair with "Overage limit" (`500 credits`).
+    public static func overageUsedNote(_ window: QuotaWindow) -> QuotaNote? {
         guard let overageCount = window.overageCount, overageCount > 0 else { return nil }
-        return QuotaNote(label: "Overage count", value: String(overageCount))
+        return QuotaNote(label: "Overage used", value: Self.amount(overageCount, in: window))
     }
 
     /// Group captions shown in the menu/CLI (nil for premium_interactions — rows only).
@@ -51,7 +52,7 @@ public enum CopilotQuotaLabels {
         var rows = metricItems(window)
         if let note = overagePermittedNote(window) { rows.append(note) }
         if let note = overageLimitNote(window) { rows.append(note) }
-        if let note = overageCountNote(window) { rows.append(note) }
+        if let note = overageUsedNote(window) { rows.append(note) }
         return rows
     }
 

@@ -4,6 +4,13 @@ This file is the append-only log of project decisions and notable changes, maint
 
 <!-- {changelog} -->
 
+### 2026-10-04 15:23 (v5.13.0, copilot overage used row)
+
+- the copilot overage count row is now **Overage used** with a unit (`500 credits`), pairing with **Overage limit** `10000 credits`; it still appears only when `overage_count` is above 0
+- the unit rule is unchanged: "credits" for the ai credits group, bare numbers for free-tier chat and completions
+- rationale: after the copilot rows gained units, this was the only amount in the group without one
+- no version bump: lands in the unreleased 5.13.0
+
 ### 2026-10-04 15:14 (v5.13.0, align copilot rows with claude and codex)
 
 - copilot group rows now read **Entitlement** `20000 credits` (was Entitlement credits `20000`), **Usage** `3% used` (was Percent used `3.4%`), and **Overage limit** `10000 credits`; the **Used credits** row is gone
