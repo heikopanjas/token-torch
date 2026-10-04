@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-10-04 (Claude rate limit resets expiry shown as a caption)
+Last updated: 2026-10-04 (Codex Pro plans use the Pro 100 / 200 / 500 names)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -222,6 +222,8 @@ Every Claude window may carry `limit_dollars` / `used_dollars`. When `limit_doll
 Copilot snapshots also decode `overage_entitlement`, shown as an **Overage limit** item via `CopilotQuotaLabels.overageLimitNote` (only while overage is enabled), and `credits_used`. When every bucket is a zero-entitlement placeholder (org-managed seats), a positive `premium_interactions.credits_used` becomes an "AI Credits used" note instead of `rawMessage`.
 
 Codex `/wham/usage` windows are classified by `limit_window_seconds`: `18000` is the 5-hour window and `604800` is the 7-day window. Do not assume `primary_window` is always 5-hour or `secondary_window` is always weekly because Codex can move a temporarily sole weekly limit into the primary slot. Missing or unknown durations retain the historical positional fallback. Apply the same classification to core, code-review, and additional/model limits, and use it for `rate_limit_reached_type` labels.
+
+Codex plan names (`PlanBranding.chatGPT`) use OpenAI's current price-based Pro names: `prolite` → **Pro 100**, `pro` → **Pro 200**, `promax` → **Pro 500** ($500/mo), and `self_serve_business_prolite` → **Business Premium** (per-seat, no list price). This mapping matches OpenUsage (commit `aeceecc`, 2026-10-02), which verified it against OpenAI's published plan names and the ChatGPT desktop app. Do not reintroduce the older "Pro Lite" / "Pro" names.
 
 Codex `/wham/usage` `credits.balance` is a credit-unit balance, not dollars. Display Codex extra usage as the fixed USD equivalent at `$0.04` per credit plus the whole credit count (for example `$10.00 · 250 credits`), and surface `rate_limit_reset_credits.available_count` as available rate-limit resets when nonzero.
 

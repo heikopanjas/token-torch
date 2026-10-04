@@ -4,6 +4,14 @@ This file is the append-only log of project decisions and notable changes, maint
 
 <!-- {changelog} -->
 
+### 2026-10-04 14:58 (v5.13.0, codex pro plan names)
+
+- codex plans now use openai's current price-based names: `prolite` shows as pro 100 (was pro lite), `pro` as pro 200 (was pro), and the newly recognized `promax` as pro 500 at $500/mo
+- `self_serve_business_prolite` is recognized as business premium, with no list price since business plans are per seat
+- rationale: matches openusage commit aeceecc (2026-10-02), which verified the names against openai's published plan names and the chatgpt desktop app; the old names no longer match what openai calls the plans
+- the $500/mo price for pro 500 follows from the price-based naming; openai's pricing page was not checked directly
+- no version bump: lands in the unreleased 5.13.0
+
 ### 2026-10-04 14:39 (v5.13.0, claude reset expiry as caption)
 
 - the claude rate limit resets row now reads `1 available`, with the next grant's expiry as a caption underneath (`expires 2026-10-22 16:00 UTC · in 17d …`), matching the cloud session credit row

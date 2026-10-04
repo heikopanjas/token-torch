@@ -7,16 +7,19 @@ import Foundation
 /// `rateLimitTier` from local credentials. This is the same client-side mapping approach used by
 /// Codex CLI and CodexBar, with a safe fallback for unrecognised codes.
 public enum PlanBranding {
-    /// ChatGPT `plan_type` code -> brand name (Go / Plus / Pro / Pro Lite / ...).
+    /// ChatGPT `plan_type` code -> brand name (Go / Plus / Pro 100 / Pro 200 / ...). The Pro tiers carry OpenAI's
+    /// current price-based names, not the older usage-multiplier names (`prolite` was "Pro Lite").
     public static func chatGPT(_ planType: String?) -> String? {
         guard let raw = planType?.lowercased(), raw.isEmpty == false else { return planType }
         switch raw {
             case "free", "guest": return "Free"
             case "go": return "Go"
             case "plus": return "Plus"
-            case "pro": return "Pro"
-            case "prolite": return "Pro Lite"
+            case "prolite": return "Pro 100"
+            case "pro": return "Pro 200"
+            case "promax": return "Pro 500"
             case "team", "free_workspace": return "Team"
+            case "self_serve_business_prolite": return "Business Premium"
             case "business", "self_serve_business_usage_based", "enterprise_cbp_usage_based": return "Business"
             case "enterprise": return "Enterprise"
             case "edu", "education", "k12": return "Education"
@@ -45,6 +48,7 @@ public enum PlanBranding {
             case "plus": return "$20/mo"
             case "prolite": return "$100/mo"
             case "pro": return "$200/mo"
+            case "promax": return "$500/mo"
             default: return nil
         }
     }

@@ -1172,7 +1172,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     let sevenDay = try #require(report.windows.first { $0.label == "7-day window" })
     #expect(fiveHour.usedPercent == 6)
     #expect(sevenDay.usedPercent == 24)
-    #expect(report.planTier == "Pro Lite")
+    #expect(report.planTier == "Pro 100")
     #expect(report.planPrice == "$100/mo")
 }
 
@@ -1595,8 +1595,10 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
 @Test func planBrandingMapsChatGptCodesToBrandNames() {
     #expect(PlanBranding.chatGPT("go") == "Go")
     #expect(PlanBranding.chatGPT("plus") == "Plus")
-    #expect(PlanBranding.chatGPT("pro") == "Pro")
-    #expect(PlanBranding.chatGPT("prolite") == "Pro Lite")
+    #expect(PlanBranding.chatGPT("prolite") == "Pro 100")
+    #expect(PlanBranding.chatGPT("pro") == "Pro 200")
+    #expect(PlanBranding.chatGPT("promax") == "Pro 500")
+    #expect(PlanBranding.chatGPT("self_serve_business_prolite") == "Business Premium")
     #expect(PlanBranding.chatGPT("team") == "Team")
     #expect(PlanBranding.chatGPT("quorum") == "Quorum")  // unknown -> capitalized fallback
     #expect(PlanBranding.chatGPT(nil) == nil)
@@ -1615,6 +1617,8 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(PlanBranding.chatGPTPrice("plus") == "$20/mo")
     #expect(PlanBranding.chatGPTPrice("prolite") == "$100/mo")
     #expect(PlanBranding.chatGPTPrice("pro") == "$200/mo")
+    #expect(PlanBranding.chatGPTPrice("promax") == "$500/mo")
+    #expect(PlanBranding.chatGPTPrice("self_serve_business_prolite") == nil)
     #expect(PlanBranding.chatGPTPrice("team") == nil)
     #expect(PlanBranding.chatGPTPrice("free") == nil)
     #expect(PlanBranding.chatGPTPrice(nil) == nil)
