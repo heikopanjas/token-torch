@@ -91,7 +91,21 @@ Codex 5-hour and 7-day windows are classified from each `/wham/usage` window's `
 
 Claude Code's weekly **Fable** limit has no top-level `seven_day_*` key. The `/api/oauth/usage` response reports it only as a `weekly_scoped` entry in the `limits` array, identified by `scope.model.display_name`; the array's `session` and `weekly_all` entries restate `five_hour` and `seven_day` and are ignored. The **Fable share of 7-day limit** row is off by default; enable **Show Fable usage** on the Claude tab to display it. It then sits directly below the 7-day window and stays visible before the window starts, when Anthropic reports `percent` 0 with a null reset. Fable is not a separate allowance: it draws from the same weekly limit as every other model (on Max, up to half of it), so the row reports how much of that scoped share is spent rather than an additional pool. The label says so explicitly because two stacked percentages otherwise read as independent budgets.
 
+If you claimed the Claude Code cloud sessions launch credit ($100 on Pro, $250 on Max), a **Cloud session credit** row shows how much of it is spent, e.g. `$0.00/$250.00 (0% used)`, in your display currency, with a usage bar and the credit's expiry date. The credit is never reduced by **Automatically deduct VAT**, because it's granted to you rather than a price that includes VAT. The API reports it under the codename `iguana_necktie`, and it disappears once the API stops returning it. Token Torch also asks the usage API for Claude's one-off rate-limit reset grants (for example a model-launch promo). When any remain, a **Rate limit resets** row shows how many are available, with the next one's expiry as a caption underneath, like the cloud session credit. The **Extra usage** row says whether you turned extra usage off yourself or reached its spend limit.
+
+Codex's **Rate limit resets** row adds how many resets are usable right now (`applicable_available_count`, e.g. `3 available, 1 usable now`) when that number is above 0. It's 0 whenever no window has usage that a reset would clear, so the row then just reads `3 available`. Codex also lists gated models outside its regular lineup (currently `gpt-6-astra`) under `model_usage`. The ones you can use appear in an **Additional models** row, and one that is unavailable gets its own row with the date it becomes available, when Codex reports one. When Copilot overage is enabled, the AI Credits group also shows an **Overage limit** row (`overage_entitlement`). Organization-managed Copilot seats that report no quota percentage now show **AI Credits used** with your own usage instead of "Usage not exposed for this plan".
+
 Copilot reports the next monthly quota reset, not a subscription billing-cycle start. Token Torch derives the displayed **Quota period** as the preceding UTC calendar month and does not use Copilot's persistent `assigned_date` seat-assignment timestamp.
+
+### Capturing live usage responses
+
+To see exactly what the usage APIs return, launch the app binary with `--capture-usage-responses <directory>`:
+
+```bash
+".build/Products/Debug/Token Torch.app/Contents/MacOS/Token Torch" --capture-usage-responses docs
+```
+
+Token Torch fetches Claude Code, Codex, and Copilot usage the same way a background refresh does (using its own credential copies and the Copilot PAT from Settings), writes each raw response body to `claude-code-usage-response.json`, `codex-usage-response.json`, and `copilot-usage-response.json` in that directory, plus the response headers in a matching `*.headers.json` file, then exits without opening the menu bar UI. Bodies are only re-indented: keys, values, and number formatting are unchanged. `Set-Cookie` headers are always left out. The exit status is non-zero if any provider fails, and that provider's error is printed. If a provider reports that it needs authorization, open Token Torch, choose **Refresh** once, then run the capture again. **The files contain your email address and account IDs.** Replace them before committing to `docs/`.
 
 ## Architecture
 
@@ -107,6 +121,7 @@ UI code never calls vendor URLs directly — only `UsageOrchestrator` and settin
 token-torch/               # App UI + Core/ (domain logic)
 token-torch-tests/
 token-torch.xcodeproj
+docs/                      # Reference usage API responses and unused-field notes
 pictures/                  # Provider icon PDFs
 exportOptions.plist        # Developer ID export (release builds)
 VERSION                    # Release version source of truth

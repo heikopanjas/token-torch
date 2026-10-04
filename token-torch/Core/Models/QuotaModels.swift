@@ -12,6 +12,9 @@ public struct QuotaWindow: Codable, Sendable, Equatable, Identifiable {
     public let percentRemaining: Double?
     public let overageCount: Int?
     public let overagePermitted: Bool?
+    public let overageEntitlement: Int?
+    /// Money-denominated cap (e.g. Claude's cloud session credit); the row prints amounts instead of a bare percent.
+    public let dollarUsage: DollarUsage?
 
     public init(
         label: String,
@@ -22,7 +25,9 @@ public struct QuotaWindow: Codable, Sendable, Equatable, Identifiable {
         quotaRemaining: Double? = nil,
         percentRemaining: Double? = nil,
         overageCount: Int? = nil,
-        overagePermitted: Bool? = nil
+        overagePermitted: Bool? = nil,
+        overageEntitlement: Int? = nil,
+        dollarUsage: DollarUsage? = nil
     ) {
         self.label = label
         self.usedPercent = usedPercent
@@ -33,6 +38,8 @@ public struct QuotaWindow: Codable, Sendable, Equatable, Identifiable {
         self.percentRemaining = percentRemaining
         self.overageCount = overageCount
         self.overagePermitted = overagePermitted
+        self.overageEntitlement = overageEntitlement
+        self.dollarUsage = dollarUsage
     }
 }
 
@@ -52,10 +59,13 @@ public struct QuotaNote: Codable, Sendable, Equatable, Identifiable {
     public var id: String { label }
     public let label: String
     public let value: String
+    /// When what the row counts runs out (e.g. Claude's next reset grant); the menu shows it as an expiry caption.
+    public let expiresAt: Date?
 
-    public init(label: String, value: String) {
+    public init(label: String, value: String, expiresAt: Date? = nil) {
         self.label = label
         self.value = value
+        self.expiresAt = expiresAt
     }
 }
 
@@ -192,6 +202,9 @@ extension SubscriptionQuotaReport {
 public enum QuotaWindowLabel {
     /// Claude's model-scoped weekly Fable sub-cap; hidden unless `ProviderPreferences.showClaudeFableUsage` is on.
     public static let claudeFableShare = "Fable share of 7-day limit"
+    /// Claude's `iguana_necktie` window: the one-off Claude Code cloud sessions launch credit
+    /// ($100 Pro / $250 Max, claimed by the user). Its `resets_at` is the credit's expiry, not a reset.
+    public static let claudeCloudSessionCredit = "Cloud session credit"
     /// Cursor's three non-additive meters, in menu order. Single source for the menu's row selection
     /// and the usage-threshold alert scan — both must agree on exactly which windows are meters.
     public static let cursorMeters = ["Included total usage", "Auto + Composer", "Included API usage"]
@@ -274,10 +287,30 @@ public enum QuotaHelpers {
         label: String,
         usedPercent: Double,
         resetsAt: Date?,
-        skipIfEmpty: Bool
+        skipIfEmpty: Bool,
+        dollarUsage: DollarUsage? = nil
     ) {
         if skipIfEmpty, resetsAt == nil, usedPercent == 0 { return }
-        windows.append(QuotaWindow(label: label, usedPercent: usedPercent, resetsAt: resetsAt))
+        windows.append(QuotaWindow(label: label, usedPercent: usedPercent, resetsAt: resetsAt, dollarUsage: dollarUsage))
+    }
+
+    public static let rateLimitResetsLabel = "Rate limit resets"
+
+    /// One-off rate-limit resets the user can spend (Claude `cedar_ember` grants, Codex reset credits),
+    /// e.g. `3 available, 1 usable now`, with the soonest expiry as the note's `expiresAt`. nil when none are
+    /// available. `usableNow` is shown only when positive: 0 just means no window currently has usage a reset would clear.
+    public static func rateLimitResetsNote(available: Int, usableNow: Int? = nil, expiresAt: Date? = nil) -> QuotaNote? {
+        guard available > 0 else { return nil }
+        var value = "\(available) available"
+        if let usableNow, usableNow > 0 {
+            value += ", \(usableNow) usable now"
+        }
+        return QuotaNote(label: Self.rateLimitResetsLabel, value: value, expiresAt: expiresAt)
+    }
+
+    /// UTC calendar date used inside note values, e.g. `2026-10-22`.
+    public static func formattedNoteDate(_ date: Date) -> String {
+        return date.formatted(.iso8601.year().month().day())
     }
 
     public static func parseRFC3339UTC(_ value: String) -> Date? {

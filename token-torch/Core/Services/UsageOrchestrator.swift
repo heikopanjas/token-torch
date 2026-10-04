@@ -58,6 +58,12 @@ public struct UsageOrchestrator: Sendable {
             results: results.sorted { prefs.providerOrderIndex(of: $0.provider) < prefs.providerOrderIndex(of: $1.provider) })
     }
 
+    /// Fetches one provider's subscription quota through the regular import and auth-recovery path,
+    /// regardless of whether that provider is enabled in the preferences.
+    public func fetchSubscription(provider: ProviderID, interactive: Bool = false) async -> ProviderReport {
+        return await self.subscriptionReport(provider: provider, preferences: self.preferencesStore.load(), interactive: interactive)
+    }
+
     private func fetchProvider(_ provider: ProviderID, preferences: ProviderPreferences, interactive: Bool) async -> ProviderFetchResult? {
         let flags = preferences.flags(for: provider)
         guard flags.subscriptionQuotaEnabled || flags.orgBillingEnabled else { return nil }

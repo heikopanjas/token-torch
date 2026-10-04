@@ -160,6 +160,10 @@ public enum QuotaHTTP {
 }
 
 public struct HTTPClient: Sendable {
+    /// Observes the status code, headers, and raw body of every response received within the bound task tree.
+    /// Only `UsageResponseCapture` binds it, so regular fetches pay one nil check.
+    @TaskLocal public static var responseRecorder: (@Sendable (URL, Int, [String: String], Data) -> Void)?
+
     public let session: URLSession
 
     public init(session: URLSession = .shared) {
@@ -190,6 +194,12 @@ public struct HTTPClient: Sendable {
         for (key, value) in headers { request.setValue(value, forHTTPHeaderField: key) }
         let (data, response) = try await self.session.data(for: request)
         let http = try Self.validatingHTTPResponse(response)
+        if let recorder = Self.responseRecorder {
+            let headers = http.allHeaderFields.reduce(into: [String: String]()) { result, field in
+                result["\(field.key)"] = "\(field.value)"
+            }
+            recorder(url, http.statusCode, headers, data)
+        }
         return (data, http)
     }
 

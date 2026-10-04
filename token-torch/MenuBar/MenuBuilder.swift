@@ -115,18 +115,26 @@ final class MenuBuilder {
                             appendCopilotWindow(to: menu, window: window)
                         }
                         else {
-                            let resetCaption = window.resetsAt.map(MenuFormat.resetCaption) ?? MenuFormat.noResetCaption
+                            let caption =
+                                (window.label == QuotaWindowLabel.claudeCloudSessionCredit)
+                                ? window.resetsAt.map(MenuFormat.expiryCaption)
+                                : window.resetsAt.map(MenuFormat.resetCaption)
+                            // Window dollar amounts are granted allowances (e.g. the cloud session credit), not
+                            // VAT-inclusive charges, so they are converted but never VAT-deducted.
+                            let value =
+                                window.dollarUsage.map { ReportLabels.dollarUsageLabel($0, pricing: pricing.withoutVATDeduction) }
+                                ?? MenuFormat.percentUsed(window.cappedUsedPercent)
                             menu.addItem(
                                 UsageMenuItemViews.costRow(
                                     label: window.label,
-                                    value: MenuFormat.percentUsed(window.cappedUsedPercent),
-                                    caption: resetCaption,
+                                    value: value,
+                                    caption: caption ?? MenuFormat.noResetCaption,
                                     usedPercent: window.cappedUsedPercent
                                 ))
                         }
                     }
                     for note in quota.notes {
-                        menu.addItem(UsageMenuItemViews.costRow(label: note.label, value: note.value))
+                        menu.addItem(UsageMenuItemViews.costRow(label: note.label, value: note.value, caption: note.expiresAt.map(MenuFormat.expiryCaption)))
                     }
                     if let credits = quota.credits,
                         let label = creditsLabel(for: quota, credits: credits, pricing: pricing)

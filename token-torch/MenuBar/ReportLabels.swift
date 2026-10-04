@@ -42,6 +42,11 @@ enum ReportLabels {
     /// Grand Total showed (`apiAllowance`, or `dollarUsage` for team), paired with its limit.
     static func cursorCreditsLabel(_ quota: SubscriptionQuotaReport, pricing: DisplayPriceOptions) -> String? {
         guard let usage = quota.apiAllowance ?? quota.dollarUsage, usage.limitCents > 0 else { return nil }
+        return Self.dollarUsageLabel(usage, pricing: pricing)
+    }
+
+    /// A USD spend against its cap in the display currency, e.g. `$0.00/$250.00 (0% used)`.
+    static func dollarUsageLabel(_ usage: DollarUsage, pricing: DisplayPriceOptions) -> String {
         let usedText = pricing.formatMinorUnits(usage.usedCents, from: "USD")
         let limitText = pricing.formatMinorUnits(usage.limitCents, from: "USD")
         let pctText = Self.percentUsedSuffix(usage.resolvedUsedPercent)

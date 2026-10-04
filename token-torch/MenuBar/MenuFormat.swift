@@ -48,6 +48,11 @@ enum MenuFormat {
         "resets \(resetTime(value)) · \(relativeReset(value))"
     }
 
+    /// Caption for a window whose `resetsAt` ends it for good (Claude's cloud session credit).
+    static func expiryCaption(_ value: Date) -> String {
+        "expires \(resetTime(value)) · \(relativeReset(value))"
+    }
+
     /// Placeholder for a window with no `resets_at` yet (e.g. an idle Claude 5-hour window):
     /// the API only sets a reset time once the window becomes active.
     static let noResetCaption = "resets once the window starts"

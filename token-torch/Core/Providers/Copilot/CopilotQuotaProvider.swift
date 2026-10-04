@@ -1,18 +1,20 @@
 import Foundation
 
 public enum CopilotQuotaProvider {
-    private static let apiURL = URL(string: "https://api.github.com/copilot_internal/user")!
+    static let usageURL = URL(string: "https://api.github.com/copilot_internal/user")!
     private static let client = HTTPClient()
 
+    static let premiumInteractionsKey = "premium_interactions"
+
     /// Quota snapshot keys with meaningful usage meters (fixed display order).
-    static let quotaGroupKeys = ["chat", "completions", "premium_interactions"]
+    static let quotaGroupKeys = ["chat", "completions", Self.premiumInteractionsKey]
 
     public static func fetch(personalAccessToken: String) async throws -> SubscriptionQuotaReport {
         let token = try GitHubPersonalAccessToken.validateForCopilot(personalAccessToken)
         let headers = copilotHeaders(token: token)
         TokenTorchLog.copilot.info("Fetching Copilot quota (\(GitHubPersonalAccessToken.redactedSummary(token), privacy: .public))")
 
-        let (data, http) = try await client.data(for: apiURL, headers: headers)
+        let (data, http) = try await client.data(for: Self.usageURL, headers: headers)
         let response: CopilotUserResponse = try QuotaHTTP.parseQuotaResponse(
             data: data,
             statusCode: http.statusCode,
@@ -76,7 +78,14 @@ public enum CopilotQuotaProvider {
         report.windows = windows
 
         if windows.isEmpty == true {
-            report.rawMessage = "Usage not exposed for this plan."
+            // Org-managed seats return only zero-entitlement placeholders, but still count the
+            // user's own premium usage in `credits_used`.
+            if let creditsUsed = response.quotaSnapshots?[Self.premiumInteractionsKey]?.creditsUsed, creditsUsed > 0 {
+                report.notes = [QuotaNote(label: "AI Credits used", value: creditsUsed.formatted(.number.precision(.fractionLength(0 ... 2))))]
+            }
+            else {
+                report.rawMessage = "Usage not exposed for this plan."
+            }
         }
 
         return report
@@ -138,6 +147,8 @@ public enum CopilotQuotaProvider {
         public let percentRemaining: Double?
         public let overageCount: Int?
         public let overagePermitted: Bool?
+        public let overageEntitlement: Int?
+        public let creditsUsed: Double?
 
         enum CodingKeys: String, CodingKey {
             case unlimited
@@ -147,6 +158,8 @@ public enum CopilotQuotaProvider {
             case percentRemaining = "percent_remaining"
             case overageCount = "overage_count"
             case overagePermitted = "overage_permitted"
+            case overageEntitlement = "overage_entitlement"
+            case creditsUsed = "credits_used"
         }
 
         public init(
@@ -156,7 +169,9 @@ public enum CopilotQuotaProvider {
             quotaRemaining: Double? = nil,
             percentRemaining: Double? = nil,
             overageCount: Int? = nil,
-            overagePermitted: Bool? = nil
+            overagePermitted: Bool? = nil,
+            overageEntitlement: Int? = nil,
+            creditsUsed: Double? = nil
         ) {
             self.unlimited = unlimited
             self.entitlement = entitlement
@@ -165,6 +180,8 @@ public enum CopilotQuotaProvider {
             self.percentRemaining = percentRemaining
             self.overageCount = overageCount
             self.overagePermitted = overagePermitted
+            self.overageEntitlement = overageEntitlement
+            self.creditsUsed = creditsUsed
         }
     }
 
@@ -272,7 +289,8 @@ public enum CopilotQuotaProvider {
             quotaRemaining: snapshot.quotaRemaining,
             percentRemaining: snapshot.percentRemaining,
             overageCount: snapshot.overageCount,
-            overagePermitted: snapshot.overagePermitted
+            overagePermitted: snapshot.overagePermitted,
+            overageEntitlement: snapshot.overageEntitlement
         )
     }
 
@@ -280,7 +298,7 @@ public enum CopilotQuotaProvider {
         switch key {
             case "chat": "Chat"
             case "completions": "Completions"
-            case "premium_interactions": "AI Credits"
+            case Self.premiumInteractionsKey: "AI Credits"
             default: key.replacingOccurrences(of: "_", with: " ").capitalized
         }
     }

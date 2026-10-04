@@ -1,0 +1,16 @@
+{
+  "cf-cache-status" : "DYNAMIC",
+  "cf-ray" : "0000000000000000-FRA",
+  "Content-Encoding" : "br",
+  "Content-Type" : "application/json",
+  "cross-origin-opener-policy" : "same-origin-allow-popups",
+  "Date" : "Sun, 04 Oct 2026 11:03:22 GMT",
+  "nel" : "{\"report_to\":\"cf-nel\",\"success_fraction\":0.01,\"max_age\":604800}",
+  "referrer-policy" : "strict-origin-when-cross-origin",
+  "report-to" : "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=XXXXXXXX\"}]}",
+  "Server" : "cloudflare",
+  "Strict-Transport-Security" : "max-age=31536000; includeSubDomains; preload",
+  "x-content-type-options" : "nosniff",
+  "x-oai-request-id" : "00000000-0000-0000-0000-000000000000",
+  "x-openai-proxy-wasm" : "v0.1"
+}

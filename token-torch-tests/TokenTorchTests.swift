@@ -2060,3 +2060,191 @@ private func claudeRow(percent: Double, label: String = "5-hour limit") -> Cappe
     #expect(notification.body.contains("7-day limit"))
     #expect(notification.body.contains("92%"))
 }
+
+@Test func jsonPrettyPrinterReindentsWithoutTouchingTokens() throws {
+    let compact = #"{"five_hour":{"utilization":2.0,"resets_at":null},"note":"a, b: {\"c\"} [d]","limits":[],"scope":{},"ids":[1,2]}"#
+    let expected = """
+        {
+          "five_hour": {
+            "utilization": 2.0,
+            "resets_at": null
+          },
+          "note": "a, b: {\\"c\\"} [d]",
+          "limits": [],
+          "scope": {},
+          "ids": [
+            1,
+            2
+          ]
+        }
+
+        """
+    let printed = JSONPrettyPrinter.prettyPrinted(Data(compact.utf8))
+    #expect(String(decoding: printed, as: UTF8.self) == expected)
+}
+
+@Test func jsonPrettyPrinterIsIdempotent() throws {
+    let compact = #"{"a":[{"b":"ü\\"},{}],"c":-1.5e3}"#
+    let once = JSONPrettyPrinter.prettyPrinted(Data(compact.utf8))
+    #expect(JSONPrettyPrinter.prettyPrinted(once) == once)
+}
+
+@Test func mapClaudeUsageMapsCloudSessionCreditAsDollarWindow() throws {
+    let json = """
+        {"five_hour":{"utilization":0.0,"resets_at":null},
+        "seven_day":{"utilization":4.0,"resets_at":"2026-10-09T08:59:59.655578+00:00"},
+        "iguana_necktie":{"utilization":12.0,"resets_at":"2026-11-05T07:59:00+00:00","limit_dollars":250,"used_dollars":30.0,"remaining_dollars":220.0,"locked_reason":null}}
+        """
+    let response = try JSONDecoder().decode(ClaudeQuotaProvider.ClaudeUsageResponse.self, from: Data(json.utf8))
+    let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max")
+    let credit = try #require(report.windows.first { $0.label == QuotaWindowLabel.claudeCloudSessionCredit })
+    #expect(credit.dollarUsage == DollarUsage(usedCents: 3000, limitCents: 25000, remainingCents: 22000, usedPercent: 12))
+    #expect(credit.cappedUsedPercent == 12)
+    #expect(credit.resetsAt == QuotaHelpers.parseRFC3339UTC("2026-11-05T07:59:00Z"))
+    #expect(report.windows.first { $0.label == "7-day window" }?.dollarUsage == nil)
+    #expect(ReportLabels.dollarUsageLabel(try #require(credit.dollarUsage), pricing: DisplayPriceOptions(currency: .usd)) == "$30.00/$250.00 (12% used)")
+}
+
+@Test func mapClaudeUsageCountsSpendableResetGrants() throws {
+    // Grant shape from a live Max response (via OpenUsage), plus spent and lapsed grants that must not count.
+    let json = """
+        {"cedar_ember":{"eligible":true,"at_limit":false,"exhausted":[],"grants":[
+          {"id":"opus55-launch-promax-20260921","resets_total":1,"resets_left":1,"starts_at":"2026-09-22T16:00:00+00:00","ends_at":"2026-10-22T16:00:00+00:00","clears":["five_hour","seven_day"],"paused":false,"usable_now":true},
+          {"id":"other","resets_total":2,"resets_left":2,"ends_at":"2026-10-12T00:00:00+00:00"},
+          {"id":"spent","resets_total":1,"resets_left":0,"ends_at":"2026-10-30T00:00:00+00:00"},
+          {"id":"lapsed","resets_total":1,"resets_left":1,"ends_at":"2026-09-01T00:00:00+00:00"}],
+        "next_grant_id":"opus55-launch-promax-20260921"}}
+        """
+    let response = try JSONDecoder().decode(ClaudeQuotaProvider.ClaudeUsageResponse.self, from: Data(json.utf8))
+    let now = try #require(QuotaHelpers.parseRFC3339UTC("2026-10-04T12:00:00Z"))
+    let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max", now: now)
+    #expect(report.notes.contains {
+        $0.label == QuotaHelpers.rateLimitResetsLabel && $0.value == "3 available" && $0.expiresAt == QuotaHelpers.parseRFC3339UTC("2026-10-12T00:00:00Z")
+    })
+}
+
+@Test func mapClaudeUsageOmitsResetsNoteWithoutEligibleGrants() throws {
+    for json in [#"{"cedar_ember":null}"#, #"{"cedar_ember":{"eligible":false,"ineligible_reason":"surface","grants":[{"resets_left":1}]}}"#] {
+        let response = try JSONDecoder().decode(ClaudeQuotaProvider.ClaudeUsageResponse.self, from: Data(json.utf8))
+        let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max")
+        #expect(report.notes.contains { $0.label == QuotaHelpers.rateLimitResetsLabel } == false)
+    }
+}
+
+@Test func claudeUsageRequestOptsIntoResetGrants() {
+    #expect(ClaudeQuotaProvider.usageURL.query == "cedar_ember=1")
+    #expect(AppBrand.claudeUsageUserAgent.hasPrefix("claude-cli/") == true)
+}
+
+@Test func mapCodexShowsUsableResetCreditCountOnlyWhenPositive() throws {
+    for (applicable, expected) in [(0, "3 available"), (1, "3 available, 1 usable now")] {
+        let json = """
+            {"plan_type":"prolite","rate_limit_reset_credits":{"available_count":3,"applicable_available_count":\(applicable)}}
+            """
+        let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
+        let report = CodexQuotaProvider.mapUsage(response)
+        #expect(report.notes.contains { $0.label == QuotaHelpers.rateLimitResetsLabel && $0.value == expected })
+    }
+}
+
+@Test func copilotQuotaLabelsIncludeOverageLimitOnlyWhenOverageEnabled() {
+    func window(overagePermitted: Bool) -> QuotaWindow {
+        QuotaWindow(
+            label: "AI Credits",
+            usedPercent: 0,
+            resetsAt: nil,
+            entitlement: 20000,
+            remaining: 20000,
+            percentRemaining: 100,
+            overageCount: 0,
+            overagePermitted: overagePermitted,
+            overageEntitlement: 10000
+        )
+    }
+    let enabled = CopilotQuotaLabels.displayItems(window(overagePermitted: true)).map(\.label)
+    #expect(enabled.suffix(2) == ["Overage", "Overage limit"])
+    #expect(CopilotQuotaLabels.displayItems(window(overagePermitted: true)).contains { $0.label == "Overage limit" && $0.value == "10000" })
+    #expect(CopilotQuotaLabels.displayItems(window(overagePermitted: false)).contains { $0.label == "Overage limit" } == false)
+}
+
+@Test func mapCopilotDecodesOverageEntitlementFromLiveShape() throws {
+    let json = """
+        {"copilot_plan":"individual_max","access_type_sku":"max_monthly_subscriber_quota","quota_reset_date_utc":"2026-11-01T00:00:00.000Z",
+        "quota_snapshots":{"premium_interactions":{"overage_count":0,"overage_permitted":true,"percent_remaining":100.0,"quota_id":"premium_interactions",
+        "quota_remaining":20000.0,"unlimited":false,"has_quota":true,"credits_used":0,"overage_entitlement":10000,"remaining":20000,"entitlement":20000}}}
+        """
+    let response = try JSONDecoder().decode(CopilotQuotaProvider.CopilotUserResponse.self, from: Data(json.utf8))
+    let report = CopilotQuotaProvider.mapUsage(response)
+    #expect(report.windows.first?.overageEntitlement == 10000)
+}
+
+@Test func mapCopilotShowsPersonalCreditsForOrgManagedSeat() {
+    func placeholder(creditsUsed: Double?) -> CopilotQuotaProvider.CopilotUserResponse {
+        let bucket = CopilotQuotaProvider.CopilotQuotaSnapshot(unlimited: true, entitlement: 0, remaining: 0, overagePermitted: true, creditsUsed: creditsUsed)
+        return CopilotQuotaProvider.CopilotUserResponse(copilotPlan: "business", quotaSnapshots: ["premium_interactions": bucket])
+    }
+    let used = CopilotQuotaProvider.mapUsage(placeholder(creditsUsed: 42.5))
+    #expect(used.windows.isEmpty == true)
+    #expect(used.notes == [QuotaNote(label: "AI Credits used", value: 42.5.formatted(.number.precision(.fractionLength(0 ... 2))))])
+    #expect(used.rawMessage == nil)
+    let unused = CopilotQuotaProvider.mapUsage(placeholder(creditsUsed: 0))
+    #expect(unused.notes.isEmpty == true)
+    #expect(unused.rawMessage == "Usage not exposed for this plan.")
+}
+
+@Test func mapClaudeUsageExplainsExtraUsageState() throws {
+    let cases = [
+        (#"{"is_enabled":false,"user_disabled":true,"spend_limit_reached":false}"#, "turned off by you"),
+        (#"{"is_enabled":true,"used_credits":5000,"monthly_limit":5000,"spend_limit_reached":true}"#, "enabled, limit reached"),
+        (#"{"is_enabled":true,"used_credits":100,"monthly_limit":5000,"spend_limit_reached":false}"#, "enabled")
+    ]
+    for (extraUsage, expected) in cases {
+        let response = try JSONDecoder().decode(ClaudeQuotaProvider.ClaudeUsageResponse.self, from: Data(#"{"extra_usage":\#(extraUsage)}"#.utf8))
+        let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max")
+        #expect(report.notes.contains { $0.label == "Extra usage" && $0.value == expected })
+    }
+}
+
+@Test func mapClaudeUsageCountsResetGrantsWithoutDeadline() throws {
+    // Grant captured live on 2026-10-04, plus one without `ends_at` that counts but never sets the expiry.
+    let json = """
+        {"cedar_ember":{"eligible":true,"ineligible_reason":null,"at_limit":false,"exhausted":[],"grants":[
+          {"id":"opus55-launch-promax-20260921","label":"Claude Opus 5.5 launch: one usage-limit reset for Pro and Max","resets_total":1,"resets_left":1,
+          "starts_at":"2026-09-22T16:00:00+00:00","ends_at":"2026-10-22T16:00:00+00:00","clears":["five_hour","seven_day","seven_day_overage_included"],
+          "paused":false,"usable_now":true,"use_requires_limit":false,"blocking":[],"arm":null},
+          {"id":"evergreen","label":"No deadline","resets_left":1,"ends_at":null,"clears":["five_hour"]}],
+        "next_grant_id":"opus55-launch-promax-20260921","cooldown_until":null}}
+        """
+    let response = try JSONDecoder().decode(ClaudeQuotaProvider.ClaudeUsageResponse.self, from: Data(json.utf8))
+    let now = try #require(QuotaHelpers.parseRFC3339UTC("2026-10-04T12:00:00Z"))
+    let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max", now: now)
+    let note = try #require(report.notes.first { $0.label == QuotaHelpers.rateLimitResetsLabel })
+    #expect(note.value == "2 available")
+    #expect(note.expiresAt == QuotaHelpers.parseRFC3339UTC("2026-10-22T16:00:00Z"))
+}
+
+@Test func mapCodexNotesModelAvailability() throws {
+    let json = """
+        {"plan_type":"prolite","model_usage":{
+          "gpt-6-astra":{"available":true,"available_at":null,"credits_would_enable":false},
+          "gpt-6-nova":{"available":false,"available_at":"2026-10-22T16:00:00Z","credits_would_enable":true},
+          "gpt-6-zeta":{"available":false,"available_at":null,"credits_would_enable":false}}}
+        """
+    let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
+    let notes = CodexQuotaProvider.mapUsage(response).notes
+    #expect(notes.contains(QuotaNote(label: "Additional models", value: "gpt-6-astra")))
+    let models = notes.filter { $0.label.hasPrefix("gpt-") }
+    #expect(models == [
+        QuotaNote(label: "gpt-6-nova", value: "unavailable until 2026-10-22, credits would unlock it"),
+        QuotaNote(label: "gpt-6-zeta", value: "unavailable")
+    ])
+}
+
+@Test func cloudSessionCreditIsConvertedWithoutVATDeduction() {
+    let credit = DollarUsage(usedCents: 0, limitCents: 25000, remainingCents: 25000, usedPercent: 0)
+    let pricing = DisplayPriceOptions(currency: .eur, vatRatePercent: 19, automaticallyDeductVAT: true)
+    let net = ReportLabels.dollarUsageLabel(credit, pricing: pricing.withoutVATDeduction)
+    #expect(net == "€0.00/€\(String(format: "%.2f", 250 * Pricing.usdToEUR)) (0% used)")
+    #expect(pricing.withoutVATDeduction.currency == .eur)
+    #expect(pricing.automaticallyDeductVAT == true)
+}
