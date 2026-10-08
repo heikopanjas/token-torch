@@ -1,9 +1,8 @@
 import Foundation
 
 public enum CodexQuotaProvider {
-    static let creditUSDValue = 0.04
-
     private static let client = HTTPClient()
+    static let usageURL = URL(string: "https://chatgpt.com/backend-api/wham/usage")!
     private static let fiveHourWindowSeconds: Int64 = 18_000
     private static let sevenDayWindowSeconds: Int64 = 604_800
 
@@ -27,12 +26,11 @@ public enum CodexQuotaProvider {
     }
 
     private static func fetchUsage(session: OAuthSession) async throws -> SubscriptionQuotaReport {
-        let url = URL(string: "https://chatgpt.com/backend-api/wham/usage")!
         var headers = HTTPHeaders.bearerJSON(token: session.accessToken)
         if let accountID = session.accountID {
             headers["ChatGPT-Account-Id"] = accountID
         }
-        let response: ChatGptUsageResponse = try await client.getJSON(url: url, headers: headers)
+        let response: ChatGptUsageResponse = try await client.getJSON(url: Self.usageURL, headers: headers)
         return mapUsage(response)
     }
 
@@ -98,11 +96,27 @@ public enum CodexQuotaProvider {
         }
     }
 
+    struct ModelAvailability: Decodable {
+        let available: Bool?
+        /// Undocumented shape (only seen as null); parsed as RFC 3339 text or epoch seconds.
+        let availableAt: JSONValue?
+        let creditsWouldEnable: Bool?
+
+        enum CodingKeys: String, CodingKey {
+            case available
+            case availableAt = "available_at"
+            case creditsWouldEnable = "credits_would_enable"
+        }
+    }
+
     struct RateLimitResetCredits: Decodable {
         let availableCount: Int?
+        /// Undocumented; can be lower than `availableCount` (e.g. 0 of 3 while no limit is reached).
+        let applicableAvailableCount: Int?
 
         enum CodingKeys: String, CodingKey {
             case availableCount = "available_count"
+            case applicableAvailableCount = "applicable_available_count"
         }
     }
 
@@ -144,6 +158,7 @@ public enum CodexQuotaProvider {
         let rateLimitReachedType: String?
         let rateLimitResetCredits: RateLimitResetCredits?
         let promo: JSONValue?
+        let modelUsage: [String: ModelAvailability]?
 
         enum CodingKeys: String, CodingKey {
             case planType = "plan_type"
@@ -155,6 +170,7 @@ public enum CodexQuotaProvider {
             case rateLimitReachedType = "rate_limit_reached_type"
             case rateLimitResetCredits = "rate_limit_reset_credits"
             case promo
+            case modelUsage = "model_usage"
         }
     }
 
@@ -224,8 +240,23 @@ public enum CodexQuotaProvider {
         if let limit = response.spendControl?.individualLimit {
             notes.append(QuotaNote(label: "Spend limit", value: String(limit)))
         }
-        if let availableCount = response.rateLimitResetCredits?.availableCount, availableCount > 0 {
-            notes.append(QuotaNote(label: "Rate limit resets", value: "\(availableCount) available"))
+        if let resetCredits = response.rateLimitResetCredits,
+            let availableCount = resetCredits.availableCount,
+            let note = QuotaHelpers.rateLimitResetsNote(available: availableCount, usableNow: resetCredits.applicableAvailableCount)
+        {
+            notes.append(note)
+        }
+        // `model_usage` lists only gated models (e.g. GPT-6 Astra), not the regular lineup, so the row says
+        // "Additional" to avoid implying that unlisted models are unavailable.
+        let models = (response.modelUsage ?? [:]).sorted(by: { $0.key < $1.key })
+        let availableModels = models.filter { $0.value.available == true }.map(\.key)
+        if availableModels.isEmpty == false {
+            notes.append(QuotaNote(label: "Additional models", value: availableModels.joined(separator: ", ")))
+        }
+        for (model, availability) in models {
+            if let note = Self.modelUnavailableNote(model: model, availability: availability) {
+                notes.append(note)
+            }
         }
         if let promo = response.promo, promo.isEmpty == false {
             for leaf in promo.flattenedScalars(prefix: "promo") {
@@ -244,6 +275,30 @@ public enum CodexQuotaProvider {
             )
         }
         return report
+    }
+
+    /// Only a model that is currently locked is worth a row, e.g. `unavailable until 2026-10-22`.
+    private static func modelUnavailableNote(model: String, availability: ModelAvailability) -> QuotaNote? {
+        guard availability.available == false else { return nil }
+        var value = "unavailable"
+        if let availableAt = Self.parseAvailableAt(availability.availableAt) {
+            value += " until \(QuotaHelpers.formattedNoteDate(availableAt))"
+        }
+        if availability.creditsWouldEnable == true {
+            value += ", credits would unlock it"
+        }
+        return QuotaNote(label: model, value: value)
+    }
+
+    private static func parseAvailableAt(_ value: JSONValue?) -> Date? {
+        switch value {
+            case .string(let text):
+                return QuotaHelpers.parseRFC3339UTC(text)
+            case .number(let seconds):
+                return Date(timeIntervalSince1970: seconds)
+            default:
+                return nil
+        }
     }
 
     private static func friendlyReachedType(_ type: String, rateLimit: RateLimitPair?) -> String {

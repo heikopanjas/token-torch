@@ -42,6 +42,11 @@ enum ReportLabels {
     /// Grand Total showed (`apiAllowance`, or `dollarUsage` for team), paired with its limit.
     static func cursorCreditsLabel(_ quota: SubscriptionQuotaReport, pricing: DisplayPriceOptions) -> String? {
         guard let usage = quota.apiAllowance ?? quota.dollarUsage, usage.limitCents > 0 else { return nil }
+        return Self.dollarUsageLabel(usage, pricing: pricing)
+    }
+
+    /// A USD spend against its cap in the display currency, e.g. `$0.00/$250.00 (0% used)`.
+    static func dollarUsageLabel(_ usage: DollarUsage, pricing: DisplayPriceOptions) -> String {
         let usedText = pricing.formatMinorUnits(usage.usedCents, from: "USD")
         let limitText = pricing.formatMinorUnits(usage.limitCents, from: "USD")
         let pctText = Self.percentUsedSuffix(usage.resolvedUsedPercent)
@@ -68,15 +73,12 @@ enum ReportLabels {
         return "\(used)/\(limit)\(pctText)"
     }
 
-    /// Codex `credits.balance` is a credit count. Display its fixed USD equivalent alongside the units.
-    static func codexCreditsLabel(_ credits: CreditsInfo, pricing: DisplayPriceOptions) -> String? {
+    /// Codex `credits.balance` is a credit count, shown as-is: the API gives no money value, and a fixed
+    /// per-credit rate would drift and raise VAT questions.
+    static func codexCreditsLabel(_ credits: CreditsInfo) -> String? {
         guard let balance = credits.balanceCredits, balance >= 0 else { return nil }
         let wholeCredits = Int(balance.rounded(.down))
-        let amount = pricing.formatConverted(
-            amount: Double(wholeCredits) * CodexQuotaProvider.creditUSDValue,
-            from: "USD"
-        )
-        let unit = wholeCredits == 1 ? "credit" : "credits"
-        return "\(amount) · \(wholeCredits) \(unit)"
+        let unit = (wholeCredits == 1) ? "credit" : "credits"
+        return "\(wholeCredits) \(unit)"
     }
 }

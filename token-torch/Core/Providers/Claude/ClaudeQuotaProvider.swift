@@ -5,6 +5,8 @@ public enum ClaudeQuotaProvider {
     private static let weeklyScopedLimitKind = "weekly_scoped"
     private static let fableModelName = "fable"
     private static let client = HTTPClient()
+    /// `cedar_ember=1` opts in to the reset-grants block, which the endpoint otherwise returns as `null`.
+    static let usageURL = URL(string: "https://api.anthropic.com/api/oauth/usage?cedar_ember=1")!
 
     public static func fetch(
         interactive: Bool = false,
@@ -94,7 +96,6 @@ public enum ClaudeQuotaProvider {
     }
 
     private static func fetchUsage(session: OAuthSession) async throws -> SubscriptionQuotaReport {
-        let url = URL(string: "https://api.anthropic.com/api/oauth/usage")!
         let headers = HTTPHeaders.bearerJSON(
             token: session.accessToken,
             extra: [
@@ -103,7 +104,7 @@ public enum ClaudeQuotaProvider {
             ]
         )
         let response: ClaudeUsageResponse = try await client.getJSON(
-            url: url,
+            url: Self.usageURL,
             headers: headers
         )
         return mapUsage(response, subscriptionType: session.subscriptionType, rateLimitTier: session.rateLimitTier)
@@ -112,14 +113,49 @@ public enum ClaudeQuotaProvider {
     public struct ClaudeUsageWindow: Decodable, Sendable {
         public let utilization: Double
         public let resetsAt: String?
-        public init(utilization: Double, resetsAt: String?) {
+        /// Set only on money-denominated windows (e.g. the cloud session credit); null elsewhere.
+        public let limitDollars: Double?
+        public let usedDollars: Double?
+
+        public init(utilization: Double, resetsAt: String?, limitDollars: Double? = nil, usedDollars: Double? = nil) {
             self.utilization = utilization
             self.resetsAt = resetsAt
+            self.limitDollars = limitDollars
+            self.usedDollars = usedDollars
         }
 
         enum CodingKeys: String, CodingKey {
             case utilization
             case resetsAt = "resets_at"
+            case limitDollars = "limit_dollars"
+            case usedDollars = "used_dollars"
+        }
+    }
+
+    public struct ClaudeResetGrant: Decodable, Sendable {
+        public let resetsLeft: Double?
+        public let endsAt: String?
+
+        public init(resetsLeft: Double? = nil, endsAt: String? = nil) {
+            self.resetsLeft = resetsLeft
+            self.endsAt = endsAt
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case resetsLeft = "resets_left"
+            case endsAt = "ends_at"
+        }
+    }
+
+
+    /// The `cedar_ember` block: one-off usage-limit reset grants (e.g. a model launch promo).
+    public struct ClaudeResetGrants: Decodable, Sendable {
+        public let eligible: Bool?
+        public let grants: [ClaudeResetGrant]?
+
+        public init(eligible: Bool? = nil, grants: [ClaudeResetGrant]? = nil) {
+            self.eligible = eligible
+            self.grants = grants
         }
     }
 
@@ -129,6 +165,26 @@ public enum ClaudeQuotaProvider {
         public let monthlyLimit: Double?
         public let utilization: Double?
         public let currency: String?
+        public let userDisabled: Bool?
+        public let spendLimitReached: Bool?
+
+        public init(
+            isEnabled: Bool?,
+            usedCredits: Double?,
+            monthlyLimit: Double?,
+            utilization: Double?,
+            currency: String?,
+            userDisabled: Bool? = nil,
+            spendLimitReached: Bool? = nil
+        ) {
+            self.isEnabled = isEnabled
+            self.usedCredits = usedCredits
+            self.monthlyLimit = monthlyLimit
+            self.utilization = utilization
+            self.currency = currency
+            self.userDisabled = userDisabled
+            self.spendLimitReached = spendLimitReached
+        }
 
         enum CodingKeys: String, CodingKey {
             case isEnabled = "is_enabled"
@@ -136,6 +192,8 @@ public enum ClaudeQuotaProvider {
             case monthlyLimit = "monthly_limit"
             case utilization
             case currency
+            case userDisabled = "user_disabled"
+            case spendLimitReached = "spend_limit_reached"
         }
     }
 
@@ -198,6 +256,7 @@ public enum ClaudeQuotaProvider {
         public let omelettePromotional: ClaudeUsageWindow?
         public let limits: [ClaudeLimitEntry]?
         public let extraUsage: ClaudeExtraUsage?
+        public let cedarEmber: ClaudeResetGrants?
 
         public init(
             fiveHour: ClaudeUsageWindow? = nil,
@@ -211,7 +270,8 @@ public enum ClaudeQuotaProvider {
             iguanaNecktie: ClaudeUsageWindow? = nil,
             omelettePromotional: ClaudeUsageWindow? = nil,
             limits: [ClaudeLimitEntry]? = nil,
-            extraUsage: ClaudeExtraUsage? = nil
+            extraUsage: ClaudeExtraUsage? = nil,
+            cedarEmber: ClaudeResetGrants? = nil
         ) {
             self.fiveHour = fiveHour
             self.sevenDay = sevenDay
@@ -225,6 +285,7 @@ public enum ClaudeQuotaProvider {
             self.omelettePromotional = omelettePromotional
             self.limits = limits
             self.extraUsage = extraUsage
+            self.cedarEmber = cedarEmber
         }
 
         enum CodingKeys: String, CodingKey {
@@ -240,11 +301,12 @@ public enum ClaudeQuotaProvider {
             case omelettePromotional = "omelette_promotional"
             case limits
             case extraUsage = "extra_usage"
+            case cedarEmber = "cedar_ember"
         }
     }
 
     public static func mapUsage(
-        _ response: ClaudeUsageResponse, subscriptionType: String?, rateLimitTier: String? = nil
+        _ response: ClaudeUsageResponse, subscriptionType: String?, rateLimitTier: String? = nil, now: Date = Date()
     ) -> SubscriptionQuotaReport {
         var report = SubscriptionQuotaReport.forProvider("Claude Code")
         report.planTier = PlanBranding.claude(subscriptionType: subscriptionType, rateLimitTier: rateLimitTier)
@@ -264,12 +326,12 @@ public enum ClaudeQuotaProvider {
         pushWindow(&windows, label: "7-day Design window", window: response.sevenDayOmelette)
         pushWindow(&windows, label: "7-day OAuth apps window", window: response.sevenDayOauthApps)
         pushWindow(&windows, label: "Tangelo", window: response.tangelo)
-        pushWindow(&windows, label: "Iguana Necktie", window: response.iguanaNecktie)
+        pushWindow(&windows, label: QuotaWindowLabel.claudeCloudSessionCredit, window: response.iguanaNecktie)
         pushWindow(&windows, label: "Omelette (promo)", window: response.omelettePromotional)
         report.windows = windows
         if let extra = response.extraUsage {
-            if let isEnabled = extra.isEnabled {
-                report.notes = [QuotaNote(label: "Extra usage", value: isEnabled ? "enabled" : "disabled")]
+            if let note = Self.extraUsageNote(extra) {
+                report.notes.append(note)
             }
             if extra.isEnabled == true {
                 report.credits = CreditsInfo(
@@ -281,7 +343,41 @@ public enum ClaudeQuotaProvider {
                 )
             }
         }
+        if let note = Self.resetGrantsNote(response.cedarEmber, now: now) {
+            report.notes.append(note)
+        }
         return report
+    }
+
+    /// Counts the resets still spendable across eligible grants, skipping spent and lapsed ones.
+    private static func resetGrantsNote(_ resetGrants: ClaudeResetGrants?, now: Date) -> QuotaNote? {
+        guard let resetGrants, resetGrants.eligible == true else { return nil }
+        var available = 0
+        var soonestExpiry: Date?
+        for grant in resetGrants.grants ?? [] {
+            let resetsLeft = Int((grant.resetsLeft ?? 0).rounded(.down))
+            guard resetsLeft >= 1 else { continue }
+            let endsAt = grant.endsAt.flatMap(QuotaHelpers.parseRFC3339UTC)
+            if let endsAt, endsAt <= now { continue }
+            available += resetsLeft
+            if let endsAt {
+                soonestExpiry = min(soonestExpiry ?? endsAt, endsAt)
+            }
+        }
+        return QuotaHelpers.rateLimitResetsNote(available: available, expiresAt: soonestExpiry)
+    }
+
+    /// Distinguishes a user's own opt-out and a reached spend limit from a plain on/off state.
+    private static func extraUsageNote(_ extra: ClaudeExtraUsage) -> QuotaNote? {
+        guard let isEnabled = extra.isEnabled else { return nil }
+        let value: String
+        if isEnabled == true {
+            value = (extra.spendLimitReached == true) ? "enabled, limit reached" : "enabled"
+        }
+        else {
+            value = (extra.userDisabled == true) ? "turned off by you" : "disabled"
+        }
+        return QuotaNote(label: "Extra usage", value: value)
     }
 
     /// Fable has no top-level `seven_day_*` key; the usage API reports it only as a model-scoped
@@ -309,7 +405,24 @@ public enum ClaudeQuotaProvider {
             label: label,
             usedPercent: window.utilization,
             resetsAt: window.resetsAt.flatMap(QuotaHelpers.parseRFC3339UTC),
-            skipIfEmpty: skipIfEmpty
+            skipIfEmpty: skipIfEmpty,
+            dollarUsage: Self.dollarUsage(window)
         )
+    }
+
+    private static func dollarUsage(_ window: ClaudeUsageWindow) -> DollarUsage? {
+        guard let limitDollars = window.limitDollars else { return nil }
+        let limitCents = Self.cents(limitDollars)
+        let usedCents = Self.cents(window.usedDollars ?? 0)
+        return DollarUsage(
+            usedCents: usedCents,
+            limitCents: limitCents,
+            remainingCents: limitCents - min(usedCents, limitCents),
+            usedPercent: window.utilization
+        )
+    }
+
+    private static func cents(_ dollars: Double) -> UInt64 {
+        return UInt64(max(0, (dollars * 100).rounded()))
     }
 }

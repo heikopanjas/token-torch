@@ -20,10 +20,6 @@ enum MenuFormat {
         return "Billing cycle: \(Self.billingCycleDate(start)) → \(Self.billingCycleDate(end))"
     }
 
-    static func quotaPeriodCaption(start: Date, end: Date) -> String {
-        return "Quota period: \(Self.billingCycleDate(start)) → \(Self.billingCycleDate(end))"
-    }
-
     static func billingCycleCaption(start: String, end: String?) -> String {
         if let end {
             return "Billing cycle: \(start) → \(end)"
@@ -32,7 +28,7 @@ enum MenuFormat {
     }
 
     static func percentUsed(_ percent: Double, parenthesized: Bool = false) -> String {
-        let core = "\(QuotaHelpers.formattedPercent(percent)) used"
+        let core = QuotaHelpers.formattedPercentUsed(percent)
         if parenthesized == true {
             return " (\(core))"
         }
@@ -46,6 +42,11 @@ enum MenuFormat {
     /// Caption styled like the org-billing "Billing cycle" line: "resets 2026-06-07 14:11 UTC · in 5d 3h".
     static func resetCaption(_ value: Date) -> String {
         "resets \(resetTime(value)) · \(relativeReset(value))"
+    }
+
+    /// Caption for a window whose `resetsAt` ends it for good (Claude's cloud session credit).
+    static func expiryCaption(_ value: Date) -> String {
+        "expires \(resetTime(value)) · \(relativeReset(value))"
     }
 
     /// Placeholder for a window with no `resets_at` yet (e.g. an idle Claude 5-hour window):

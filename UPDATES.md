@@ -4,6 +4,131 @@ This file is the append-only log of project decisions and notable changes, maint
 
 <!-- {changelog} -->
 
+### 2026-10-04 15:32 (v5.13.0, copilot monthly window row)
+
+- the copilot section now starts with a **Monthly window** row like the claude and codex windows: percent used, the monthly reset as a caption, and the usage bar; the detail rows below state amounts, with **Usage** now in credits (`667 credits`) instead of percent
+- free-tier chat and completions groups are labeled **Chat (monthly)** and **Completions (monthly)** and keep plain counts
+- dropped the **Quota period** line, since the reset caption already shows the end date and countdown; with no remaining reader, copilot no longer sets `billingCycleStart` / `billingCycleEnd`, and `monthlyQuotaPeriodStart` and `MenuFormat.quotaPeriodCaption` were removed
+- `MenuBuilder` renders every non-cursor window through one `appendWindowRow`, and copilot only adds its unit rows; the bar-on-a-detail-row lookup (`percentUsedLabel`) and the group caption are gone
+- the renamed window changes copilot's usage alert key, so a user already in the orange or red band may get one alert for the renamed row
+- rationale, by user decision: line copilot up with the other two subscription sections
+- no version bump: lands in the unreleased 5.13.0
+
+### 2026-10-04 15:23 (v5.13.0, copilot overage used row)
+
+- the copilot overage count row is now **Overage used** with a unit (`500 credits`), pairing with **Overage limit** `10000 credits`; it still appears only when `overage_count` is above 0
+- the unit rule is unchanged: "credits" for the ai credits group, bare numbers for free-tier chat and completions
+- rationale: after the copilot rows gained units, this was the only amount in the group without one
+- no version bump: lands in the unreleased 5.13.0
+
+### 2026-10-04 15:14 (v5.13.0, align copilot rows with claude and codex)
+
+- copilot group rows now read **Entitlement** `20000 credits` (was Entitlement credits `20000`), **Usage** `3% used` (was Percent used `3.4%`), and **Overage limit** `10000 credits`; the **Used credits** row is gone
+- the usage percent now uses the same whole-percent text as the claude and codex windows, via the new `QuotaHelpers.formattedPercentUsed`, which `MenuFormat.percentUsed` now also uses
+- the "credits" unit applies only to the ai credits group (`CopilotQuotaLabels.aiCreditsLabel`); free-tier chat and completions groups count messages and completions, so they keep bare numbers
+- rationale, by user decision: the three subscription sections should read the same way, with the amount and its unit on the right
+- no version bump: lands in the unreleased 5.13.0
+
+### 2026-10-04 15:07 (v5.13.0, codex extra usage as credits only)
+
+- the codex extra usage row now shows only the credit count (`250 credits`) instead of a money value plus credits (`€7.18 · 250 credits`)
+- removed the fixed $0.04 per-credit constant (`CodexQuotaProvider.creditUSDValue`); `ReportLabels.codexCreditsLabel` no longer takes pricing options
+- rationale, by user decision: `/wham/usage` reports credits only, so the money value was our own estimate; the hard-coded rate could drift from openai's pricing, and automatic vat deduction treated credits as vat-inclusive charges, which may not hold for granted credits
+- no version bump: lands in the unreleased 5.13.0
+
+### 2026-10-04 14:58 (v5.13.0, codex pro plan names)
+
+- codex plans now use openai's current price-based names: `prolite` shows as pro 100 (was pro lite), `pro` as pro 200 (was pro), and the newly recognized `promax` as pro 500 at $500/mo
+- `self_serve_business_prolite` is recognized as business premium, with no list price since business plans are per seat
+- rationale: matches openusage commit aeceecc (2026-10-02), which verified the names against openai's published plan names and the chatgpt desktop app; the old names no longer match what openai calls the plans
+- the $500/mo price for pro 500 follows from the price-based naming; openai's pricing page was not checked directly
+- no version bump: lands in the unreleased 5.13.0
+
+### 2026-10-04 14:39 (v5.13.0, claude reset expiry as caption)
+
+- the claude rate limit resets row now reads `1 available`, with the next grant's expiry as a caption underneath (`expires 2026-10-22 16:00 UTC · in 17d …`), matching the cloud session credit row
+- `QuotaNote` gained an optional typed `expiresAt` date that the menu formats with `MenuFormat.expiryCaption`, instead of the date being baked into the value text
+- rationale: one caption style for "this runs out on …", and the value stays short enough not to compete with the count
+- no version bump: lands in the unreleased 5.13.0
+
+### 2026-10-04 14:31 (v5.13.0, codex usable-now resets only when positive)
+
+- the codex rate limit resets row appends "N usable now" only when `applicable_available_count` is above 0, so it now reads `3 available` instead of `3 available, 0 usable now`
+- meaning per third-party reverse engineering (teamclaude pr #430, openusage's `nothing_to_reset` redeem code): the count of held credits that would reset a window right now, 0 whenever no window has usage to clear
+- rationale: "0 usable now" read as if the credits were blocked, when it only meant no reset was needed
+- no version bump: lands in the unreleased 5.13.0
+
+### 2026-10-04 14:25 (v5.13.0, remove claude 7-day usage by surface row)
+
+- removed the claude **7-day usage by surface** note and the `seven_day_breakdown` decoding, by user decision: the split across claude code, chats and cowork doesn't help judge how much limit is left
+- the field is listed in `docs/unused-usage-response-fields.md` for future reference
+- no version bump: lands in the unreleased 5.13.0
+
+### 2026-10-04 14:17 (v5.13.0, codex additional models row)
+
+- codex `model_usage` entries with `available: true` are now shown in one **Additional models** row (e.g. `gpt-6-astra`); unavailable entries keep their own row with the future availability date from `available_at`
+- labeled "additional" rather than "available" by user decision: the block lists only gated models outside the regular lineup, so "available models" would suggest that unlisted models such as sol, terra and luna are unavailable
+- not labeled "unlimited": a null `available_at` only means no future availability date applies, and a third-party team sample showed the model still `available: true` at a 100% 5-hour limit with credits, so usage still counts against the normal windows
+- no version bump: lands in the unreleased 5.13.0
+
+### 2026-10-04 13:53 (v5.13.0, drop row captions, exempt cloud credit from vat)
+
+- removed the caption under claude's rate limit resets row and under codex's extra usage row, by user decision: only the reset count matters, not which promotion granted it, and the message estimate was noise; grant `label` / `clears` and `approx_*_messages` are no longer decoded and are listed in `docs/unused-usage-response-fields.md` instead
+- `QuotaNote.caption` and `CreditsInfo.caption` were removed with them, since nothing else used them
+- window dollar amounts (the cloud session credit) now format with the new `DisplayPriceOptions.withoutVATDeduction`, so a $250 credit shows as about 213.65 eur instead of 179.54 eur with 19% automatic deduction
+- rationale: automatic vat deduction treats amounts as vendor gross prices; a promotional credit is granted, not charged, so deducting vat understated it
+- found by running the app and checking the menu, where the reset caption was also truncated
+- no version bump: lands in the unreleased 5.13.0
+
+### 2026-10-04 13:37 (v5.13.0, surface more usage fields and record the unused ones)
+
+- claude: a **7-day usage by surface** note from `seven_day_breakdown` (e.g. claude code 97% · chats 3%), an extra usage note that distinguishes a user opt-out and a reached spend limit, and a caption on the rate limit resets note naming the next grant and the windows it clears
+- codex: the credits row gets a caption estimating what the balance buys from `approx_local_messages` / `approx_cloud_messages`, and each model reported as unavailable in `model_usage` gets a note with its unlock date when known
+- `QuotaNote` and `CreditsInfo` gained an optional `caption` rendered under the menu row, and note dates share `QuotaHelpers.formattedNoteDate`
+- new `docs/unused-usage-response-fields.md` lists every field the live responses carry that the app still does not read, under a dated capture section (2026-10-04 11:03 utc), so future changes can start from it; new captures add sections instead of editing old ones
+- the approx message arrays decode as `[Double]` and `available_at` as `JSONValue`, because a type mismatch in a decoded field would fail the whole codex response
+- rationale: these were the fields from the live capture that add information without new requests; the rest are identifiers, feature flags, or unclear, and are kept as reference rather than shown
+- no version bump: lands in the unreleased 5.13.0
+
+### 2026-10-04 13:05 (v5.13.0, live capture confirms claude user agent and reset grants)
+
+- a live capture with the new `claude-cli/2.1.280 (external, cli)` agent succeeded without a 429, and `cedar_ember` came back `eligible: true` with the opus 5.5 launch grant (1 reset left, ends 2026-10-22), confirming the query parameter and agent are both needed and working
+- codex responses carry no `x-codex-*` headers, so openusage's header fallbacks for used percent and credit balance are not adopted
+- `docs/` now holds the refreshed captures plus `*.headers.json`, with identifiers scrubbed, including header-borne ones (anthropic organization and workspace ids, request ids, cf-ray, etag, signed report-to url)
+- rationale: record the live evidence behind the user agent change and the decision not to read codex headers
+- no version bump: lands in the unreleased 5.13.0
+
+### 2026-10-04 13:00 (v5.13.0, close usage response gaps found against openusage)
+
+- claude usage is now requested with `?cedar_ember=1` and a claude code style user agent (`claude-cli/2.1.280 (external, cli)`), so one-off rate-limit reset grants are returned and counted into a **Rate limit resets** note with the next expiry
+- the `iguana_necktie` window is identified as the claude code cloud sessions launch credit ($250 on max, expiring 2026-11-04 23:59 pt, which matches its `resets_at` exactly) and shown as **Cloud session credit** with dollar amounts, a usage bar, and an expiry caption instead of a codename row at 0%
+- claude windows decode `limit_dollars` / `used_dollars` generically into a new `QuotaWindow.dollarUsage`, rendered by `ReportLabels.dollarUsageLabel`, which was extracted from cursor's credits label so both share one formatter
+- codex reset credits show `applicable_available_count` alongside the total (`3 available, 0 usable now`); its meaning is undocumented, so both counts are shown by user decision; claude and codex now build this note through one helper, `QuotaHelpers.rateLimitResetsNote`
+- copilot shows **Overage limit** from `overage_entitlement` while overage is enabled, and org-managed seats with zero-entitlement placeholders show **AI Credits used** from `credits_used` instead of an unavailable message
+- the usage capture also records response headers to `*.headers.json`, always dropping `Set-Cookie`, so openusage's `x-codex-*` header fallbacks can be checked against real data before deciding to adopt them
+- the captured `docs/` reference files now hold live responses with identifiers replaced by placeholders
+- rationale: comparing live captures with openusage showed fields the app was dropping or mislabeling; the cloud credit row is user-visible money that previously read as a meaningless codename
+- user agent risk: the earlier 429s came from a missing claude code agent; `claude-cli/*` is claude code's own format and is what openusage sends, so it is expected to stay in the claude code bucket
+- no version bump: lands in the unreleased 5.13.0
+
+### 2026-10-04 11:45 (v5.13.0, capture live usage responses from the command line)
+
+- launching the app binary with `--capture-usage-responses <directory>` fetches claude code, codex, and copilot usage, writes each raw response body to the `docs/` reference file names in that directory, and exits without starting the menu bar ui
+- the capture goes through the new `UsageOrchestrator.fetchSubscription(provider:interactive:)` with the existing non-interactive path, so credential import, auth recovery, and claude automatic repair behave exactly like a timer refresh
+- raw bodies come from an `HTTPClient.responseRecorder` task-local filtered to each provider's `usageURL` (now a shared constant instead of a literal in the fetch), so no endpoint, header, or credential logic is duplicated, and normal fetches pay only a nil check
+- output is re-indented by the new `JSONPrettyPrinter`, which rewrites whitespace only; `JSONSerialization` was rejected because it reorders keys and rewrites `2.0` as `2`, which would misdocument the wire format
+- by user decision, the output is not redacted: it contains real account identifiers and must be scrubbed by hand before committing to `docs/`; errors still pass through `Redaction.redactSecrets()`
+- rationale: the reference files in `docs/` could otherwise only be assembled from test fixtures, and the usage apis are undocumented and change without notice
+- version bump: 5.12.0 to 5.13.0 (MINOR - new command line option, backward compatible)
+
+### 2026-10-04 11:10 (v5.12.0, reference usage responses in docs)
+
+- added `docs/` with one reference response body per subscription usage endpoint: `claude-code-usage-response.json`, `codex-usage-response.json`, `copilot-usage-response.json`
+- the claude file is the live `/api/oauth/usage` capture already locked by `decodeClaudeUsageLivePayloadSurfacesFableWindow`; the codex file is assembled from the full `/wham/usage` test fixtures; the copilot file combines every field `CopilotQuotaProvider` decodes with the extra wire fields (`quota_id`, `token_based_billing`) seen in OpenUsage's captured fixtures
+- identifying values (user id, account id, email) are placeholders so no real account data is committed
+- rationale: the usage APIs are undocumented, so one in-repo example per endpoint lets anyone see the full payload shape without live credentials or reading decoder structs
+- no version bump: documentation only, no app behavior change
+
 ### 2026-09-03 15:15 (v5.12.0, notify when a usage limit runs high)
 
 - a desktop notification now fires when a capped row's usage climbs into the orange or red bands (`ProviderPreferences.usageAlertStartLevel`, Orange 75% or Red 87%, Settings → new Notifications tab), escalating once per higher band and re-arming if the row falls back to a lower one (e.g. a window reset)

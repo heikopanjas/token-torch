@@ -33,6 +33,14 @@ public struct DisplayPriceOptions: Sendable, Equatable {
         min(100, max(0, value))
     }
 
+    /// Same currency, VAT never deducted: for amounts the vendor grants rather than charges (e.g. promotional
+    /// credits), which never included VAT.
+    public var withoutVATDeduction: DisplayPriceOptions {
+        var options = self
+        options.automaticallyDeductVAT = false
+        return options
+    }
+
     public func amountForDisplay(grossAmount: Double) -> Double {
         guard automaticallyDeductVAT, vatRatePercent > 0 else { return grossAmount }
         return grossAmount / (1 + vatRatePercent / 100)

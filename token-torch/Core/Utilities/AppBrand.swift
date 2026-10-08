@@ -11,7 +11,9 @@ public enum AppBrand {
     public static let migrationFlagKey = "tokentorch.migratedFromBurn"
     /// Last usage band each capped row alerted at (`UsageAlertState`), so a relaunch doesn't re-notify.
     public static let usageAlertStateKey = "tokentorch.usageAlertState"
-    /// User-Agent required by Anthropic's undocumented `/api/oauth/usage` endpoint. Requests with a
-    /// non `claude-code/*` agent are routed to an aggressive rate-limit bucket and return persistent 429s.
-    public static let claudeUsageUserAgent = "claude-code/2.1.0"
+    /// User-Agent required by Anthropic's undocumented `/api/oauth/usage` endpoint, in Claude Code's own
+    /// `claude-cli/<version> (external, cli)` format. Requests without a Claude Code agent are routed to an
+    /// aggressive rate-limit bucket (persistent 429s), and reset grants (`cedar_ember`) are only offered to
+    /// a recognized Claude Code surface — anything else comes back `eligible: false`.
+    public static let claudeUsageUserAgent = "claude-cli/2.1.280 (external, cli)"
 }

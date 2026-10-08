@@ -89,6 +89,8 @@
 		C004000000000000008A /* VendorCredentialSourceInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000008A /* VendorCredentialSourceInfo.swift */; };
 		C0040000000000000099 /* CappedUsageRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000099 /* CappedUsageRows.swift */; };
 		C004000000000000009A /* UsageAlertEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000009A /* UsageAlertEvaluator.swift */; };
+		C004000000000000009B /* UsageResponseCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000009B /* UsageResponseCapture.swift */; };
+		C004000000000000009C /* JSONPrettyPrinter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000009C /* JSONPrettyPrinter.swift */; };
 		B00101000000000000000026 /* NotificationSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000026 /* NotificationSettingsViewController.swift */; };
 		B00101000000000000000027 /* NotificationSettingsCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000027 /* NotificationSettingsCopy.swift */; };
 /* End PBXBuildFile section */
@@ -179,6 +181,8 @@
 		C003000000000000008A /* VendorCredentialSourceInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VendorCredentialSourceInfo.swift; sourceTree = "<group>"; };
 		C0030000000000000099 /* CappedUsageRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CappedUsageRows.swift; sourceTree = "<group>"; };
 		C003000000000000009A /* UsageAlertEvaluator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageAlertEvaluator.swift; sourceTree = "<group>"; };
+		C003000000000000009B /* UsageResponseCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageResponseCapture.swift; sourceTree = "<group>"; };
+		C003000000000000009C /* JSONPrettyPrinter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JSONPrettyPrinter.swift; sourceTree = "<group>"; };
 		B00102000000000000000026 /* NotificationSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsViewController.swift; sourceTree = "<group>"; };
 		B00102000000000000000027 /* NotificationSettingsCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsCopy.swift; sourceTree = "<group>"; };
 		C0050000000000000084 /* token-torchTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "token-torchTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -365,6 +369,7 @@
 			children = (
 				C0030000000000000055 /* UsageOrchestrator.swift */,
 				C003000000000000009A /* UsageAlertEvaluator.swift */,
+				C003000000000000009B /* UsageResponseCapture.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -388,6 +393,7 @@
 				C0030000000000000080 /* TokenTorchLog.swift */,
 				C0030000000000000092 /* JWTHelper.swift */,
 				C0030000000000000094 /* FlexibleDoubleDecoding.swift */,
+				C003000000000000009C /* JSONPrettyPrinter.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -617,6 +623,8 @@
 				C0040000000000000081 /* TokenTorchLog.swift in Sources */,
 				C0040000000000000099 /* CappedUsageRows.swift in Sources */,
 				C004000000000000009A /* UsageAlertEvaluator.swift in Sources */,
+				C004000000000000009B /* UsageResponseCapture.swift in Sources */,
+				C004000000000000009C /* JSONPrettyPrinter.swift in Sources */,
 				B00101000000000000000026 /* NotificationSettingsViewController.swift in Sources */,
 				B00101000000000000000027 /* NotificationSettingsCopy.swift in Sources */,
 			);

@@ -56,7 +56,7 @@ Required repository secrets: `APPLE_CERTIFICATE_P12_BASE64`, `APPLE_CERTIFICATE_
 
 Menu bar app (Xcode): `Token Torch.app`, code signing, `LSUIElement` for menu-bar-only UI. Bundle ID: `com.panjas.tokentorch`.
 
-Every row that states a percentage of a cap — the Claude Code and Codex limit windows, Cursor's three meters, Copilot's **Percent used**, and the credits rows that print `(x% used)` — carries a 2px usage bar underneath. The bar fills to the used share and changes color as it climbs: light green below 50%, dark green below 75%, orange below 87%, light red below 95%, dark red at or above 95%. Rows without a cap (Codex's credit balance, **Overage**, org billing costs) have no bar, and neither do rows below 1% used.
+Every row that states a percentage of a cap — the Claude Code and Codex limit windows, Cursor's three meters, Copilot's **Monthly window**, and the credits rows that print `(x% used)` — carries a 2px usage bar underneath. The bar fills to the used share and changes color as it climbs: light green below 50%, dark green below 75%, orange below 87%, light red below 95%, dark red at or above 95%. Rows without a cap (Codex's credit balance, **Overage**, org billing costs) have no bar, and neither do rows below 1% used.
 
 Token Torch can post a desktop notification when one of those rows climbs into the orange or red bands, so you don't have to keep the menu open to notice — **Notify when a usage limit runs high** on the Notifications settings tab (on by default), with a **Starting at** choice of Orange (75%) or Red (87%). It alerts once per band as usage climbs past the starting one, stays quiet while a row holds steady, and re-arms if the row falls back to a lower band (e.g. after its window resets). A row hidden by a display preference (Fable, additional model limits, Cursor's value rows) or a disabled provider never alerts.
 
@@ -65,7 +65,7 @@ Token Torch can post a desktop notification when one of those rows climbs into t
 - **General** — **Start at login**, refresh interval, display currency (USD/EUR), **VAT rate (%)**, **Automatically deduct VAT**, **Menu bar icon**, and a **Providers** table for the six menu views (Claude Code, Anthropic API, Codex, OpenAI Platform, Cursor, Copilot): drag rows to reorder, use **Enabled** to turn each view on or off
 - **Claude / Codex / Cursor** — reset imported subscription credentials; Claude repair can ask Claude Code to update its own login, then re-import the updated token into Token Torch; Claude and Codex tabs also include an Admin API key field
 - **Claude** — optional **Automatically repair credentials in the background** (off by default; when on, repair also runs on startup/timer refreshes via `CLAUDE_CONFIG_DIR=… ANTHROPIC_API_KEY="" claude -p "/usage"` in a controlling terminal and may prompt for Keychain access — manual Refresh always repairs on auth failure), optional **Notify me when background credential repair fails** (on by default; desktop notification on automatic repair failure only), an optional **Claude CLI path** (point at the `claude` executable when it is not found on the login PATH; leave blank to auto-detect), and optional **Show Fable usage** (off by default) to reveal the weekly Fable sub-cap row
-- **Codex** — optional **Show additional model usage** (e.g. Codex Spark); extra usage credits are shown as credit units with their fixed USD equivalent (`$0.04` per credit), and available rate-limit reset credits appear when the API reports them
+- **Codex** — optional **Show additional model usage** (e.g. Codex Spark); extra usage credits are shown as a plain credit count (the API reports no money value), and available rate-limit reset credits appear when the API reports them
 - **Cursor** — optional **Show Total usage value and Bonus** (off by default) to reveal Cursor's opaque value-framing rows; quota meters and Credits are always shown
 - **Copilot** — GitHub Personal Access Token field with setup guidance
 - **Notifications** — **Notify when a usage limit runs high** (on by default) and a **Starting at** choice of Orange (75% used) or Red (87% used)
@@ -91,7 +91,21 @@ Codex 5-hour and 7-day windows are classified from each `/wham/usage` window's `
 
 Claude Code's weekly **Fable** limit has no top-level `seven_day_*` key. The `/api/oauth/usage` response reports it only as a `weekly_scoped` entry in the `limits` array, identified by `scope.model.display_name`; the array's `session` and `weekly_all` entries restate `five_hour` and `seven_day` and are ignored. The **Fable share of 7-day limit** row is off by default; enable **Show Fable usage** on the Claude tab to display it. It then sits directly below the 7-day window and stays visible before the window starts, when Anthropic reports `percent` 0 with a null reset. Fable is not a separate allowance: it draws from the same weekly limit as every other model (on Max, up to half of it), so the row reports how much of that scoped share is spent rather than an additional pool. The label says so explicitly because two stacked percentages otherwise read as independent budgets.
 
-Copilot reports the next monthly quota reset, not a subscription billing-cycle start. Token Torch derives the displayed **Quota period** as the preceding UTC calendar month and does not use Copilot's persistent `assigned_date` seat-assignment timestamp.
+If you claimed the Claude Code cloud sessions launch credit ($100 on Pro, $250 on Max), a **Cloud session credit** row shows how much of it is spent, e.g. `$0.00/$250.00 (0% used)`, in your display currency, with a usage bar and the credit's expiry date. The credit is never reduced by **Automatically deduct VAT**, because it's granted to you rather than a price that includes VAT. The API reports it under the codename `iguana_necktie`, and it disappears once the API stops returning it. Token Torch also asks the usage API for Claude's one-off rate-limit reset grants (for example a model-launch promo). When any remain, a **Rate limit resets** row shows how many are available, with the next one's expiry as a caption underneath, like the cloud session credit. The **Extra usage** row says whether you turned extra usage off yourself or reached its spend limit.
+
+Codex plans use OpenAI's current names: **Pro 100**, **Pro 200**, and **Pro 500** (formerly Pro Lite and Pro), plus **Business Premium**. Codex's **Rate limit resets** row adds how many resets are usable right now (`applicable_available_count`, e.g. `3 available, 1 usable now`) when that number is above 0. It's 0 whenever no window has usage that a reset would clear, so the row then just reads `3 available`. Codex also lists gated models outside its regular lineup (currently `gpt-6-astra`) under `model_usage`. The ones you can use appear in an **Additional models** row, and one that is unavailable gets its own row with the date it becomes available, when Codex reports one. When Copilot overage is enabled, the AI Credits group also shows an **Overage limit** row (`overage_entitlement`). Organization-managed Copilot seats that report no quota percentage now show **AI Credits used** with your own usage instead of "Usage not exposed for this plan".
+
+The Copilot section starts with a **Monthly window** row like the Claude and Codex windows: percent used, the monthly reset as a caption, and a usage bar. Below it, **Entitlement**, **Usage**, and the overage rows state amounts in credits. On a free plan, the chat and completions quotas appear as **Chat (monthly)** and **Completions (monthly)** with plain counts. The reset date is Copilot's next monthly quota reset; its persistent `assigned_date` seat-assignment timestamp is not used.
+
+### Capturing live usage responses
+
+To see exactly what the usage APIs return, launch the app binary with `--capture-usage-responses <directory>`:
+
+```bash
+".build/Products/Debug/Token Torch.app/Contents/MacOS/Token Torch" --capture-usage-responses docs
+```
+
+Token Torch fetches Claude Code, Codex, and Copilot usage the same way a background refresh does (using its own credential copies and the Copilot PAT from Settings), writes each raw response body to `claude-code-usage-response.json`, `codex-usage-response.json`, and `copilot-usage-response.json` in that directory, plus the response headers in a matching `*.headers.json` file, then exits without opening the menu bar UI. Bodies are only re-indented: keys, values, and number formatting are unchanged. `Set-Cookie` headers are always left out. The exit status is non-zero if any provider fails, and that provider's error is printed. If a provider reports that it needs authorization, open Token Torch, choose **Refresh** once, then run the capture again. **The files contain your email address and account IDs.** Replace them before committing to `docs/`.
 
 ## Architecture
 
@@ -107,6 +121,7 @@ UI code never calls vendor URLs directly — only `UsageOrchestrator` and settin
 token-torch/               # App UI + Core/ (domain logic)
 token-torch-tests/
 token-torch.xcodeproj
+docs/                      # Reference usage API responses and unused-field notes
 pictures/                  # Provider icon PDFs
 exportOptions.plist        # Developer ID export (release builds)
 VERSION                    # Release version source of truth
