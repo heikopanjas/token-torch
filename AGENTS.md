@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-10-04 (Copilot Monthly window row with usage in credits)
+Last updated: 2026-10-25 (notarization uses an App Store Connect API key locally and in CI)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -50,18 +50,22 @@ xcodebuild test -scheme token-torch -configuration Debug -destination 'platform=
 
 # Release archive + Developer ID export (from repo root)
 ./build.sh --release
-./build.sh --release --notarize   # requires exportOptions.plist + notarytool profile TokenTorch-Notarize (--release always cleans)
+./build.sh --release --notarize   # requires exportOptions.plist + notarytool profile developer-id-notary (--release always cleans)
 ```
+
+Local notarization uses the keychain profile `developer-id-notary`. It holds an App Store Connect API key shared by all Developer ID apps of the team, so it is not specific to Token Torch. Create it once with `xcrun notarytool store-credentials developer-id-notary --key AuthKey_<key-id>.p8 --key-id <key-id> --issuer <issuer-uuid>`. Use `NOTARIZE_PROFILE=<name>` to override it. Since the key is team-wide, `notarytool history` also lists other apps' submissions. CI does not use a keychain profile: `release.yml` decodes the same kind of API key from secrets and passes it to `notarytool` directly.
 
 ### CI release workflows
 
 - `.github/workflows/build.yml`: signed Developer ID release build for pushes and pull requests on `develop` and `feature/**`; uploads the exported app zip and creates a GitHub prerelease on non-PR runs. Prerelease tags and zip files use `token-torch-build-<run>-<yyyymmdd-hhmmss>`.
 - `.github/workflows/release.yml`: signed Developer ID release build + Apple notarization for pull requests to `main`; on pushes to `main`, creates the `v$(cat VERSION)` GitHub release only after notarization succeeds and refuses to overwrite an existing tag or release. Release zip files use `token-torch-v<version>`.
 - Both workflows generate `CHANGELOG.md` and `BILL_OF_MATERIALS.md` and include them inside the release zip.
-- Both workflows run `xcodebuild test` on the `token-torchTests` target before archiving.
+- Both workflows run `xcodebuild test` on the `token-torchTests` target before archiving. The tests are ad-hoc signed (`CODE_SIGN_IDENTITY=-`, empty `DEVELOPMENT_TEAM`, `ENABLE_HARDENED_RUNTIME=NO`) and get no signing secrets, as in senor-particle. Hardened runtime is off because its library validation could reject the ad-hoc test bundle loaded into the test host app. The entitlements file is empty and the keychain test uses an in-memory store, so the suite needs no real signature.
 - Both workflows use the `macos-26` GitHub runner image for the current Xcode/Swift toolchain.
 - Standard GitHub actions in these workflows use Node 24 compatible major versions (`actions/checkout@v6`, `actions/upload-artifact@v6`) to avoid runner deprecation warnings.
-- Required GitHub repository secrets: `APPLE_CERTIFICATE_P12_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_TEAM_ID`, `APPLE_ID`, and `APPLE_ID_PASSWORD`.
+- Required GitHub repository secrets: `APPLE_CERTIFICATE_P12_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, and `APPLE_SIGNING_IDENTITY` in both workflows. `release.yml` also needs `APPSTORE_CONNECT_KEY_ID`, `APPSTORE_CONNECT_ISSUER_ID`, and `APPSTORE_CONNECT_KEY_P8_BASE64` for notarization. `APPLE_TEAM_ID`, `APPLE_ID`, and `APPLE_ID_PASSWORD` are no longer used.
+- The team ID is not a secret. Each workflow's "Read Version" step reads it from `exportOptions.plist` (`PlistBuddy -c 'Print :teamID'`) into `DEVELOPMENT_TEAM` in `GITHUB_ENV`, and the archive step passes `DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM"`. `exportOptions.plist` is the single source for the team ID, as in senor-particle.
+- Release notarization authenticates `notarytool` with the App Store Connect API key. This follows the senor-particle / AranetKit pattern: the base64 `.p8` is decoded to `$RUNNER_TEMP/AuthKey.p8` (mode 600), `notarytool submit --wait --timeout 30m --output-format json` runs, and the step fails unless the exit code is 0 **and** the JSON status is `Accepted`. On failure it prints `notarytool log` for the submission. The always-run cleanup step deletes the key file along with the signing keychain.
 - CI imports the Developer ID `.p12` into a temporary keychain and runs the archive, export, notarize, staple, verify, package, and upload commands as separate workflow steps for debuggable logs.
 
 ### Project-specific run examples

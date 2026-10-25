@@ -27,7 +27,6 @@ env:
   PACKAGE_DIR: .build/package
   DESTINATION: generic/platform=macOS
   TEST_DESTINATION: platform=macOS,arch=arm64
-  NOTARY_PROFILE: TokenTorch-Notarize
 
 jobs:
   release:
@@ -56,7 +55,9 @@ jobs:
             exit 1
           fi
           RELEASE_NAME="token-torch-v${APP_VERSION}"
+          DEVELOPMENT_TEAM="$(/usr/libexec/PlistBuddy -c 'Print :teamID' "$EXPORT_PLIST")"
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+          echo "DEVELOPMENT_TEAM=$DEVELOPMENT_TEAM" >> "$GITHUB_ENV"
           echo "BUILD_NUMBER=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
           echo "RELEASE_NAME=$RELEASE_NAME" >> "$GITHUB_ENV"
           echo "ARTIFACT_ZIP=.build/${RELEASE_NAME}.zip" >> "$GITHUB_ENV"
@@ -95,20 +96,18 @@ jobs:
           security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -F "$APPLE_SIGNING_IDENTITY"
 
       - name: Run Unit Tests
-        env:
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
+          # Tests run ad-hoc signed without hardened runtime; signing secrets stay with the archive.
           xcodebuild test \
             -project "$PROJECT" \
             -scheme "$SCHEME" \
             -configuration Debug \
             -destination "$TEST_DESTINATION" \
             CODE_SIGN_STYLE=Manual \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
-            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH"
+            CODE_SIGN_IDENTITY=- \
+            DEVELOPMENT_TEAM= \
+            ENABLE_HARDENED_RUNTIME=NO
 
       - name: Clean Release Artifacts
         run: |
@@ -119,7 +118,6 @@ jobs:
       - name: Archive Release App
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -euo pipefail
           xcodebuild archive \
@@ -129,7 +127,7 @@ jobs:
             -destination "$DESTINATION" \
             -archivePath "$ARCHIVE_PATH" \
             CODE_SIGN_STYLE=Manual \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
             CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
             MARKETING_VERSION="$APP_VERSION" \
             CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
@@ -150,26 +148,45 @@ jobs:
           ditto -c -k --keepParent "$APP_PATH" "$NOTARY_ZIP"
           ls -lh "$NOTARY_ZIP"
 
-      - name: Store Notarization Credentials
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          set -euo pipefail
-          xcrun notarytool store-credentials "$NOTARY_PROFILE" \
-            --apple-id "$APPLE_ID" \
-            --team-id "$APPLE_TEAM_ID" \
-            --password "$APPLE_ID_PASSWORD" \
-            --keychain "$KEYCHAIN_PATH"
-
       - name: Submit For Notarization
+        env:
+          APPSTORE_CONNECT_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          APPSTORE_CONNECT_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          APPSTORE_CONNECT_KEY_P8_BASE64: ${{ secrets.APPSTORE_CONNECT_KEY_P8_BASE64 }}
         run: |
           set -euo pipefail
+          : "${APPSTORE_CONNECT_KEY_ID:?Missing APPSTORE_CONNECT_KEY_ID secret}"
+          : "${APPSTORE_CONNECT_ISSUER_ID:?Missing APPSTORE_CONNECT_ISSUER_ID secret}"
+          : "${APPSTORE_CONNECT_KEY_P8_BASE64:?Missing APPSTORE_CONNECT_KEY_P8_BASE64 secret}"
+          KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
+          NOTARIZATION_RESULT="$RUNNER_TEMP/notarization-result.json"
+          printf '%s' "$APPSTORE_CONNECT_KEY_P8_BASE64" | base64 -D > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+
+          set +e
           xcrun notarytool submit "$NOTARY_ZIP" \
-            --keychain-profile "$NOTARY_PROFILE" \
-            --keychain "$KEYCHAIN_PATH" \
-            --wait
+            --key "$KEY_PATH" \
+            --key-id "$APPSTORE_CONNECT_KEY_ID" \
+            --issuer "$APPSTORE_CONNECT_ISSUER_ID" \
+            --wait \
+            --timeout 30m \
+            --output-format json > "$NOTARIZATION_RESULT"
+          NOTARIZATION_STATUS=$?
+          set -e
+
+          cat "$NOTARIZATION_RESULT"
+          SUBMISSION_STATUS="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("status", ""))' "$NOTARIZATION_RESULT" 2>/dev/null || true)"
+          if [[ $NOTARIZATION_STATUS -ne 0 || "$SUBMISSION_STATUS" != "Accepted" ]]; then
+            SUBMISSION_ID="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("id", ""))' "$NOTARIZATION_RESULT" 2>/dev/null || true)"
+            if [[ -n "$SUBMISSION_ID" ]]; then
+              xcrun notarytool log "$SUBMISSION_ID" \
+                --key "$KEY_PATH" \
+                --key-id "$APPSTORE_CONNECT_KEY_ID" \
+                --issuer "$APPSTORE_CONNECT_ISSUER_ID" || true
+            fi
+            echo "Notarization failed: exit ${NOTARIZATION_STATUS}, status ${SUBMISSION_STATUS:-unknown}" >&2
+            exit 1
+          fi
 
       - name: Staple Notarization Ticket
         run: |
@@ -282,3 +299,4 @@ jobs:
           if [ -n "${KEYCHAIN_PATH:-}" ] && [ -f "$KEYCHAIN_PATH" ]; then
             security delete-keychain "$KEYCHAIN_PATH"
           fi
+          rm -f "$RUNNER_TEMP/AuthKey.p8"

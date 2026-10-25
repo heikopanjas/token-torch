@@ -18,14 +18,13 @@ ARCHIVE_PATH="${BUILD_DIR}/${APP_NAME}.xcarchive"
 EXPORT_PATH="${BUILD_DIR}/export"
 EXPORT_PLIST="${ROOT}/exportOptions.plist"
 VERSION_FILE="${ROOT}/VERSION"
-NOTARIZE_PROFILE="${NOTARIZE_PROFILE:-TokenTorch-Notarize}"
+NOTARIZE_PROFILE="${NOTARIZE_PROFILE:-developer-id-notary}"
 # Apple Silicon only — not a universal/Intel build. Architecture comes from Xcode
 # ARCHS=arm64 (project + target). Debug can pass arch= on -destination; release
 # archive must use generic/platform=macOS (xcodebuild rejects arch on "Any Mac").
 BUILD_ARCH="arm64"
 DEBUG_DESTINATION="platform=macOS,arch=${BUILD_ARCH}"
 RELEASE_DESTINATION="generic/platform=macOS"
-TEAM_ID="8J2G689FCZ"
 
 RELEASE=false
 CLEAN=false
@@ -58,13 +57,13 @@ Examples:
 Release builds require exportOptions.plist at the repository root with Developer ID signing
 configured for com.panjas.tokentorch.
 
-Notarization (--notarize) requires a notarytool Keychain profile (default: ${NOTARIZE_PROFILE}).
-Create it once (app-specific password from appleid.apple.com):
+Notarization (--notarize) requires a notarytool Keychain profile (default: ${NOTARIZE_PROFILE}),
+an App Store Connect API key shared by all Developer ID apps of the team. Create it once:
 
     xcrun notarytool store-credentials "${NOTARIZE_PROFILE}" \\
-      --apple-id "you@example.com" \\
-      --team-id ${TEAM_ID} \\
-      --password "xxxx-xxxx-xxxx-xxxx"
+      --key AuthKey_<key-id>.p8 \\
+      --key-id <key-id> \\
+      --issuer <issuer-uuid>
 
 Override profile name: NOTARIZE_PROFILE=my-profile $(basename "$0") --release --notarize
 EOF
@@ -164,11 +163,11 @@ check_notary_profile() {
     echo "" >&2
     echo "Create credentials (one-time):" >&2
     echo "  xcrun notarytool store-credentials \"${NOTARIZE_PROFILE}\" \\" >&2
-    echo "    --apple-id \"YOUR_APPLE_ID\" \\" >&2
-    echo "    --team-id ${TEAM_ID} \\" >&2
-    echo "    --password \"APP_SPECIFIC_PASSWORD\"" >&2
+    echo "    --key AuthKey_<key-id>.p8 \\" >&2
+    echo "    --key-id <key-id> \\" >&2
+    echo "    --issuer <issuer-uuid>" >&2
     echo "" >&2
-    echo "App-specific password: https://account.apple.com/account/manage (Sign-In and Security)" >&2
+    echo "API keys: App Store Connect > Users and Access > Integrations > Team Keys" >&2
     echo "Or set NOTARIZE_PROFILE to an existing profile name." >&2
     return 1
 }

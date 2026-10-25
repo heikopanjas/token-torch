@@ -29,7 +29,7 @@ From the repository root:
 ```bash
 ./build.sh                  # debug build → .build/Products/Debug/
 ./build.sh --release        # clean, archive + export to .build/export/
-./build.sh --release --notarize   # clean, submit and staple (requires notarytool profile)
+./build.sh --release --notarize   # clean, submit and staple (requires notarytool profile developer-id-notary)
 ```
 
 Or open the Xcode project:
@@ -50,7 +50,7 @@ If `xcodebuild` is missing, `./build.sh` prints how to point `xcode-select` at X
 - Both workflows generate `CHANGELOG.md` and `BILL_OF_MATERIALS.md` and include them inside the release zip.
 - Both workflows use the `macos-26` GitHub runner image for the current Xcode/Swift toolchain.
 
-Required repository secrets: `APPLE_CERTIFICATE_P12_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_TEAM_ID`, `APPLE_ID`, and `APPLE_ID_PASSWORD`.
+Required repository secrets: `APPLE_CERTIFICATE_P12_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, and `APPLE_SIGNING_IDENTITY` for signing, plus `APPSTORE_CONNECT_KEY_ID`, `APPSTORE_CONNECT_ISSUER_ID`, and `APPSTORE_CONNECT_KEY_P8_BASE64` (an App Store Connect API key) for notarization in the release workflow. The team ID comes from `exportOptions.plist`.
 
 ## Token Torch (menu bar app)
 

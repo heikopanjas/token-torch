@@ -4,6 +4,36 @@ This file is the append-only log of project decisions and notable changes, maint
 
 <!-- {changelog} -->
 
+### 2026-10-25 18:00 (v5.13.0, ad-hoc signed ci unit tests)
+
+- ci unit tests in both workflows run ad-hoc signed (`CODE_SIGN_IDENTITY=-`, empty `DEVELOPMENT_TEAM`, `ENABLE_HARDENED_RUNTIME=NO`) instead of with the developer id certificate; the test step no longer gets `APPLE_SIGNING_IDENTITY`
+- hardened runtime is off for tests because library validation could reject the ad-hoc test bundle loaded into the test host
+- rationale, by user decision: the suite needs no real signature (empty entitlements, in-memory keychain store), and keeping signing secrets to the archive step limits their exposure; same as senor-particle; verified locally with the same settings, all tests passed
+- no version bump: ci only, lands in the unreleased 5.13.0
+
+### 2026-10-25 17:45 (v5.13.0, team id from export options)
+
+- both workflows now read the team id from the committed `exportOptions.plist` (`teamID`) in the read version step and pass it as `DEVELOPMENT_TEAM` to the test and archive builds; the `APPLE_TEAM_ID` secret is no longer used
+- this supersedes the earlier note that `APPLE_TEAM_ID` stays for the archive step
+- rationale: the team id is public (it is in every signature) and already committed in `exportOptions.plist`; same pattern as senor-particle, and it keeps one source for the team id
+- no version bump: ci only, lands in the unreleased 5.13.0
+
+### 2026-10-25 17:30 (v5.13.0, ci notarization with app store connect api key)
+
+- `release.yml` notarizes with the app store connect api key from the `APPSTORE_CONNECT_KEY_ID`, `APPSTORE_CONNECT_ISSUER_ID`, and `APPSTORE_CONNECT_KEY_P8_BASE64` secrets instead of a `TokenTorch-Notarize` profile built from the apple id secrets
+- the submit step fails unless notarytool exits 0 and reports `Accepted`, and prints the notarytool log for a failed submission; cleanup deletes the decoded `.p8`
+- `APPLE_ID` and `APPLE_ID_PASSWORD` are no longer used and can be deleted from the repository secrets; `APPLE_TEAM_ID` stays because the archive step needs it
+- rationale: same pattern as senor-particle and aranetkit; no app-specific password is stored, and failed submissions show apple's log in the run; a local token torch notarization with the same team key was accepted on 2026-10-25
+- no version bump: ci only, lands in the unreleased 5.13.0
+
+### 2026-10-25 (v5.13.0, shared notarization api key profile)
+
+- local `./build.sh --release --notarize` now defaults to the keychain profile `developer-id-notary`, an app store connect api key shared by all developer id apps of the team, instead of the per-app apple id profile `TokenTorch-Notarize`
+- `build.sh` setup hints now show the `--key` / `--key-id` / `--issuer` form; the now unused `TEAM_ID` variable was removed
+- ci is unchanged and still notarizes with the apple id secrets
+- rationale: one api key profile for every app avoids storing an app-specific password per app; the profile was verified with `notarytool history` and has been used for successful notarizations since 2026-10-22
+- no version bump: build tooling only, lands in the unreleased 5.13.0
+
 ### 2026-10-04 15:32 (v5.13.0, copilot monthly window row)
 
 - the copilot section now starts with a **Monthly window** row like the claude and codex windows: percent used, the monthly reset as a caption, and the usage bar; the detail rows below state amounts, with **Usage** now in credits (`667 credits`) instead of percent
