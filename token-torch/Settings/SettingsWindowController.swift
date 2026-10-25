@@ -24,10 +24,10 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     private let advancedController: AdvancedSettingsViewController
     private var selectedIdentifier = NSToolbarItem.Identifier.tokenTorchGeneral
 
-    init(model: MenuBarViewModel) {
+    init(model: MenuBarViewModel, appUpdater: AppUpdater) {
         self.model = model
         generalController = GeneralSettingsViewController()
-        infoController = InfoSettingsViewController()
+        infoController = InfoSettingsViewController(appUpdater: appUpdater)
         claudeController = ProviderSettingsViewController(provider: .claude)
         codexController = ProviderSettingsViewController(provider: .codex)
         cursorController = ProviderSettingsViewController(provider: .cursor)
@@ -71,6 +71,12 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
             name: AppActions.openSettingsNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(openAboutFromNotification),
+            name: AppActions.openAboutNotification,
+            object: nil
+        )
     }
 
     @available(*, unavailable)
@@ -79,6 +85,8 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func show() {
+        // windowWillClose clears the tracked window, so a reopened Settings window registers itself again.
+        AppActions.settingsWindow = self.window
         AppActions.activateForSettings()
         let vc = viewController(for: selectedIdentifier)
         fitWindow(to: vc, centerOnScreen: true)
@@ -88,6 +96,11 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
 
     @objc private func openFromNotification() {
         show()
+    }
+
+    @objc private func openAboutFromNotification() {
+        self.switchToTab(.tokenTorchInfo)
+        self.show()
     }
 
     func windowWillClose(_ notification: Notification) {

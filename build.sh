@@ -14,6 +14,9 @@ DEBUG_DERIVED_DATA="${ROOT}/.build"
 # line outranks that preference, so the app always lands in DEBUG_APP.
 DEBUG_SYMROOT="${ROOT}/.build/Products"
 DEBUG_APP="${DEBUG_SYMROOT}/Debug/${APP_NAME}.app"
+# Swift packages (Sparkle) resolve into one fixed directory shared with release CI,
+# so Sparkle's tools live at .build/SourcePackages/artifacts/sparkle/Sparkle/bin.
+PACKAGE_CACHE_DIR="${ROOT}/.build/SourcePackages"
 ARCHIVE_PATH="${BUILD_DIR}/${APP_NAME}.xcarchive"
 EXPORT_PATH="${BUILD_DIR}/export"
 EXPORT_PLIST="${ROOT}/exportOptions.plist"
@@ -141,7 +144,7 @@ read_build_version() {
     fi
 
     local settings
-    if ! settings="$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -showBuildSettings 2>&1)"; then
+    if ! settings="$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -clonedSourcePackagesDirPath "$PACKAGE_CACHE_DIR" -showBuildSettings 2>&1)"; then
         echo "Error: failed to read build settings from ${PROJECT}" >&2
         echo "$settings" >&2
         exit 1
@@ -181,6 +184,7 @@ build_debug() {
             -configuration Debug \
             -destination "$DEBUG_DESTINATION" \
             -derivedDataPath "$DEBUG_DERIVED_DATA" \
+            -clonedSourcePackagesDirPath "$PACKAGE_CACHE_DIR" \
             SYMROOT="$DEBUG_SYMROOT" \
             clean -quiet
         echo "    Done."
@@ -194,6 +198,7 @@ build_debug() {
         -configuration Debug \
         -destination "$DEBUG_DESTINATION" \
         -derivedDataPath "$DEBUG_DERIVED_DATA" \
+        -clonedSourcePackagesDirPath "$PACKAGE_CACHE_DIR" \
         SYMROOT="$DEBUG_SYMROOT" \
         MARKETING_VERSION="$VERSION" \
         build -quiet
@@ -219,6 +224,7 @@ build_release() {
             -project "$PROJECT" \
             -scheme "$SCHEME" \
             -destination "$RELEASE_DESTINATION" \
+            -clonedSourcePackagesDirPath "$PACKAGE_CACHE_DIR" \
             clean -quiet
         rm -rf "$ARCHIVE_PATH" "$EXPORT_PATH" "${BUILD_DIR}/TokenTorch.zip"
         echo "    Done."
@@ -234,6 +240,7 @@ build_release() {
         -configuration Release \
         -destination "$RELEASE_DESTINATION" \
         -archivePath "$ARCHIVE_PATH" \
+        -clonedSourcePackagesDirPath "$PACKAGE_CACHE_DIR" \
         MARKETING_VERSION="$VERSION" \
         -quiet
     echo "    Archive: ${ARCHIVE_PATH}"

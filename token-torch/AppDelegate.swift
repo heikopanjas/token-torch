@@ -5,6 +5,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     private var model: MenuBarViewModel!
     private var settingsController: SettingsWindowController!
     private var statusItemController: StatusItemController!
+    private var appUpdater: AppUpdater!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         MainActor.assumeIsolated {
@@ -17,8 +18,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         CredentialStoreMigration.migrateFromBurnIfNeeded()
         UNUserNotificationCenter.current().delegate = self
         NotificationService.bootstrap()
+        appUpdater = AppUpdater()
+        AppActions.updater = appUpdater
         model = MenuBarViewModel()
-        settingsController = SettingsWindowController(model: model)
+        settingsController = SettingsWindowController(model: model, appUpdater: appUpdater)
         statusItemController = StatusItemController(
             model: model,
             settingsOpener: settingsController
@@ -32,6 +35,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         completionHandler([.banner, .sound])
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let identifier = response.notification.request.identifier
+        completionHandler()
+        guard identifier == AppNotification.updateAvailableIdentifier else { return }
+        Task { @MainActor in
+            AppActions.showPendingUpdate()
+        }
     }
 
     @MainActor

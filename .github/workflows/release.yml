@@ -27,12 +27,22 @@ env:
   PACKAGE_DIR: .build/package
   DESTINATION: generic/platform=macOS
   TEST_DESTINATION: platform=macOS,arch=arm64
+  PACKAGE_CACHE_DIR: .build/SourcePackages
+  PACKAGE_RESOLVED: token-torch.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+  UPDATE_DIR: .build/sparkle
+  APPCAST_INPUT_DIR: .build/sparkle/input
+  APPCAST_PATH: .build/sparkle/appcast.xml
+  UPDATE_PUBLICATION_DIR: .build/sparkle/publication
+  UPDATE_RELEASE_TAG: sparkle-updates
+  APPCAST_URL: https://heikopanjas.github.io/token-torch/appcast.xml
 
 jobs:
   release:
     name: Build And Notarize Release App
     runs-on: macos-26
     timeout-minutes: 90
+    outputs:
+      release_name: ${{ steps.metadata.outputs.release_name }}
 
     steps:
       - name: Checkout
@@ -47,6 +57,7 @@ jobs:
           xcode-select -p
 
       - name: Read Version
+        id: metadata
         run: |
           set -euo pipefail
           APP_VERSION="$(tr -d '[:space:]' < VERSION)"
@@ -58,10 +69,15 @@ jobs:
           DEVELOPMENT_TEAM="$(/usr/libexec/PlistBuddy -c 'Print :teamID' "$EXPORT_PLIST")"
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
           echo "DEVELOPMENT_TEAM=$DEVELOPMENT_TEAM" >> "$GITHUB_ENV"
-          echo "BUILD_NUMBER=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+          # github.run_id is unique across all workflows of the repository, so prerelease and release builds share one
+          # increasing CFBundleVersion sequence; Sparkle offers an update only when this number is higher.
+          echo "BUILD_NUMBER=${GITHUB_RUN_ID}" >> "$GITHUB_ENV"
           echo "RELEASE_NAME=$RELEASE_NAME" >> "$GITHUB_ENV"
           echo "ARTIFACT_ZIP=.build/${RELEASE_NAME}.zip" >> "$GITHUB_ENV"
-          echo "Building Token Torch $APP_VERSION (${GITHUB_RUN_NUMBER})"
+          echo "UPDATE_ARCHIVE_NAME=token-torch-update-v${APP_VERSION}.zip" >> "$GITHUB_ENV"
+          echo "UPDATE_NOTES_NAME=token-torch-update-v${APP_VERSION}.md" >> "$GITHUB_ENV"
+          echo "release_name=$RELEASE_NAME" >> "$GITHUB_OUTPUT"
+          echo "Building Token Torch $APP_VERSION (${GITHUB_RUN_ID})"
 
       - name: Import Developer ID Certificate
         env:
@@ -95,6 +111,15 @@ jobs:
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
           security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -F "$APPLE_SIGNING_IDENTITY"
 
+      - name: Resolve Package Dependencies
+        run: |
+          set -euo pipefail
+          xcodebuild -resolvePackageDependencies \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -clonedSourcePackagesDirPath "$PACKAGE_CACHE_DIR"
+          test -x "$PACKAGE_CACHE_DIR/artifacts/sparkle/Sparkle/bin/generate_appcast"
+
       - name: Run Unit Tests
         run: |
           set -euo pipefail
@@ -104,6 +129,7 @@ jobs:
             -scheme "$SCHEME" \
             -configuration Debug \
             -destination "$TEST_DESTINATION" \
+            -clonedSourcePackagesDirPath "$PACKAGE_CACHE_DIR" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY=- \
             DEVELOPMENT_TEAM= \
@@ -126,6 +152,7 @@ jobs:
             -configuration Release \
             -destination "$DESTINATION" \
             -archivePath "$ARCHIVE_PATH" \
+            -clonedSourcePackagesDirPath "$PACKAGE_CACHE_DIR" \
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
             CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
@@ -201,7 +228,7 @@ jobs:
       - name: Generate Changelog And Bill Of Materials
         run: |
           set -euo pipefail
-          PREVIOUS_TAG="$(git describe --tags --abbrev=0 --exclude "v${APP_VERSION}-pre.*" 2>/dev/null || true)"
+          PREVIOUS_TAG="$(git describe --tags --abbrev=0 --match 'v[0-9]*' --exclude "v${APP_VERSION}-pre.*" 2>/dev/null || true)"
           {
             echo "# Changelog"
             echo
@@ -222,6 +249,7 @@ jobs:
           BUNDLE_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Contents/Info.plist")"
           BUNDLE_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_PATH/Contents/Info.plist")"
           XCODE_VERSION="$(xcodebuild -version | tr '\n' ' ')"
+          DEPENDENCIES="$(python3 -c 'import json, sys; print("\n".join("- {} {} ({})".format(pin["identity"], pin["state"]["version"], pin["location"]) for pin in json.load(open(sys.argv[1]))["pins"]))' "$PACKAGE_RESOLVED")"
           SWIFT_VERSION="$(swift --version | head -n 1)"
           MACOS_VERSION="$(sw_vers -productVersion)"
 
@@ -243,7 +271,7 @@ jobs:
             echo "- swift version: ${SWIFT_VERSION}"
             echo
             echo "## Dependencies"
-            echo "- none (Xcode app target only)"
+            echo "$DEPENDENCIES"
           } > "$BOM_PATH"
 
           ls -lh "$CHANGELOG_PATH" "$BOM_PATH"
@@ -271,6 +299,143 @@ jobs:
           path: ${{ env.ARTIFACT_ZIP }}
           if-no-files-found: error
 
+      - name: Package Sparkle Update
+        run: |
+          set -euo pipefail
+          rm -rf "$UPDATE_DIR"
+          mkdir -p "$APPCAST_INPUT_DIR"
+          # Sparkle archives hold the app alone; the release zip also carries the changelog and bill of materials.
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$APP_PATH" \
+            "${APPCAST_INPUT_DIR}/${UPDATE_ARCHIVE_NAME}"
+          cp "$CHANGELOG_PATH" "${APPCAST_INPUT_DIR}/${UPDATE_NOTES_NAME}"
+          ls -lh "${APPCAST_INPUT_DIR}/${UPDATE_ARCHIVE_NAME}" "${APPCAST_INPUT_DIR}/${UPDATE_NOTES_NAME}"
+
+      - name: Download Existing Sparkle Updates
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # The fresh archive is copied back last so it wins over a same-named archive from an earlier attempt.
+          cp "${APPCAST_INPUT_DIR}/${UPDATE_ARCHIVE_NAME}" "$RUNNER_TEMP/${UPDATE_ARCHIVE_NAME}"
+          cp "${APPCAST_INPUT_DIR}/${UPDATE_NOTES_NAME}" "$RUNNER_TEMP/${UPDATE_NOTES_NAME}"
+          if gh release view "$UPDATE_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            EXISTING_DIR="$RUNNER_TEMP/existing-sparkle-updates"
+            mkdir -p "$EXISTING_DIR"
+            gh release download "$UPDATE_RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --pattern 'token-torch-update-v*.zip' \
+              --pattern 'token-torch-update-v*.md' \
+              --dir "$EXISTING_DIR"
+            cp "$EXISTING_DIR"/* "$APPCAST_INPUT_DIR"/
+          fi
+          cp "$RUNNER_TEMP/${UPDATE_ARCHIVE_NAME}" "${APPCAST_INPUT_DIR}/${UPDATE_ARCHIVE_NAME}"
+          cp "$RUNNER_TEMP/${UPDATE_NOTES_NAME}" "${APPCAST_INPUT_DIR}/${UPDATE_NOTES_NAME}"
+
+      - name: Validate Sparkle Build Number
+        run: |
+          set -euo pipefail
+          EXISTING_APPCAST="$RUNNER_TEMP/appcast.xml"
+          HTTP_STATUS="$(curl --silent --show-error --location "$APPCAST_URL" --output "$EXISTING_APPCAST" --write-out '%{http_code}')"
+          if [[ "$HTTP_STATUS" == "200" ]]; then
+            LATEST_BUILD="$(python3 - "$EXISTING_APPCAST" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          namespace = {"sparkle": "http://www.andymatuschak.org/xml-namespaces/sparkle"}
+          root = ET.parse(sys.argv[1]).getroot()
+          versions = [
+              int(element.text)
+              for element in root.findall(".//sparkle:version", namespace)
+              if element.text and element.text.isdigit()
+          ]
+          print(max(versions, default=0))
+          PY
+          )"
+            if (( BUILD_NUMBER <= LATEST_BUILD )); then
+              echo "Build $BUILD_NUMBER must be newer than appcast build $LATEST_BUILD" >&2
+              exit 1
+            fi
+          elif [[ "$HTTP_STATUS" == "404" ]]; then
+            echo "No published appcast found; treating this as the first Sparkle release"
+          else
+            echo "Appcast request returned HTTP $HTTP_STATUS" >&2
+            exit 1
+          fi
+
+      - name: Generate Signed Sparkle Appcast
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          : "${SPARKLE_ED_PRIVATE_KEY:?Missing SPARKLE_ED_PRIVATE_KEY secret}"
+          GENERATE_APPCAST="$PACKAGE_CACHE_DIR/artifacts/sparkle/Sparkle/bin/generate_appcast"
+          # The private key reaches generate_appcast on standard input only, never as an argument or a file.
+          printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | "$GENERATE_APPCAST" \
+            --ed-key-file - \
+            --download-url-prefix "https://github.com/${GITHUB_REPOSITORY}/releases/download/${UPDATE_RELEASE_TAG}/" \
+            --embed-release-notes \
+            --maximum-deltas 0 \
+            --maximum-versions 0 \
+            -o "$APPCAST_PATH" \
+            "$APPCAST_INPUT_DIR"
+
+      - name: Validate Sparkle Appcast
+        run: |
+          set -euo pipefail
+          MINIMUM_SYSTEM_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$APP_PATH/Contents/Info.plist")"
+          python3 - "$APPCAST_PATH" "$APP_VERSION" "$BUILD_NUMBER" "$UPDATE_ARCHIVE_NAME" "$MINIMUM_SYSTEM_VERSION" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          path, expected_version, expected_build, expected_archive, expected_minimum_system = sys.argv[1:]
+          sparkle = "http://www.andymatuschak.org/xml-namespaces/sparkle"
+          namespace = {"sparkle": sparkle}
+          appcast_text = open(path, encoding="utf-8").read()
+          root = ET.parse(path).getroot()
+          items = [
+              item
+              for item in root.findall(".//item")
+              if item.findtext("sparkle:version", namespaces=namespace) == expected_build
+              and item.findtext("sparkle:shortVersionString", namespaces=namespace) == expected_version
+          ]
+          if len(items) != 1:
+              raise SystemExit("Expected exactly one current update in the appcast")
+          item = items[0]
+          enclosure = item.find("enclosure")
+          if enclosure is None:
+              raise SystemExit("Current update has no enclosure")
+          url = enclosure.get("url", "")
+          if not url.startswith("https://") or not url.endswith("/" + expected_archive):
+              raise SystemExit(f"Unexpected enclosure URL: {url}")
+          if not enclosure.get("{%s}edSignature" % sparkle):
+              raise SystemExit("Current update is missing its EdDSA signature")
+          minimum_system = item.findtext("sparkle:minimumSystemVersion", namespaces=namespace)
+          hardware = item.findtext("sparkle:hardwareRequirements", namespaces=namespace)
+          if minimum_system != expected_minimum_system or hardware != "arm64":
+              raise SystemExit(f"Unexpected platform requirements: minimum {minimum_system}, hardware {hardware}")
+          if "<!-- sparkle-signatures:" not in appcast_text or "edSignature:" not in appcast_text:
+              raise SystemExit("Appcast is missing its signed-feed signature")
+          PY
+          xmllint --noout "$APPCAST_PATH"
+          ls -lh "$APPCAST_PATH"
+
+      - name: Stage Sparkle Publication
+        run: |
+          set -euo pipefail
+          rm -rf "$UPDATE_PUBLICATION_DIR"
+          mkdir -p "$UPDATE_PUBLICATION_DIR"
+          cp "$APPCAST_PATH" "$UPDATE_PUBLICATION_DIR/appcast.xml"
+          cp "${APPCAST_INPUT_DIR}/${UPDATE_ARCHIVE_NAME}" "$UPDATE_PUBLICATION_DIR/${UPDATE_ARCHIVE_NAME}"
+          cp "${APPCAST_INPUT_DIR}/${UPDATE_NOTES_NAME}" "$UPDATE_PUBLICATION_DIR/${UPDATE_NOTES_NAME}"
+
+      - name: Upload Sparkle Publication Artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: sparkle-${{ env.RELEASE_NAME }}
+          path: ${{ env.UPDATE_PUBLICATION_DIR }}
+          if-no-files-found: error
+
       - name: Create GitHub Release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
@@ -292,6 +457,32 @@ jobs:
             --title "Token Torch ${APP_VERSION}" \
             --notes-file "$CHANGELOG_PATH"
 
+      - name: Publish Sparkle Update Assets
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          UPDATE_ARCHIVE_PATH="${UPDATE_PUBLICATION_DIR}/${UPDATE_ARCHIVE_NAME}"
+          UPDATE_NOTES_PATH="${UPDATE_PUBLICATION_DIR}/${UPDATE_NOTES_NAME}"
+          if gh release view "$UPDATE_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$UPDATE_RELEASE_TAG" \
+              "$UPDATE_ARCHIVE_PATH" \
+              "$UPDATE_NOTES_PATH" \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+          else
+            gh release create "$UPDATE_RELEASE_TAG" \
+              "$UPDATE_ARCHIVE_PATH" \
+              "$UPDATE_NOTES_PATH" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "Sparkle Update Assets" \
+              --notes "Update archives for the Sparkle appcast. Download releases from the versioned release pages instead." \
+              --prerelease \
+              --latest=false
+          fi
+
       - name: Clean Up Signing Keychain
         if: always()
         run: |
@@ -300,3 +491,42 @@ jobs:
             security delete-keychain "$KEYCHAIN_PATH"
           fi
           rm -f "$RUNNER_TEMP/AuthKey.p8"
+
+  pages:
+    name: Publish Sparkle Appcast
+    # Runs after the release job has published the update archive, so the feed never points at a missing file.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Download Sparkle Publication Artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: sparkle-${{ needs.release.outputs.release_name }}
+          path: sparkle
+
+      - name: Prepare Pages Artifact
+        run: |
+          set -euo pipefail
+          mkdir -p pages
+          cp sparkle/appcast.xml pages/appcast.xml
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload GitHub Pages Artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: pages
+
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

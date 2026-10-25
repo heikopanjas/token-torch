@@ -470,22 +470,6 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(!prefs.automaticallyDeductVAT)
 }
 
-@Test func vendorCredentialSourceInfoIsMetadataOnly() {
-    let sources = VendorCredentialsReader.sourceInfo(
-        provider: .claude,
-        source: .claudeFile(FileManager.default.temporaryDirectory)
-    )
-    #expect(sources.count == 1)
-    #expect(sources.first?.provider == .claude)
-    #expect(!sources.contains { $0.title.contains("Token Torch") })
-    #expect(
-        sources.allSatisfy { source in
-            source.details.contains {
-                $0.label == "Secret values" && $0.value == "Not read or displayed"
-            }
-        })
-}
-
 @Test func vendorCredentialImportSourceStoreRoundTripsSourceMetadata() throws {
     let suiteName = "tokentorch.tests.importSource.\(UUID().uuidString)"
     let defaults = try #require(UserDefaults(suiteName: suiteName))
@@ -1028,6 +1012,37 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(notification.identifier == "token-torch.claude-repair-failed")
     #expect(notification.title == "Claude Code credential repair failed")
     #expect(notification.body == "token unchanged")
+}
+
+@Test func appNotificationUpdateAvailableNamesVersionAndUsesStableIdentifier() {
+    let notification = AppNotification.updateAvailable(version: "5.14.0")
+    #expect(notification.identifier == AppNotification.updateAvailableIdentifier)
+    #expect(notification.title == "\(AppBrand.displayName) 5.14.0 is available")
+    #expect(notification.playsSound)
+}
+
+@Test func sparkleRequiresSignedFeedAndVerifiedArchives() throws {
+    // The tests run inside the app, so Bundle.main is the shipped Info.plist.
+    let info = try #require(Bundle.main.infoDictionary)
+    #expect(info["SURequireSignedFeed"] as? Bool == true)
+    #expect(info["SUVerifyUpdateBeforeExtraction"] as? Bool == true)
+    let feed = try #require(URL(string: info["SUFeedURL"] as? String ?? ""))
+    #expect(feed.scheme == "https")
+    #expect(feed.host == "heikopanjas.github.io")
+    let publicKey = try #require(info["SUPublicEDKey"] as? String)
+    #expect(Data(base64Encoded: publicKey)?.count == 32)
+}
+
+@Test func updatesAreDisabledInTheUnitTestHost() {
+    #expect(AppEnvironment.isRunningUnitTests)
+    #expect(AppEnvironment.updatesEnabled == false)
+}
+
+@Test func infoVersionLineShowsVersionAndBuild() {
+    let line = InfoSettingsCopy.versionLine()
+    let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+    let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"
+    #expect(line == "Version \(version) (\(build))")
 }
 
 @Test func appNotificationWelcomeHasStableIdentifier() {

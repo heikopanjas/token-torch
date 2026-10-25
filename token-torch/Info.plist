@@ -28,5 +28,13 @@
     <true />
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Heiko Panjas</string>
+    <key>SUFeedURL</key>
+    <string>https://heikopanjas.github.io/token-torch/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>udocTd9w7ua8hEkqyoZNeg6iSwBmf5btpHZI5tYC75U=</string>
+    <key>SURequireSignedFeed</key>
+    <true />
+    <key>SUVerifyUpdateBeforeExtraction</key>
+    <true />
   </dict>
 </plist>

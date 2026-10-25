@@ -4,6 +4,28 @@ This file is the append-only log of project decisions and notable changes, maint
 
 <!-- {changelog} -->
 
+### 2026-10-25 21:45 (v5.14.0, sparkle automatic updates)
+
+- release builds update themselves with sparkle 2 (spm, `upToNextMajorVersion` from 2.10.0, pinned to 2.10.0; 2.10.1 was published the same day and skipped): one `AppUpdater` owns the `SPUStandardUpdaterController`; the updater starts only in release builds outside the unit-test host (`AppEnvironment`)
+- scheduled checks use sparkle's gentle reminders, because the app has no dock icon: an update not shown in immediate focus is announced with an `updateAvailable` notification, and clicking it brings sparkle's window to the front; the app switches to `.regular` while sparkle shows a window
+- signed updates only: `SUPublicEDKey`, `SURequireSignedFeed` and `SUVerifyUpdateBeforeExtraction` in info.plist, guarded by a unit test; the key is in the login keychain under `com.panjas.tokentorch`, and the private key is the `SPARKLE_ED_PRIVATE_KEY` secret
+- the release workflow packages an app-only update archive, validates the build number against the live appcast, generates and validates the signed appcast, publishes archives to the `sparkle-updates` prerelease, and deploys only `appcast.xml` to github pages in a separate job after the archive exists
+- both workflows now use `github.run_id` as `CFBundleVersion`; `GITHUB_RUN_NUMBER` counts per workflow, so a prerelease could outrank the next release and never be updated
+- every `xcodebuild` call passes `-clonedSourcePackagesDirPath .build/SourcePackages` so sparkle's tools have a fixed path; the bom lists the `Package.resolved` pins; the release changelog starts at the previous `v*` tag
+- **About…** stays in the status menu and the app menu but opens settings on the **Info** tab, which now shows the app icon, version and build, copyright, **Check for Updates…**, and sparkle's automatic check and download toggles; the standard about panel and its window tracking are gone; there is no update menu item
+- removed the info tab's vendor credential source list and its code (`VendorCredentialSourceInfo`, `vendorCredentialSourceInfo()`, keychain metadata types); `VendorCredentialImportSourceStore` stays because claude repair uses it, and keychain account discovery now uses `KeychainReader.genericPasswordAccounts(service:)`
+- fixed `AppActions.settingsWindow` being nil after settings was closed once, which would have let an ending update session hide a reopened settings window
+- verified locally end to end: a 5.14.0 build 100 updated itself to build 200 from a locally served, signed appcast
+- rationale, by user decision: automatic updates instead of manual downloads; the about details and update controls live in one place; the vendor source list was a debugging aid that is no longer needed
+- version bump: 5.13.0 to 5.14.0 (MINOR - new automatic update feature; the removed source list was a diagnostic display that no workflow depended on, so it is not treated as a breaking change); 5.14.0 is the first sparkle release, so earlier versions need one manual install
+
+### 2026-10-25 18:30 (v5.13.0, correction: 5.13.0 was already released)
+
+- correction: v5.13.0 was released on 2026-10-08 (pr #15), so today's entries that say "lands in the unreleased 5.13.0" are wrong; those changes (shared notarization profile, ci api key notarization, team id from export options, ad-hoc signed ci tests) were merged to main after the release
+- the post-merge release run for pr #16 notarized successfully with the app store connect api key, then stopped at create github release because tag v5.13.0 already exists; no release was created or changed
+- by user decision there is no new release: the merge changed only ci and build tooling, and a red release run after a merge without a version bump is expected
+- rationale for the mistake: the version check used local tags that had not been fetched; run `git fetch --tags` before deciding whether a version is released
+
 ### 2026-10-25 18:00 (v5.13.0, ad-hoc signed ci unit tests)
 
 - ci unit tests in both workflows run ad-hoc signed (`CODE_SIGN_IDENTITY=-`, empty `DEVELOPMENT_TEAM`, `ENABLE_HARDENED_RUNTIME=NO`) instead of with the developer id certificate; the test step no longer gets `APPLE_SIGNING_IDENTITY`
