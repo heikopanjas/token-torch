@@ -22,6 +22,18 @@ extension AppNotification {
         playsSound: false
     )
 
+    /// Stable so the notification delegate can route a click to the pending update.
+    public static let updateAvailableIdentifier = "token-torch.update-available"
+
+    /// Gentle reminder for an update found by a scheduled check; clicking it brings Sparkle's window to the front.
+    public static func updateAvailable(version: String) -> AppNotification {
+        return AppNotification(
+            identifier: Self.updateAvailableIdentifier,
+            title: "\(AppBrand.displayName) \(version) is available",
+            body: "Click to review and install the update."
+        )
+    }
+
     public static func claudeRepairFailed(message: String) -> AppNotification {
         AppNotification(
             identifier: "token-torch.claude-repair-failed",

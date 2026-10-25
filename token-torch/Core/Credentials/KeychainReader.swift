@@ -35,34 +35,16 @@ enum KeychainReader {
         }
     }
 
-    /// Enumerates generic-password attributes only. This never requests secret data and never prompts.
-    static func genericPasswordMetadata(service: String) -> KeychainMetadataQueryResult {
+    /// Lists the account names stored under `service`. Reads attributes only: it never requests secret data and never prompts.
+    static func genericPasswordAccounts(service: String) -> [String] {
         var query = baseQuery(service: service, account: nil)
         query[kSecReturnAttributes as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitAll
         query[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUISkip
 
         var result: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess else {
-            return KeychainMetadataQueryResult(status: status, items: [])
-        }
-
-        let items = (result as? [[String: Any]] ?? []).map { item in
-            KeychainGenericPasswordMetadata(
-                service: stringAttribute(item, kSecAttrService) ?? service,
-                account: stringAttribute(item, kSecAttrAccount),
-                label: stringAttribute(item, kSecAttrLabel),
-                itemDescription: stringAttribute(item, kSecAttrDescription),
-                comment: stringAttribute(item, kSecAttrComment),
-                createdAt: item[kSecAttrCreationDate as String] as? Date,
-                modifiedAt: item[kSecAttrModificationDate as String] as? Date,
-                accessible: stringAttribute(item, kSecAttrAccessible),
-                accessGroup: stringAttribute(item, kSecAttrAccessGroup),
-                synchronizable: boolAttribute(item, kSecAttrSynchronizable)
-            )
-        }
-        return KeychainMetadataQueryResult(status: status, items: items)
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess else { return [] }
+        return (result as? [[String: Any]] ?? []).compactMap { stringAttribute($0, kSecAttrAccount) }
     }
 
     static func saveGenericPassword(service: String, account: String, value: String) throws {
@@ -145,15 +127,5 @@ enum KeychainReader {
         guard let value = item[key as String] else { return nil }
         let string = String(describing: value)
         return string.isEmpty ? nil : string
-    }
-
-    private static func boolAttribute(_ item: [String: Any], _ key: CFString) -> Bool? {
-        if let value = item[key as String] as? Bool {
-            return value
-        }
-        if let value = item[key as String] as? NSNumber {
-            return value.boolValue
-        }
-        return nil
     }
 }

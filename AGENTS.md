@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-10-25 (notarization uses an App Store Connect API key locally and in CI)
+Last updated: 2026-10-25 (Sparkle automatic updates; About opens the Info tab; vendor credential source list removed)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -57,13 +57,23 @@ Local notarization uses the keychain profile `developer-id-notary`. It holds an 
 
 ### CI release workflows
 
-- `.github/workflows/build.yml`: signed Developer ID release build for pushes and pull requests on `develop` and `feature/**`; uploads the exported app zip and creates a GitHub prerelease on non-PR runs. Prerelease tags and zip files use `token-torch-build-<run>-<yyyymmdd-hhmmss>`.
+- `.github/workflows/build.yml`: signed Developer ID release build for pushes and pull requests on `develop` and `feature/**`; uploads the exported app zip and creates a GitHub prerelease on non-PR runs. Prerelease tags and zip files use `token-torch-build-<run>-<yyyymmdd-hhmmss>`, where `<run>` is the workflow's run number.
+- **Build numbers:** both workflows set `CURRENT_PROJECT_VERSION` (`CFBundleVersion`) to `github.run_id`, never `GITHUB_RUN_NUMBER`. Sparkle offers an update only when the build number is higher, and `GITHUB_RUN_NUMBER` counts each workflow file separately, so a prerelease could carry a higher number than the next release and never be updated. `run_id` is unique across the repository's workflows and increases over time. Local `build.sh` builds keep the project's build number 1. Never set a build number by hand.
+- **Swift packages:** every `xcodebuild` call in `build.sh` and both workflows passes `-clonedSourcePackagesDirPath .build/SourcePackages`. Sparkle's tools must sit at the fixed path `.build/SourcePackages/artifacts/sparkle/Sparkle/bin/` (`generate_appcast`, `generate_keys`); otherwise they land in an opaque Derived Data path on CI runners (senor-particle commit `114e07f`). `release.yml` resolves packages first and checks `generate_appcast` with `test -x`.
 - `.github/workflows/release.yml`: signed Developer ID release build + Apple notarization for pull requests to `main`; on pushes to `main`, creates the `v$(cat VERSION)` GitHub release only after notarization succeeds and refuses to overwrite an existing tag or release. Release zip files use `token-torch-v<version>`.
-- Both workflows generate `CHANGELOG.md` and `BILL_OF_MATERIALS.md` and include them inside the release zip.
+- Both workflows generate `CHANGELOG.md` and `BILL_OF_MATERIALS.md` and include them inside the release zip. The BOM lists every `Package.resolved` pin under Dependencies. The release changelog starts at the previous `v*` tag (`--match 'v[0-9]*'`), so the `sparkle-updates` tag never becomes its base.
+- **Sparkle publishing (`release.yml`):** after notarization, the release job:
+  - packages an app-only update archive `token-torch-update-v<version>.zip` (`ditto --sequesterRsrc --keepParent`) with `CHANGELOG.md` as `token-torch-update-v<version>.md`;
+  - downloads the earlier archives from the `sparkle-updates` prerelease;
+  - fails if the new build number is not higher than every `sparkle:version` in the live appcast (HTTP 404 means the first Sparkle release);
+  - runs `generate_appcast` with the `SPARKLE_ED_PRIVATE_KEY` secret on standard input (`--ed-key-file -`), `--embed-release-notes`, `--maximum-deltas 0` and `--maximum-versions 0`;
+  - validates the signed feed (one current item, https enclosure, EdDSA signature, `minimumSystemVersion` from the app's `LSMinimumSystemVersion`, `arm64`, feed signature) and uploads it as the `sparkle-<release>` artifact.
+
+  PR runs stop there. On pushes to `main`, "Publish Sparkle Update Assets" uploads the archive and notes to the `sparkle-updates` prerelease (created with `--prerelease --latest=false`; never mark it latest) after the `v<version>` release exists. A separate `pages` job (`needs: release`) then deploys only `appcast.xml` to GitHub Pages (`https://heikopanjas.github.io/token-torch/appcast.xml`). Update archives must be published before the feed, and the release job's tag-exists guard keeps the feed unchanged on merges without a version bump. Delta updates stay off until several Sparkle releases exist.
 - Both workflows run `xcodebuild test` on the `token-torchTests` target before archiving. The tests are ad-hoc signed (`CODE_SIGN_IDENTITY=-`, empty `DEVELOPMENT_TEAM`, `ENABLE_HARDENED_RUNTIME=NO`) and get no signing secrets, as in senor-particle. Hardened runtime is off because its library validation could reject the ad-hoc test bundle loaded into the test host app. The entitlements file is empty and the keychain test uses an in-memory store, so the suite needs no real signature.
 - Both workflows use the `macos-26` GitHub runner image for the current Xcode/Swift toolchain.
-- Standard GitHub actions in these workflows use Node 24 compatible major versions (`actions/checkout@v6`, `actions/upload-artifact@v6`) to avoid runner deprecation warnings.
-- Required GitHub repository secrets: `APPLE_CERTIFICATE_P12_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, and `APPLE_SIGNING_IDENTITY` in both workflows. `release.yml` also needs `APPSTORE_CONNECT_KEY_ID`, `APPSTORE_CONNECT_ISSUER_ID`, and `APPSTORE_CONNECT_KEY_P8_BASE64` for notarization. `APPLE_TEAM_ID`, `APPLE_ID`, and `APPLE_ID_PASSWORD` are no longer used.
+- Standard GitHub actions in these workflows use Node 24 compatible major versions (`actions/checkout@v6`, `actions/upload-artifact@v6`, `actions/download-artifact@v8`, `actions/configure-pages@v5`, `actions/upload-pages-artifact@v4`, `actions/deploy-pages@v4`) to avoid runner deprecation warnings.
+- Required GitHub repository secrets: `APPLE_CERTIFICATE_P12_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, and `APPLE_SIGNING_IDENTITY` in both workflows. `release.yml` also needs `APPSTORE_CONNECT_KEY_ID`, `APPSTORE_CONNECT_ISSUER_ID`, and `APPSTORE_CONNECT_KEY_P8_BASE64` for notarization, and `SPARKLE_ED_PRIVATE_KEY` for signing the appcast. GitHub Pages must use **GitHub Actions** as its source, and the `github-pages` environment's deployment branches must include `main`. GitHub only adds the default branch (`develop`) when Pages is enabled; without `main`, the `pages` job is rejected. `APPLE_TEAM_ID`, `APPLE_ID`, and `APPLE_ID_PASSWORD` are no longer used.
 - The team ID is not a secret. Each workflow's "Read Version" step reads it from `exportOptions.plist` (`PlistBuddy -c 'Print :teamID'`) into `DEVELOPMENT_TEAM` in `GITHUB_ENV`, and the archive step passes `DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM"`. `exportOptions.plist` is the single source for the team ID, as in senor-particle.
 - Release notarization authenticates `notarytool` with the App Store Connect API key. This follows the senor-particle / AranetKit pattern: the base64 `.p8` is decoded to `$RUNNER_TEMP/AuthKey.p8` (mode 600), `notarytool submit --wait --timeout 30m --output-format json` runs, and the step fails unless the exit code is 0 **and** the JSON status is `Accepted`. On failure it prints `notarytool log` for the submission. The always-run cleanup step deletes the key file along with the signing keychain.
 - CI imports the Developer ID `.p12` into a temporary keychain and runs the archive, export, notarize, staple, verify, package, and upload commands as separate workflow steps for debuggable logs.
@@ -171,7 +181,7 @@ VERSION                    # Release version source of truth
 **Strategies** (`VendorCredentialImporter`):
 
 - Menu bar app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider; routine quota refresh reads only the Token Torch copy
-- Settings **Info** tab lists vendor credential source metadata for transparency. It shows enabled subscription providers that have a Token Torch-owned credential copy and the non-secret vendor source recorded at import time; it must never display raw token/API-key values.
+- `VendorCredentialImportSourceStore` records the non-secret vendor source of each import (`CredentialSource`). Claude repair reads it to pick the matching `CLAUDE_CONFIG_DIR` and to label diagnostics. The Settings Info tab no longer lists these sources: that was a debugging aid, removed in 5.14.0.
 - Vendor-owned Keychain secret fallbacks for Claude Code, Codex, and Cursor run the timeout-bound `/usr/bin/security find-generic-password` tool during both automatic and interactive imports. File/SQLite sources remain preferred. Security.framework still performs metadata-only account enumeration, Token Torch-owned reads, and all writes/deletes. The CLI changes the requesting identity but has no equivalent to `kSecUseAuthenticationUISkip`, so startup/timer imports may still show an authorization dialog.
 - Claude Code repair checks the shared file/Keychain sources, selects the config directory for the imported credential source (`CLAUDE_CONFIG_DIR`), then launches one `/bin/zsh` process in a controlling-terminal pseudo-terminal (PTY) that runs `CLAUDE_CONFIG_DIR="$2" ANTHROPIC_API_KEY="" exec "$1" -p "/usage"` when a newer usable session is unavailable, and saves only Token Torch's own credential copy. The config directory, empty-key assignment, and Claude invocation must share that process and environment; do not replace this with parent-side environment filtering or separate subprocesses. Claude must see a real controlling terminal (`ProcessRunner.runInPseudoTerminal` via `PseudoTerminalChildBootstrap` with `POSIX_SPAWN_SETSID` + `TIOCSCTTY`); ordinary pipes or TTY-without-session are insufficient for credential refresh. The command exists solely to trigger Claude Code's subscription credential refresh: secret-safe diagnostics and redacted terminal output may be retained only in the in-memory repair error and shown in the menu's copyable error row when repair fails; they must never be parsed, mapped, persisted, logged, used for app usage display, or included in desktop notifications. Manual Refresh always attempts repair on auth failure. Automatic repair runs only if `ProviderPreferences.claudeAutomaticRepair` is enabled (default off; Claude Settings tab). When that opt-in is enabled and the silent importer cannot authorize, the orchestrator falls through to the repair provider instead of returning a needs-authorization notice. Repair must never print token values or consume Claude Code's `refreshToken` directly. The `claude` executable is located via `ProviderPreferences.claudeCLIPath` when set, else PATH. Background repair failures can post a desktop notification when `ProviderPreferences.notifyOnRepairFailure` is enabled (default on).
 
@@ -186,8 +196,8 @@ VERSION                    # Release version source of truth
 - `UsageResponseCapture` / `JSONPrettyPrinter` — headless `--capture-usage-responses <directory>` mode and its lossless re-indenter (see Configuration)
 - `DateRange` — flexible date parsing, RFC 3339, inclusive end boundaries
 - `Redaction` — secret redaction for user-visible output
-- `KeychainReader` — Security.framework access for Token Torch-owned secrets, metadata-only enumeration, writes, exact deletes, and prefix reset; never reads vendor-owned secret data
-- `VendorCredentialSourceInfo` / `VendorCredentialImportSourceStore` / `VendorCredentialsReader.vendorCredentialSourceInfo()` — metadata-only source inventory for Settings Info tab; filters to enabled providers with Token Torch-owned credential copies, reads non-secret import-source metadata, and uses Keychain attributes-only queries with UI skipped. Advanced Keychain reset must clear both `VendorCredentialCache` and `VendorCredentialImportSourceStore` so the following interactive refresh truly re-imports vendor credentials.
+- `KeychainReader` — Security.framework access for Token Torch-owned secrets, account-name enumeration (`genericPasswordAccounts(service:)`, attributes only with UI skipped), writes, exact deletes, and prefix reset; never reads vendor-owned secret data
+- `VendorCredentialImportSourceStore` — non-secret record of the vendor source each subscription credential was imported from (UserDefaults, `tokentorch.vendorImportSource.<provider>`); used by Claude repair. Advanced Keychain reset must clear both `VendorCredentialCache` and `VendorCredentialImportSourceStore` so the following interactive refresh truly re-imports vendor credentials.
 
 Anthropic usage requests pass `group_by[]=model&group_by[]=workspace_id` for per-model cost calculation.
 
@@ -293,15 +303,39 @@ Scrolling is already built in: panes build their content in `SettingsPaneViewCon
 
 **The General tab is the one exception that cannot just "make it scroll."** `SettingsWindowController.init` sets `generalController` as the window's initial `contentViewController` before any `fitWindow` call, so `SettingsStyle.generalPaneHeight` **is** the window's content height at launch — raising it to fit new content grows the window every launch, not just that tab. A feature that needs new General-tab controls belongs on its own toolbar tab instead (see the Notifications tab, added for usage-threshold alerts) rather than extending `generalPaneHeight`.
 
-### About panel
+### About and the Info tab
 
-- **About…** lives in the status menu (`MenuBuilder.appendCommandItems`) and the app menu (`AppDelegate.setupMainMenu`), not in Settings.
-- Uses the standard macOS About panel via `AppActions.showAbout()` → `NSApplication.orderFrontStandardAboutPanel`; version/copyright come from `Info.plist` (`MARKETING_VERSION`, `NSHumanReadableCopyright`).
-- Status-menu About temporarily switches activation to `.regular` so the panel is key while the app is otherwise an accessory (`LSUIElement`); closing the About panel restores `.accessory` unless Settings is still visible (same helper as Settings close).
+- **About…** stays in the status menu (`MenuBuilder.appendCommandItems`) and the app menu (`AppDelegate.setupMainMenu`). Both call `AppActions.showAbout()`, which posts `AppActions.openAboutNotification`. `SettingsWindowController` answers by switching to the **Info** tab and showing the window. There is no standard macOS About panel; do not reintroduce `orderFrontStandardAboutPanel`.
+- The Info tab (`InfoSettingsViewController`, copy in `InfoSettingsCopy`) shows:
+  - the app icon, name, `Version <CFBundleShortVersionString> (<CFBundleVersion>)` and `NSHumanReadableCopyright`;
+  - the update controls (see "Automatic updates").
+- `SettingsWindowController.show()` registers its window in `AppActions.settingsWindow` every time, because `windowWillClose` clears it. `AppActions.restoreAccessoryActivationIfNeeded()` returns to `.accessory` only when neither Settings nor a Sparkle update session (`AppActions.isUpdateSessionActive`) is visible.
+
+### Automatic updates (Sparkle)
+
+- Sparkle 2 via Swift Package Manager.
+- One `AppUpdater` (`token-torch/MenuBar/AppUpdater.swift`), created in `AppDelegate.bootstrap()`, owns the single `SPUStandardUpdaterController`. It is passed to `SettingsWindowController` and the Info tab, and reachable as `AppActions.updater` for the notification delegate.
+- **When the updater starts:** only when `AppEnvironment.updatesEnabled`, i.e. a Release build outside the unit-test host (`AppEnvironment.isRunningUnitTests`, `isDebugBuild`). Debug builds never check, so a dev build is never replaced by the published release. The Info tab's controls are disabled there and its hint says so.
+- **Info tab controls:** "Check for Updates…" (enabled state bound to `SPUUpdater.canCheckForUpdates`), plus "Automatically check for updates" and "Automatically download and install updates". The toggles read and write Sparkle's own `automaticallyChecksForUpdates` / `automaticallyDownloadsUpdates`; do not duplicate them in `ProviderPreferences`. `SUEnableAutomaticChecks` stays out of `Info.plist` so Sparkle's second-launch consent prompt remains. There is no update item in the menus.
+- **Gentle reminders:** the app has no Dock icon, so scheduled checks use Sparkle's gentle reminders (`supportsGentleScheduledUpdateReminders`). When Sparkle doesn't show an update in immediate focus, `AppNotification.updateAvailable(version:)` (identifier `token-torch.update-available`) announces it. `AppDelegate`'s `didReceive` handler routes a click to `AppActions.showPendingUpdate()` → `checkForUpdates()`, which brings Sparkle's window to the front. Whenever Sparkle shows a window, the app switches to `.regular`; `standardUserDriverWillFinishUpdateSession` restores `.accessory`.
+- **Security:**
+  - `Info.plist` carries `SUFeedURL` (GitHub Pages), `SUPublicEDKey`, `SURequireSignedFeed` and `SUVerifyUpdateBeforeExtraction`.
+  - The app is not sandboxed, so there is no Installer Launcher service, no mach-lookup exceptions and no Downloader service.
+  - The EdDSA key pair lives in the login keychain under account `com.panjas.tokentorch`. The private key is in the `SPARKLE_ED_PRIVATE_KEY` secret plus an offline backup. **Never replace `SUPublicEDKey`** without a key-rotation plan: every installed copy trusts only that key.
+  - The unit test `sparkleRequiresSignedFeedAndVerifiedArchives` guards these keys.
+- **Version pin:** the requirement is `upToNextMajorVersion` from 2.10.0, and `Package.resolved` pins 2.10.0. Bump the pin deliberately, and avoid releases published in the last two weeks.
+- **Local end-to-end test** (no publishing):
+  1. Archive and export two Release builds with `CURRENT_PROJECT_VERSION` 100 and 200 (`-clonedSourcePackagesDirPath .build/SourcePackages`).
+  2. Zip build 200 with `ditto --sequesterRsrc --keepParent`.
+  3. Run `generate_appcast --account com.panjas.tokentorch --download-url-prefix http://127.0.0.1:8765/ …` on that folder and serve it with `python3 -m http.server 8765 --bind 127.0.0.1`.
+  4. Run `defaults write com.panjas.tokentorch SUFeedURL http://127.0.0.1:8765/appcast.xml`, launch build 100, and use Info → Check for Updates….
+  5. Afterwards run `defaults delete com.panjas.tokentorch SUFeedURL`.
+- 5.14.0 is the first Sparkle release. Users on 5.13.0 or earlier install it by hand once.
 
 ## Dependencies
 
 - **sqlite3** (system): read-only Cursor token lookup; linked via `OTHER_LDFLAGS = -lsqlite3` on the app target
+- **[Sparkle](https://github.com/sparkle-project/Sparkle)** 2.x (Swift Package Manager, pinned in `token-torch.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`): automatic updates, app target only (see "Automatic updates")
 - Core code has no third-party HTTP dependency beyond Foundation URLSession
 
 ## Best Practices

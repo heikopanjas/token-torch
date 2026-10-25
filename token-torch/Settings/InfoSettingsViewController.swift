@@ -1,11 +1,28 @@
 import AppKit
+import Sparkle
 
+/// Settings › Info: the app's About details and Sparkle's update controls. "About…" in the menus opens this tab.
 @MainActor
 final class InfoSettingsViewController: SettingsPaneViewController {
-    private var sectionLabel: NSTextField!
-    private var hintLabel: NSTextField!
-    private var refreshButton: NSButton!
-    private var textView: NSTextView!
+    private static let iconSide: CGFloat = 64
+    private static let iconTextGap: CGFloat = 16
+    private static let checkForUpdatesButtonWidth: CGFloat = 170
+
+    private let appUpdater: AppUpdater
+
+    private var checkForUpdatesButton: NSButton!
+    private var automaticChecksToggle: NSButton!
+    private var automaticDownloadsToggle: NSButton!
+
+    init(appUpdater: AppUpdater) {
+        self.appUpdater = appUpdater
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
     override var paneHeight: CGFloat { SettingsStyle.infoPaneHeight }
 
@@ -14,91 +31,108 @@ final class InfoSettingsViewController: SettingsPaneViewController {
         let h = self.paneHeight
         let x = SettingsStyle.contentPadding
         let controlW = w - 2 * x
-        var y = h - SettingsStyle.contentPadding - 16
+        var y = h - SettingsStyle.contentPadding - Self.iconSide
 
         let content = NSView(frame: NSRect(x: 0, y: 0, width: w, height: h))
 
-        sectionLabel = NSTextField(labelWithString: "Current Vendor Credential Sources")
-        sectionLabel.frame = NSRect(x: x, y: y, width: controlW, height: 16)
-        sectionLabel.autoresizingMask = [.minYMargin, .width]
-        content.addSubview(sectionLabel)
+        let iconView = NSImageView(frame: NSRect(x: x, y: y, width: Self.iconSide, height: Self.iconSide))
+        iconView.image = NSApp.applicationIconImage
+        iconView.imageScaling = .scaleProportionallyUpOrDown
+        iconView.autoresizingMask = [.minYMargin]
+        content.addSubview(iconView)
 
-        hintLabel = SettingsLayout.makeHintLabel(InfoSettingsCopy.vendorCredentialSourcesHint)
+        let textX = x + Self.iconSide + Self.iconTextGap
+        let textW = controlW - Self.iconSide - Self.iconTextGap
+        let nameLabel = NSTextField(labelWithString: AppBrand.displayName)
+        nameLabel.font = .boldSystemFont(ofSize: 18)
+        nameLabel.frame = NSRect(x: textX, y: y + 38, width: textW, height: 24)
+        nameLabel.autoresizingMask = [.minYMargin, .width]
+        content.addSubview(nameLabel)
+
+        let versionLabel = NSTextField(labelWithString: InfoSettingsCopy.versionLine())
+        versionLabel.frame = NSRect(x: textX, y: y + 18, width: textW, height: SettingsStyle.labelHeight)
+        versionLabel.autoresizingMask = [.minYMargin, .width]
+        versionLabel.isSelectable = true
+        content.addSubview(versionLabel)
+
+        let copyrightLabel = NSTextField(labelWithString: InfoSettingsCopy.copyrightLine())
+        copyrightLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        copyrightLabel.textColor = .secondaryLabelColor
+        copyrightLabel.frame = NSRect(x: textX, y: y, width: textW, height: SettingsStyle.labelHeight)
+        copyrightLabel.autoresizingMask = [.minYMargin, .width]
+        content.addSubview(copyrightLabel)
+
+        y -= 32 + SettingsStyle.labelHeight
+        content.addSubview(SettingsLayout.makeSectionLabel(InfoSettingsCopy.updatesSectionTitle, width: controlW, y: y))
+
+        y -= SettingsLayout.groupedControlGap + SettingsStyle.controlHeight
+        self.checkForUpdatesButton = SettingsLayout.makeRoundedButton(
+            title: InfoSettingsCopy.checkForUpdatesTitle,
+            width: Self.checkForUpdatesButtonWidth,
+            x: x,
+            y: y,
+            target: self,
+            action: #selector(self.checkForUpdates)
+        )
+        // Sparkle reports whether a check can start now; it stays false in Debug builds, where the updater never starts.
+        self.checkForUpdatesButton.bind(.enabled, to: self.appUpdater.updater, withKeyPath: #keyPath(SPUUpdater.canCheckForUpdates))
+        content.addSubview(self.checkForUpdatesButton)
+
+        y -= 12 + SettingsStyle.controlHeight
+        self.automaticChecksToggle = SettingsLayout.makeCheckbox(
+            title: InfoSettingsCopy.automaticChecksTitle,
+            width: controlW,
+            y: y,
+            target: self,
+            action: #selector(self.automaticChecksChanged)
+        )
+        content.addSubview(self.automaticChecksToggle)
+
+        y -= 4 + SettingsStyle.controlHeight
+        self.automaticDownloadsToggle = SettingsLayout.makeCheckbox(
+            title: InfoSettingsCopy.automaticDownloadsTitle,
+            width: controlW,
+            y: y,
+            target: self,
+            action: #selector(self.automaticDownloadsChanged)
+        )
+        content.addSubview(self.automaticDownloadsToggle)
+
+        let hintLabel = SettingsLayout.makeHintLabel(InfoSettingsCopy.updatesHint)
         let hintHeight = SettingsLayout.measuredHintHeight(hintLabel, width: controlW)
-        y -= 4 + hintHeight
+        y -= SettingsLayout.groupedControlGap + hintHeight
         hintLabel.frame = NSRect(x: x, y: y, width: controlW, height: hintHeight)
         content.addSubview(hintLabel)
-
-        y -= SettingsLayout.groupedControlGap + 22
-        refreshButton = NSButton(title: "Refresh Info", target: self, action: #selector(refreshInfo))
-        refreshButton.bezelStyle = .rounded
-        refreshButton.frame = NSRect(x: x, y: y, width: 110, height: 22)
-        refreshButton.autoresizingMask = [.minYMargin]
-        content.addSubview(refreshButton)
-
-        y -= 16
-        let scrollFrame = NSRect(x: x, y: SettingsStyle.contentPadding, width: controlW, height: max(y - SettingsStyle.contentPadding, 160))
-        let scroll = NSScrollView(frame: scrollFrame)
-        scroll.autoresizingMask = [.width, .height]
-        scroll.hasVerticalScroller = true
-        scroll.borderType = .bezelBorder
-
-        textView = NSTextView(frame: scroll.bounds)
-        textView.autoresizingMask = [.width, .height]
-        textView.isEditable = false
-        textView.isSelectable = true
-        textView.drawsBackground = false
-        textView.font = .monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
-        textView.textContainerInset = NSSize(width: 8, height: 8)
-        scroll.documentView = textView
-        content.addSubview(scroll)
 
         return content
     }
 
     override func viewWillAppear() {
         super.viewWillAppear()
-        refreshInfo()
+        self.refreshUpdatePreferences()
     }
 
-    @objc private func refreshInfo() {
-        textView.string = Self.format(VendorCredentialsReader.vendorCredentialSourceInfo())
+    @objc private func checkForUpdates() {
+        self.appUpdater.checkForUpdates()
     }
 
-    private static func format(_ sources: [VendorCredentialSourceInfo]) -> String {
-        guard sources.isEmpty == false else {
-            return """
-                No enabled subscription provider currently has an imported Token Torch credential copy.
+    @objc private func automaticChecksChanged() {
+        self.appUpdater.updater.automaticallyChecksForUpdates = self.automaticChecksToggle.state == .on
+        self.refreshUpdatePreferences()
+    }
 
-                Use Refresh or Reset subscription credentials on a provider tab to import credentials first.
-                Secret values are not displayed.
-                """
-        }
+    @objc private func automaticDownloadsChanged() {
+        self.appUpdater.updater.automaticallyDownloadsUpdates = self.automaticDownloadsToggle.state == .on
+        self.refreshUpdatePreferences()
+    }
 
-        var lines: [String] = [
-            "\(AppBrand.displayName) current vendor credential source metadata",
-            "Generated: \(ISO8601DateFormatter().string(from: Date()))",
-            "Secret values: not displayed",
-            ""
-        ]
-
-        var currentProvider: ProviderID?
-        for source in sources {
-            if currentProvider != source.provider {
-                currentProvider = source.provider
-                lines.append(source.provider.displayName)
-                lines.append(String(repeating: "-", count: source.provider.displayName.count))
-            }
-
-            lines.append("\(source.title)")
-            lines.append("  Type: \(source.kind.rawValue)")
-            lines.append("  Status: \(source.status)")
-            for detail in source.details {
-                lines.append("  \(detail.label): \(detail.value)")
-            }
-            lines.append("")
-        }
-
-        return lines.joined(separator: "\n")
+    /// Reads Sparkle's own persisted settings, so the toggles and Sparkle's second-launch prompt never disagree.
+    private func refreshUpdatePreferences() {
+        let updater = self.appUpdater.updater
+        let enabled = AppEnvironment.updatesEnabled
+        self.automaticChecksToggle.state = updater.automaticallyChecksForUpdates == true ? .on : .off
+        self.automaticDownloadsToggle.state = updater.automaticallyDownloadsUpdates == true ? .on : .off
+        self.automaticChecksToggle.isEnabled = enabled
+        self.automaticDownloadsToggle.isEnabled = enabled == true && updater.automaticallyChecksForUpdates == true
     }
 }

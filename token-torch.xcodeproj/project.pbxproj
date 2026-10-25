@@ -86,13 +86,16 @@
 		C0040000000000000079 /* TokenTorchError.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000078 /* TokenTorchError.swift */; };
 		C0040000000000000081 /* TokenTorchLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000080 /* TokenTorchLog.swift */; };
 		C0040000000000000083 /* TokenTorchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000082 /* TokenTorchTests.swift */; };
-		C004000000000000008A /* VendorCredentialSourceInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000008A /* VendorCredentialSourceInfo.swift */; };
+		C004000000000000008A /* VendorCredentialImportSourceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000008A /* VendorCredentialImportSourceStore.swift */; };
 		C0040000000000000099 /* CappedUsageRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000099 /* CappedUsageRows.swift */; };
 		C004000000000000009A /* UsageAlertEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000009A /* UsageAlertEvaluator.swift */; };
 		C004000000000000009B /* UsageResponseCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000009B /* UsageResponseCapture.swift */; };
 		C004000000000000009C /* JSONPrettyPrinter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000009C /* JSONPrettyPrinter.swift */; };
 		B00101000000000000000026 /* NotificationSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000026 /* NotificationSettingsViewController.swift */; };
 		B00101000000000000000027 /* NotificationSettingsCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00102000000000000000027 /* NotificationSettingsCopy.swift */; };
+		D00100000000000000000001 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = D00100000000000000000003 /* Sparkle */; };
+		D00100000000000000000012 /* AppEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00100000000000000000011 /* AppEnvironment.swift */; };
+		D00100000000000000000014 /* AppUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = D00100000000000000000013 /* AppUpdater.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -178,7 +181,7 @@
 		C0030000000000000078 /* TokenTorchError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTorchError.swift; sourceTree = "<group>"; };
 		C0030000000000000080 /* TokenTorchLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTorchLog.swift; sourceTree = "<group>"; };
 		C0030000000000000082 /* TokenTorchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTorchTests.swift; sourceTree = "<group>"; };
-		C003000000000000008A /* VendorCredentialSourceInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VendorCredentialSourceInfo.swift; sourceTree = "<group>"; };
+		C003000000000000008A /* VendorCredentialImportSourceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VendorCredentialImportSourceStore.swift; sourceTree = "<group>"; };
 		C0030000000000000099 /* CappedUsageRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CappedUsageRows.swift; sourceTree = "<group>"; };
 		C003000000000000009A /* UsageAlertEvaluator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageAlertEvaluator.swift; sourceTree = "<group>"; };
 		C003000000000000009B /* UsageResponseCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageResponseCapture.swift; sourceTree = "<group>"; };
@@ -186,6 +189,8 @@
 		B00102000000000000000026 /* NotificationSettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsViewController.swift; sourceTree = "<group>"; };
 		B00102000000000000000027 /* NotificationSettingsCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationSettingsCopy.swift; sourceTree = "<group>"; };
 		C0050000000000000084 /* token-torchTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "token-torchTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		D00100000000000000000011 /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
+		D00100000000000000000013 /* AppUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdater.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -193,6 +198,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D00100000000000000000001 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -266,6 +272,7 @@
 				B0010200000000000000000F /* UsageMenuItemViews.swift */,
 				B00102000000000000000010 /* MenuBuilder.swift */,
 				B00102000000000000000011 /* StatusItemController.swift */,
+				D00100000000000000000013 /* AppUpdater.swift */,
 				B00102000000000000000019 /* MenuBarStatusIcon.swift */,
 				B0010200000000000000001F /* NetworkManager.swift */,
 			);
@@ -319,7 +326,7 @@
 				C0030000000000000011 /* TokenTorchVendorCredentialStore.swift */,
 				C0030000000000000013 /* VendorCredentialCache.swift */,
 				C0030000000000000015 /* VendorCredentialImporter.swift */,
-				C003000000000000008A /* VendorCredentialSourceInfo.swift */,
+				C003000000000000008A /* VendorCredentialImportSourceStore.swift */,
 				C0030000000000000019 /* VendorCredentialsReader.swift */,
 				C0030000000000000090 /* ClaudeCredentialPaths.swift */,
 				C0030000000000000091 /* ClaudeOAuthParser.swift */,
@@ -379,6 +386,7 @@
 			children = (
 				C0030000000000000058 /* AppBrand.swift */,
 				C0030000000000000060 /* AppVersion.swift */,
+				D00100000000000000000011 /* AppEnvironment.swift */,
 				C0030000000000000062 /* CopilotQuotaLabels.swift */,
 				C0030000000000000064 /* DateRange.swift */,
 				C0030000000000000066 /* DisplayCurrency.swift */,
@@ -471,6 +479,9 @@
 			dependencies = (
 			);
 			name = "token-torch";
+			packageProductDependencies = (
+				D00100000000000000000003 /* Sparkle */,
+			);
 			productName = "token-torch";
 			productReference = B00102000000000000000005 /* Token Torch.app */;
 			productType = "com.apple.product-type.application";
@@ -517,6 +528,9 @@
 				Base,
 			);
 			mainGroup = B00104000000000000000001;
+			packageReferences = (
+				D00100000000000000000002 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			productRefGroup = B00104000000000000000003 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -560,6 +574,7 @@
 				B0010100000000000000000D /* UsageMenuItemViews.swift in Sources */,
 				B0010100000000000000000E /* MenuBuilder.swift in Sources */,
 				B0010100000000000000000F /* StatusItemController.swift in Sources */,
+				D00100000000000000000014 /* AppUpdater.swift in Sources */,
 				B00101000000000000000010 /* SettingsWindowController.swift in Sources */,
 				B00101000000000000000014 /* SettingsStyle.swift in Sources */,
 				B00101000000000000000011 /* GeneralSettingsViewController.swift in Sources */,
@@ -581,7 +596,7 @@
 				C0040000000000000012 /* TokenTorchVendorCredentialStore.swift in Sources */,
 				C0040000000000000014 /* VendorCredentialCache.swift in Sources */,
 				C0040000000000000016 /* VendorCredentialImporter.swift in Sources */,
-				C004000000000000008A /* VendorCredentialSourceInfo.swift in Sources */,
+				C004000000000000008A /* VendorCredentialImportSourceStore.swift in Sources */,
 				C0040000000000000020 /* VendorCredentialsReader.swift in Sources */,
 				C0040000000000000023 /* HTTPClient.swift in Sources */,
 				C0040000000000000026 /* MenuBarIconProvider.swift in Sources */,
@@ -611,6 +626,7 @@
 				C0040000000000000056 /* UsageOrchestrator.swift in Sources */,
 				C0040000000000000059 /* AppBrand.swift in Sources */,
 				C0040000000000000061 /* AppVersion.swift in Sources */,
+				D00100000000000000000012 /* AppEnvironment.swift in Sources */,
 				C0040000000000000063 /* CopilotQuotaLabels.swift in Sources */,
 				C0040000000000000065 /* DateRange.swift in Sources */,
 				C0040000000000000067 /* DisplayCurrency.swift in Sources */,
@@ -920,6 +936,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D00100000000000000000002 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D00100000000000000000003 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D00100000000000000000002 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 
 	};

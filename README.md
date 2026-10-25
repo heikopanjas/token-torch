@@ -46,11 +46,21 @@ If `xcodebuild` is missing, `./build.sh` prints how to point `xcode-select` at X
 ### GitHub Actions
 
 - `.github/workflows/build.yml` runs signed release builds on pushes and pull requests for `develop` and `feature/**`, uploads the exported app zip, and creates a GitHub prerelease on non-PR runs.
-- `.github/workflows/release.yml` runs signed release builds, Apple notarization, stapling, verification, and artifact upload on pull requests to `main`. On pushes to `main`, it creates the `v$(cat VERSION)` GitHub release after notarization succeeds.
+- `.github/workflows/release.yml` runs signed release builds, Apple notarization, stapling, verification, and artifact upload on pull requests to `main`, and builds and validates the signed Sparkle appcast. On pushes to `main`, it creates the `v$(cat VERSION)` GitHub release after notarization succeeds, uploads the update archive to the `sparkle-updates` prerelease, and then deploys `appcast.xml` to GitHub Pages.
+- Both workflows use the repository-wide `github.run_id` as the build number (`CFBundleVersion`), so prerelease and release builds share one increasing sequence for Sparkle.
 - Both workflows generate `CHANGELOG.md` and `BILL_OF_MATERIALS.md` and include them inside the release zip.
 - Both workflows use the `macos-26` GitHub runner image for the current Xcode/Swift toolchain.
 
-Required repository secrets: `APPLE_CERTIFICATE_P12_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, and `APPLE_SIGNING_IDENTITY` for signing, plus `APPSTORE_CONNECT_KEY_ID`, `APPSTORE_CONNECT_ISSUER_ID`, and `APPSTORE_CONNECT_KEY_P8_BASE64` (an App Store Connect API key) for notarization in the release workflow. The team ID comes from `exportOptions.plist`.
+Required repository secrets: `APPLE_CERTIFICATE_P12_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, and `APPLE_SIGNING_IDENTITY` for signing, plus `APPSTORE_CONNECT_KEY_ID`, `APPSTORE_CONNECT_ISSUER_ID`, and `APPSTORE_CONNECT_KEY_P8_BASE64` (an App Store Connect API key) for notarization and `SPARKLE_ED_PRIVATE_KEY` for signing the update feed in the release workflow. The team ID comes from `exportOptions.plist`.
+
+### One-time Sparkle setup
+
+The update signing key lives in the login keychain under the account `com.panjas.tokentorch`; its public key is `SUPublicEDKey` in `token-torch/Info.plist`. Never replace it without a migration plan: installed copies trust only that key.
+
+1. Resolve packages once (`./build.sh`) so Sparkle's tools exist in `.build/SourcePackages/artifacts/sparkle/Sparkle/bin/`.
+2. `generate_keys --account com.panjas.tokentorch` creates the key and prints the public key.
+3. `generate_keys --account com.panjas.tokentorch -x <file>`, then `gh secret set SPARKLE_ED_PRIVATE_KEY < <file>`, and delete the file. Keep an encrypted offline backup.
+4. Set GitHub Pages to use **GitHub Actions** as its source, then add `main` to the deployment branches of the `github-pages` environment (Settings → Environments). GitHub only adds the default branch, `develop`. The feed is `https://heikopanjas.github.io/token-torch/appcast.xml`.
 
 ## Token Torch (menu bar app)
 
@@ -70,9 +80,13 @@ Token Torch can post a desktop notification when one of those rows climbs into t
 - **Copilot** — GitHub Personal Access Token field with setup guidance
 - **Notifications** — **Notify when a usage limit runs high** (on by default) and a **Starting at** choice of Orange (75% used) or Red (87% used)
 - **Advanced** — **Reset Keychain…** deletes all Token Torch-owned Keychain items (`com.tokentorch.*`); vendor logins are not touched
-- **Info** — metadata-only view of the vendor source recorded when each enabled subscription credential was imported; Keychain secret values are never displayed
+- **Info** — app icon, version and build, and copyright (**About…** in the menus opens this tab), plus updates: **Check for Updates…**, **Automatically check for updates**, and **Automatically download and install updates**
 
 The app imports vendor OAuth into Token Torch-owned Keychain (`com.tokentorch.vendor.*`) once per provider, so routine refresh reads only Token Torch's copy. When a vendor Keychain fallback is needed, Token Torch invokes the timeout-bound `/usr/bin/security find-generic-password` tool for Claude Code, Codex, and Cursor secrets; file and SQLite sources remain preferred. This changes the requesting identity to Apple's `security` tool, but the tool cannot suppress authorization UI, so startup/timer imports may still show a Keychain dialog. Claude Code repair checks the same sources, then launches one `/bin/zsh` process in a controlling-terminal pseudo-terminal (PTY) that runs `CLAUDE_CONFIG_DIR="$2" ANTHROPIC_API_KEY="" exec "$1" -p "/usage"` so Claude Code refreshes the imported profile (not a different default config). The config directory, empty-key assignment, and Claude invocation therefore share the same process and environment. If repair fails, secret-safe diagnostics plus redacted terminal output are kept only with the in-memory error and shown in the menu's copyable error row; they are not added to desktop notifications, persisted, logged, parsed, or used for Token Torch usage display. Repair runs on manual Refresh always, and on automatic refreshes only when **Automatically repair credentials in the background** is enabled on the Claude tab. On first launch, Token Torch requests notification permission; when granted, a welcome notification confirms alerts are enabled. Background repair failures can post a desktop notification when **Notify me when background credential repair fails** is enabled, and usage-threshold alerts (above) can post one when **Notify when a usage limit runs high** is enabled. On first launch after upgrading from **burn**, `CredentialStoreMigration` copies legacy `com.burn.*` Keychain entries.
+
+### Updates
+
+Release builds update themselves with [Sparkle](https://sparkle-project.org). On the second launch Sparkle asks whether it may check automatically; the Info tab changes that choice later. A new version found in the background is announced with a desktop notification, and clicking it shows the update. Updates and the feed are EdDSA-signed and verified before installation. Version 5.14.0 is the first release with updates, so earlier versions need one manual install. Development (Debug) builds never check for updates.
 
 ### Quota credential sources (macOS)
 

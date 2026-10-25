@@ -22,10 +22,7 @@ enum SecurityCLIReader {
 
     static func readAllGenericPasswords(service: String, timeout: TimeInterval = automaticTimeout) async throws -> [String] {
         try Task.checkCancellation()
-        let accounts = KeychainReader.genericPasswordMetadata(service: service)
-            .items
-            .compactMap(\.account)
-            .filter { $0.isEmpty == false }
+        let accounts = KeychainReader.genericPasswordAccounts(service: service)
         let uniqueAccounts = Array(Set(accounts)).sorted()
 
         if uniqueAccounts.isEmpty == true {

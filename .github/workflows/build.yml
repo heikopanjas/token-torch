@@ -28,6 +28,8 @@ env:
   PACKAGE_DIR: .build/package
   DESTINATION: generic/platform=macOS
   TEST_DESTINATION: platform=macOS,arch=arm64
+  PACKAGE_CACHE_DIR: .build/SourcePackages
+  PACKAGE_RESOLVED: token-torch.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
 jobs:
   build:
@@ -60,10 +62,12 @@ jobs:
           PRERELEASE_NAME="token-torch-build-${GITHUB_RUN_NUMBER}-${BUILD_TIMESTAMP}"
           echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
           echo "DEVELOPMENT_TEAM=$DEVELOPMENT_TEAM" >> "$GITHUB_ENV"
-          echo "BUILD_NUMBER=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+          # github.run_id is unique across all workflows of the repository, so prerelease and release builds share one
+          # increasing CFBundleVersion sequence and a prerelease build is updated by the next release built after it.
+          echo "BUILD_NUMBER=${GITHUB_RUN_ID}" >> "$GITHUB_ENV"
           echo "PRERELEASE_NAME=$PRERELEASE_NAME" >> "$GITHUB_ENV"
           echo "ARTIFACT_ZIP=.build/${PRERELEASE_NAME}.zip" >> "$GITHUB_ENV"
-          echo "Building Token Torch $APP_VERSION (${GITHUB_RUN_NUMBER})"
+          echo "Building Token Torch $APP_VERSION (${GITHUB_RUN_ID})"
 
       - name: Import Developer ID Certificate
         env:
@@ -97,6 +101,14 @@ jobs:
           security find-identity -v -p codesigning "$KEYCHAIN_PATH"
           security find-identity -v -p codesigning "$KEYCHAIN_PATH" | grep -F "$APPLE_SIGNING_IDENTITY"
 
+      - name: Resolve Package Dependencies
+        run: |
+          set -euo pipefail
+          xcodebuild -resolvePackageDependencies \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -clonedSourcePackagesDirPath "$PACKAGE_CACHE_DIR"
+
       - name: Run Unit Tests
         run: |
           set -euo pipefail
@@ -106,6 +118,7 @@ jobs:
             -scheme "$SCHEME" \
             -configuration Debug \
             -destination "$TEST_DESTINATION" \
+            -clonedSourcePackagesDirPath "$PACKAGE_CACHE_DIR" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY=- \
             DEVELOPMENT_TEAM= \
@@ -128,6 +141,7 @@ jobs:
             -configuration Release \
             -destination "$DESTINATION" \
             -archivePath "$ARCHIVE_PATH" \
+            -clonedSourcePackagesDirPath "$PACKAGE_CACHE_DIR" \
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
             CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
@@ -168,6 +182,7 @@ jobs:
           BUNDLE_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Contents/Info.plist")"
           BUNDLE_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP_PATH/Contents/Info.plist")"
           XCODE_VERSION="$(xcodebuild -version | tr '\n' ' ')"
+          DEPENDENCIES="$(python3 -c 'import json, sys; print("\n".join("- {} {} ({})".format(pin["identity"], pin["state"]["version"], pin["location"]) for pin in json.load(open(sys.argv[1]))["pins"]))' "$PACKAGE_RESOLVED")"
           SWIFT_VERSION="$(swift --version | head -n 1)"
           MACOS_VERSION="$(sw_vers -productVersion)"
 
@@ -189,7 +204,7 @@ jobs:
             echo "- swift version: ${SWIFT_VERSION}"
             echo
             echo "## Dependencies"
-            echo "- none (Xcode app target only)"
+            echo "$DEPENDENCIES"
           } > "$BOM_PATH"
 
           ls -lh "$CHANGELOG_PATH" "$BOM_PATH"
