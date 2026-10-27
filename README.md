@@ -29,7 +29,7 @@ From the repository root:
 ```bash
 ./build.sh                  # debug build → .build/Products/Debug/
 ./build.sh --release        # clean, archive + export to .build/export/
-./build.sh --release --notarize   # clean, submit and staple (requires notarytool profile developer-id-notary)
+./build.sh --release --notarize   # clean, submit and staple (requires notarytool profile Panjas-Notarize)
 ```
 
 Or open the Xcode project:

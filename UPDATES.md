@@ -4,6 +4,15 @@ This file is the append-only log of project decisions and notable changes, maint
 
 <!-- {changelog} -->
 
+### 2026-10-27 12:57 (v5.14.0, notarization profile panjas-notarize)
+
+- local `./build.sh --release --notarize` now defaults to the keychain profile `Panjas-Notarize` instead of `developer-id-notary`; it is a general profile backed by an app store connect api key; `NOTARIZE_PROFILE` still overrides it
+- updated the default in `build.sh` and the profile name in `AGENTS.md` and `README.md`
+- ci is unchanged: `release.yml` passes the api key from secrets to `notarytool` and uses no keychain profile
+- verified: `notarytool history --keychain-profile Panjas-Notarize` succeeds locally
+- rationale, by user decision: one general notarization profile for all apps
+- no version bump: build tooling only
+
 ### 2026-10-25 21:45 (v5.14.0, sparkle automatic updates)
 
 - release builds update themselves with sparkle 2 (spm, `upToNextMajorVersion` from 2.10.0, pinned to 2.10.0; 2.10.1 was published the same day and skipped): one `AppUpdater` owns the `SPUStandardUpdaterController`; the updater starts only in release builds outside the unit-test host (`AppEnvironment`)

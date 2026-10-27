@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-10-25 (Sparkle automatic updates; About opens the Info tab; vendor credential source list removed)
+Last updated: 2026-10-27 (local notarization profile renamed to Panjas-Notarize)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -50,10 +50,10 @@ xcodebuild test -scheme token-torch -configuration Debug -destination 'platform=
 
 # Release archive + Developer ID export (from repo root)
 ./build.sh --release
-./build.sh --release --notarize   # requires exportOptions.plist + notarytool profile developer-id-notary (--release always cleans)
+./build.sh --release --notarize   # requires exportOptions.plist + notarytool profile Panjas-Notarize (--release always cleans)
 ```
 
-Local notarization uses the keychain profile `developer-id-notary`. It holds an App Store Connect API key shared by all Developer ID apps of the team, so it is not specific to Token Torch. Create it once with `xcrun notarytool store-credentials developer-id-notary --key AuthKey_<key-id>.p8 --key-id <key-id> --issuer <issuer-uuid>`. Use `NOTARIZE_PROFILE=<name>` to override it. Since the key is team-wide, `notarytool history` also lists other apps' submissions. CI does not use a keychain profile: `release.yml` decodes the same kind of API key from secrets and passes it to `notarytool` directly.
+Local notarization uses the keychain profile `Panjas-Notarize`. It holds an App Store Connect API key shared by all Developer ID apps of the team, so it is not specific to Token Torch. Create it once with `xcrun notarytool store-credentials Panjas-Notarize --key AuthKey_<key-id>.p8 --key-id <key-id> --issuer <issuer-uuid>`. Use `NOTARIZE_PROFILE=<name>` to override it. Since the key is team-wide, `notarytool history` also lists other apps' submissions. CI does not use a keychain profile: `release.yml` decodes the same kind of API key from secrets and passes it to `notarytool` directly.
 
 ### CI release workflows
 

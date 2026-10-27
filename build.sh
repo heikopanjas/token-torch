@@ -21,7 +21,7 @@ ARCHIVE_PATH="${BUILD_DIR}/${APP_NAME}.xcarchive"
 EXPORT_PATH="${BUILD_DIR}/export"
 EXPORT_PLIST="${ROOT}/exportOptions.plist"
 VERSION_FILE="${ROOT}/VERSION"
-NOTARIZE_PROFILE="${NOTARIZE_PROFILE:-developer-id-notary}"
+NOTARIZE_PROFILE="${NOTARIZE_PROFILE:-Panjas-Notarize}"
 # Apple Silicon only — not a universal/Intel build. Architecture comes from Xcode
 # ARCHS=arm64 (project + target). Debug can pass arch= on -destination; release
 # archive must use generic/platform=macOS (xcodebuild rejects arch on "Any Mac").
