@@ -1614,11 +1614,14 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(PlanBranding.chatGPT(nil) == nil)
 }
 
-@Test func planBrandingMapsClaudeMaxTierWithMultiplier() {
+@Test func planBrandingMapsClaudeMaxAndUltra() {
     #expect(PlanBranding.claude(subscriptionType: "pro", rateLimitTier: nil) == "Pro")
     #expect(PlanBranding.claude(subscriptionType: "max", rateLimitTier: nil) == "Max")
-    #expect(PlanBranding.claude(subscriptionType: "max", rateLimitTier: "default_claude_max_5x") == "Max 5x")
-    #expect(PlanBranding.claude(subscriptionType: "max", rateLimitTier: "default_claude_max_20x") == "Max 20x")
+    #expect(PlanBranding.claude(subscriptionType: "max", rateLimitTier: "default_claude_max_5x") == "Max")
+    #expect(PlanBranding.claude(subscriptionType: "max", rateLimitTier: "default_claude_max_20x") == "Ultra")
+    #expect(PlanBranding.claude(subscriptionType: "max", rateLimitTier: "default_claude_ultra") == "Ultra")
+    #expect(PlanBranding.claude(subscriptionType: "ultra", rateLimitTier: nil) == "Ultra")
+    #expect(PlanBranding.claude(subscriptionType: "team", rateLimitTier: "default_claude_max_5x") == "Team")
     #expect(PlanBranding.claude(subscriptionType: nil, rateLimitTier: nil) == nil)
 }
 
@@ -1636,6 +1639,8 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(PlanBranding.claudePrice(subscriptionType: "pro", rateLimitTier: nil) == "$20/mo")
     #expect(PlanBranding.claudePrice(subscriptionType: "max", rateLimitTier: "default_claude_max_5x") == "$100/mo")
     #expect(PlanBranding.claudePrice(subscriptionType: "max", rateLimitTier: "default_claude_max_20x") == "$200/mo")
+    #expect(PlanBranding.claudePrice(subscriptionType: "max", rateLimitTier: "default_claude_ultra") == "$200/mo")
+    #expect(PlanBranding.claudePrice(subscriptionType: "ultra", rateLimitTier: nil) == "$200/mo")
     #expect(PlanBranding.claudePrice(subscriptionType: "max", rateLimitTier: nil) == nil)
     #expect(PlanBranding.claudePrice(subscriptionType: "team", rateLimitTier: nil) == nil)
 }
@@ -2082,6 +2087,18 @@ private func claudeRow(percent: Double, label: String = "5-hour limit") -> Cappe
     let compact = #"{"a":[{"b":"ü\\"},{}],"c":-1.5e3}"#
     let once = JSONPrettyPrinter.prettyPrinted(Data(compact.utf8))
     #expect(JSONPrettyPrinter.prettyPrinted(once) == once)
+}
+
+@Test func mapClaudeUsageOmitsFiveHourRowForUltraWithoutSessionLimit() throws {
+    // Verified Ultra accounts have no 5-hour limit (Anthropic, 2026-10-30), so the response carries no 5-hour window.
+    let json = """
+        {"five_hour":null,"seven_day":{"utilization":40.0,"resets_at":"2026-11-06T08:59:59.655578+00:00"}}
+        """
+    let response = try JSONDecoder().decode(ClaudeQuotaProvider.ClaudeUsageResponse.self, from: Data(json.utf8))
+    let report = ClaudeQuotaProvider.mapUsage(response, subscriptionType: "max", rateLimitTier: "default_claude_max_20x")
+    #expect(report.windows.map { $0.label } == ["7-day window"])
+    #expect(report.planTier == "Ultra")
+    #expect(report.planPrice == "$200/mo")
 }
 
 @Test func mapClaudeUsageMapsCloudSessionCreditAsDollarWindow() throws {

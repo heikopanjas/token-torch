@@ -4,6 +4,26 @@ This file is the append-only log of project decisions and notable changes, maint
 
 <!-- {changelog} -->
 
+### 2026-10-31 15:45 (v5.14.1, claude max and ultra plan names)
+
+- anthropic renamed its individual plans on 2026-10-30: max 5x is now max ($100/mo) and max 20x is now ultra ($200/mo); prices are unchanged and subscribers were migrated automatically; verified ultra accounts have no 5-hour limit, the weekly limit stays
+- `PlanBranding.claude` / `claudePrice` now show max and ultra instead of the multiplier names; one private resolver maps `ultra`, or `max` with a tier containing `ultra` or `20x`, to ultra and every other `max` to max, so name and price can't diverge; `max` without a recognized tier keeps no price
+- no code change for the missing 5-hour window: a null `five_hour` already produces no row, now covered by a test
+- max and ultra include monthly api credits ($100 / $200), but no usage endpoint reports them, so they are not shown
+- openai: no price or plan name change; on 2026-10-29 it cancelled the planned pro 200 cut and doubled work and codex allowances for pro 100/200/500 and business premium; token torch reads percentages from `/wham/usage`, so nothing changes for codex
+- sources: claude.com/pricing, the claude x announcement as reported by datastudios.org, openusage commit `dd94b65` (issue #1497), kingy.ai and morphllm.com for the openai changes
+- rationale: show the plan names subscribers now see in their accounts
+- version bump: 5.14.0 to 5.14.1 (PATCH - corrected plan labels, no new feature)
+
+### 2026-10-27 12:57 (v5.14.0, notarization profile panjas-notarize)
+
+- local `./build.sh --release --notarize` now defaults to the keychain profile `Panjas-Notarize` instead of `developer-id-notary`; it is a general profile backed by an app store connect api key; `NOTARIZE_PROFILE` still overrides it
+- updated the default in `build.sh` and the profile name in `AGENTS.md` and `README.md`
+- ci is unchanged: `release.yml` passes the api key from secrets to `notarytool` and uses no keychain profile
+- verified: `notarytool history --keychain-profile Panjas-Notarize` succeeds locally
+- rationale, by user decision: one general notarization profile for all apps
+- no version bump: build tooling only
+
 ### 2026-10-25 21:45 (v5.14.0, sparkle automatic updates)
 
 - release builds update themselves with sparkle 2 (spm, `upToNextMajorVersion` from 2.10.0, pinned to 2.10.0; 2.10.1 was published the same day and skipped): one `AppUpdater` owns the `SPUStandardUpdaterController`; the updater starts only in release builds outside the unit-test host (`AppEnvironment`)
