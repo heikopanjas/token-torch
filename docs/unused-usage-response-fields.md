@@ -7,6 +7,31 @@ Each section is a snapshot of one capture (`--capture-usage-responses docs`). Ad
 sections at the top, and leave older sections unchanged so the history shows when fields appeared or
 changed. Meanings are inferred from names and values, since none of these APIs are documented.
 
+## Capture 2026-10-31 15:25 UTC
+
+Token Torch 5.14.1. Accounts: Claude Ultra, ChatGPT Pro 100, Copilot Individual Max. This capture was used to
+look for the Ultra plan's monthly API credit and was not written to the sample files, so they still hold the
+2026-10-04 capture.
+
+Codex and Copilot return the same fields as on 2026-10-04. Claude adds the fields below. Everything in the
+2026-10-04 Claude table is still there, except that `cedar_ember.grants` is now empty (`ineligible_reason:
+"no_grant"`) because the Opus 5.5 launch reset expired on 2026-10-22.
+
+### Claude Code — `GET /api/oauth/usage?cedar_ember=1`
+
+| Field | Captured value | Likely meaning |
+| --- | --- | --- |
+| `promo_credits` | `null` | Promotional credits. The most likely place for the plan's monthly API credit to appear, but it is null on an Ultra account |
+| `granite_teacup`, `starry_waterfall`, `amber_cistern_offer` | `null` | New reserved codename windows or offers |
+| `pace` | `null` | Unknown; possibly a usage pacing hint |
+| `cedar_ember.paused_held` | `false` | Whether a paused reset grant is being held |
+| `weekly_scoped_shares[]` | `{limit_index: 2, used_percent_of_weekly: 0, allowance_percent_of_weekly: 50}` | The Fable sub-cap as a share of the weekly limit; `limit_index` points into `limits[]` |
+| `cedar_ember.event_props.tier` | `claude_max_20x` | Still the old tier name after the 2026-10-30 rename to Ultra |
+
+None of the fields reports the plan's monthly API credit: `spend.balance`, `limit` and `cap` are null, and the
+only dollar allowance is the cloud session credit (`iguana_necktie`). The response headers have no credit
+header either.
+
 ## Capture 2026-10-04 11:03 UTC
 
 Token Torch 5.13.0. Accounts: Claude Max 20x, ChatGPT Pro Lite, Copilot Individual Max.

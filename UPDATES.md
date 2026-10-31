@@ -4,6 +4,14 @@ This file is the append-only log of project decisions and notable changes, maint
 
 <!-- {changelog} -->
 
+### 2026-10-31 16:45 (v5.14.1, api credit check and admin key names)
+
+- checked whether anthropic reports the claude ultra monthly api credit or the console prepaid balance; neither does: `/api/oauth/usage` has no credit field (`spend.balance` null, new `promo_credits` null); the admin api has no balance or credit endpoint (`credits`, `balance`, `billing` return 404, not in the docs), and `cost_report` lists only costs
+- `docs/unused-usage-response-fields.md` gets a 2026-10-31 section with the new claude fields (`promo_credits`, `granite_teacup`, `starry_waterfall`, `amber_cistern_offer`, `pace`, `cedar_ember.paused_held`, `weekly_scoped_shares`); codex and copilot have no new fields; the sample json files keep the 2026-10-04 capture
+- corrected the admin key keychain names in `AGENTS.md`: `com.tokentorch.keys.claude.adminKey` and `com.tokentorch.keys.codex.adminKey`, not `anthropic` / `openai`; the service is built from the `ProviderID` raw value
+- rationale: record that the credit can't be shown yet, and fix wrong names that broke a manual keychain lookup
+- no version bump: documentation only
+
 ### 2026-10-31 15:45 (v5.14.1, claude max and ultra plan names)
 
 - anthropic renamed its individual plans on 2026-10-30: max 5x is now max ($100/mo) and max 20x is now ultra ($200/mo); prices are unchanged and subscribers were migrated automatically; verified ultra accounts have no 5-hour limit, the weekly limit stays

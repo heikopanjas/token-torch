@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-10-31 (Claude Max 5x / Max 20x renamed to Max / Ultra)
+Last updated: 2026-10-31 (Admin key Keychain names corrected, API credit not reported)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -90,8 +90,12 @@ Org billing and subscription quota are configured in **Settings** (Admin API key
 
 **Admin API Key** (required for org billing only):
 
-- Anthropic: Settings → Claude tab Admin API key (`com.tokentorch.keys.anthropic.adminKey`)
-- OpenAI: Settings → Codex tab Admin API key (`com.tokentorch.keys.openai.adminKey`)
+- Anthropic: Settings → Claude tab Admin API key (`com.tokentorch.keys.claude.adminKey`)
+- OpenAI: Settings → Codex tab Admin API key (`com.tokentorch.keys.codex.adminKey`)
+
+The service name is `com.tokentorch.keys.<ProviderID raw value>.<AppKeyKind raw value>` (`AppKeyKind.service(for:)`), so it uses the tab names `claude` / `codex`, not the vendor names. The account is always `AppBrand.keychainAccount` (`tokentorch`).
+
+Neither API reports the API credit that comes with Claude Max / Ultra or an organization's prepaid Console balance (checked 2026-10-31). The Admin API has no balance or credit endpoint, and `cost_report` lists only costs, with no credit line items. `/api/oauth/usage` has no credit field either: `spend.balance` is null, and the new `promo_credits` key is null too.
 
 **Personal subscription quota** uses local OAuth credentials (macOS):
 
