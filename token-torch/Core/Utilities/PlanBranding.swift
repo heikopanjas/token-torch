@@ -27,14 +27,17 @@ public enum PlanBranding {
         }
     }
 
-    /// Claude `subscriptionType` (+ optional `rateLimitTier`) -> brand name (Pro / Max 5x / Max 20x / ...).
+    /// Claude `subscriptionType` (+ optional `rateLimitTier`) -> brand name (Pro / Max / Ultra / ...). Anthropic renamed
+    /// Max 5x to Max and Max 20x to Ultra on 2026-10-30; the tier still carries the old multiplier.
     public static func claude(subscriptionType: String?, rateLimitTier: String?) -> String? {
         guard let raw = subscriptionType?.lowercased(), raw.isEmpty == false else { return subscriptionType }
+        switch Self.claudeIndividualPlan(subscriptionType: raw, rateLimitTier: rateLimitTier) {
+            case .max: return "Max"
+            case .ultra: return "Ultra"
+            case nil: break
+        }
         switch raw {
             case "pro": return "Pro"
-            case "max":
-                if let multiplier = maxMultiplier(from: rateLimitTier) { return "Max \(multiplier)" }
-                return "Max"
             case "team": return "Team"
             case "enterprise": return "Enterprise"
             default: return raw.capitalized
@@ -53,17 +56,14 @@ public enum PlanBranding {
         }
     }
 
-    /// Claude `subscriptionType` (+ optional `rateLimitTier`) -> fixed monthly USD list price (or nil).
+    /// Claude `subscriptionType` (+ optional `rateLimitTier`) -> fixed monthly USD list price (or nil). A `max` plan
+    /// without a recognized tier has no price: it can't be told apart from a not yet migrated Ultra account.
     public static func claudePrice(subscriptionType: String?, rateLimitTier: String?) -> String? {
-        switch subscriptionType?.lowercased() {
-            case "pro": return "$20/mo"
-            case "max":
-                switch maxMultiplier(from: rateLimitTier) {
-                    case "5x": return "$100/mo"
-                    case "20x": return "$200/mo"
-                    default: return nil
-                }
-            default: return nil
+        let raw = subscriptionType?.lowercased()
+        switch Self.claudeIndividualPlan(subscriptionType: raw, rateLimitTier: rateLimitTier) {
+            case .ultra: return "$200/mo"
+            case .max: return rateLimitTier?.lowercased().contains("5x") == true ? "$100/mo" : nil
+            case nil: return raw == "pro" ? "$20/mo" : nil
         }
     }
 
@@ -101,11 +101,21 @@ public enum PlanBranding {
         }
     }
 
-    /// Extracts the Max usage multiplier (e.g. `5x` / `20x`) from a `rateLimitTier` like `default_claude_max_20x`.
-    private static func maxMultiplier(from rateLimitTier: String?) -> String? {
-        guard let tier = rateLimitTier?.lowercased() else { return nil }
-        if tier.contains("20x") { return "20x" }
-        if tier.contains("5x") { return "5x" }
-        return nil
+    /// Claude's paid individual tiers above Pro.
+    private enum ClaudeIndividualPlan {
+        case max
+        case ultra
+    }
+
+    /// Resolves Max vs Ultra from a lowercased `subscriptionType` and a `rateLimitTier` such as `default_claude_max_20x`.
+    /// Credentials issued before the rename keep `max` with the `20x` tier, so that tier reads as Ultra.
+    private static func claudeIndividualPlan(subscriptionType: String?, rateLimitTier: String?) -> ClaudeIndividualPlan? {
+        switch subscriptionType {
+            case "ultra": return .ultra
+            case "max":
+                let tier = rateLimitTier?.lowercased() ?? ""
+                return (tier.contains("ultra") || tier.contains("20x")) == true ? .ultra : .max
+            default: return nil
+        }
     }
 }
