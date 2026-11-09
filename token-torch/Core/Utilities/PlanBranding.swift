@@ -69,34 +69,64 @@ public enum PlanBranding {
 
     /// GitHub `copilot_plan` (+ optional `access_type_sku`) -> brand name (Free / Pro / Max / ...).
     public static func copilot(copilotPlan: String?, accessTypeSKU: String?) -> String? {
-        let plan = copilotPlan?.lowercased()
-        let sku = accessTypeSKU?.lowercased()
-        if sku == "free_limited_copilot" { return "Free" }
-        guard let plan, plan.isEmpty == false else { return copilotPlan }
-        switch plan {
-            case "individual", "free": return "Free"
-            case "student": return "Student"
-            case "pro", "individual_pro": return "Pro"
-            case "pro_plus", "individual_pro_plus", "pro+": return "Pro+"
-            case "individual_max": return "Max"
-            case "business": return "Business"
-            case "enterprise": return "Enterprise"
-            default: return plan.capitalized
+        switch Self.copilotPlan(copilotPlan: copilotPlan, accessTypeSKU: accessTypeSKU) {
+            case .free: return "Free"
+            case .student: return "Student"
+            case .pro: return "Pro"
+            case .proPlus: return "Pro+"
+            case .max: return "Max"
+            case .business: return "Business"
+            case .enterprise: return "Enterprise"
+            case nil: break
         }
+        guard let plan = copilotPlan?.lowercased(), plan.isEmpty == false else { return copilotPlan }
+        return plan.capitalized
     }
 
     /// GitHub Copilot -> fixed monthly USD list price (or nil for Free / Student / unknown).
     public static func copilotPrice(copilotPlan: String?, accessTypeSKU: String?) -> String? {
-        let plan = copilotPlan?.lowercased()
+        switch Self.copilotPlan(copilotPlan: copilotPlan, accessTypeSKU: accessTypeSKU) {
+            case .pro: return "$10/mo"
+            case .proPlus: return "$39/mo"
+            case .max: return "$100/mo"
+            case .business: return "$19/mo"
+            case .enterprise: return "$39/mo"
+            case .free, .student, nil: return nil
+        }
+    }
+
+    /// GitHub Copilot's plans.
+    private enum CopilotPlan {
+        case free
+        case student
+        case pro
+        case proPlus
+        case max
+        case business
+        case enterprise
+    }
+
+    /// Resolves the plan from `copilot_plan` and `access_type_sku`. GitHub reports `individual` for both Free and Pro,
+    /// so that code says nothing on its own and the SKU decides. `individual_pro` is Pro+, not Pro.
+    private static func copilotPlan(copilotPlan: String?, accessTypeSKU: String?) -> CopilotPlan? {
         let sku = accessTypeSKU?.lowercased()
-        if sku == "free_limited_copilot" { return nil }
-        switch plan {
-            case "individual", "free", "student": return nil
-            case "pro", "individual_pro": return "$10/mo"
-            case "pro_plus", "individual_pro_plus", "pro+": return "$39/mo"
-            case "individual_max": return "$100/mo"
-            case "business": return "$19/mo"
-            case "enterprise": return "$39/mo"
+        if sku == "free_limited_copilot" { return .free }
+        switch copilotPlan?.lowercased() {
+            case "free": return .free
+            case "student": return .student
+            case "pro": return .pro
+            case "pro_plus", "individual_pro_plus", "pro+", "individual_pro": return .proPlus
+            case "individual_max": return .max
+            case "business": return .business
+            case "enterprise": return .enterprise
+            case "individual", "", nil: break
+            default: return nil
+        }
+        switch sku {
+            case "free_educational_quota": return .student
+            case "monthly_subscriber_quota", "yearly_subscriber_quota": return .pro
+            case "plus_monthly_subscriber_quota", "plus_yearly_subscriber_quota": return .proPlus
+            case "max_monthly_subscriber_quota": return .max
             default: return nil
         }
     }
