@@ -4,6 +4,14 @@ This file is the append-only log of project decisions and notable changes, maint
 
 <!-- {changelog} -->
 
+### 2026-11-09 22:45 (v5.14.3, tests no longer leave plists in ~/Library/Preferences)
+
+- the five tests that build a `UserDefaults` suite (import source store, repair log, usage alert state) now get it from `TemporaryUserDefaults.make()`; each suite is a plist under `$TMPDIR/token-torchTests.UserDefaults`, which the first use in a run clears
+- the `removePersistentDomain` defers are gone: they left an empty `tokentorch.tests.*.plist` in `~/Library/Preferences` for every run, and about 260 had piled up
+- rationale: a plain-named suite cannot be cleaned up from a test, because `cfprefsd` writes a deleted plist back; a suite named by an absolute path is stored at that path
+- `TemporaryUserDefaults.swift` is a new test file, added to `project.pbxproj` by hand because the test group is not folder-synced
+- no version bump: tests only, no app behavior change
+
 ### 2026-11-09 11:16 (v5.14.3, copilot pro no longer shows as free)
 
 - `PlanBranding.copilot` and `copilotPrice` mapped `copilot_plan` `individual` to free and read the sku only to detect `free_limited_copilot`; a copilot pro account returns `individual` + `monthly_subscriber_quota` (seen in the app log), so it showed free with no price

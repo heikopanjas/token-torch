@@ -471,9 +471,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
 }
 
 @Test func vendorCredentialImportSourceStoreRoundTripsSourceMetadata() throws {
-    let suiteName = "tokentorch.tests.importSource.\(UUID().uuidString)"
-    let defaults = try #require(UserDefaults(suiteName: suiteName))
-    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let defaults = try TemporaryUserDefaults.make()
 
     let source = CredentialSource.claudeKeychain(service: "Claude Code-credentials-test")
     VendorCredentialImportSourceStore.save(source, provider: .claude, defaults: defaults)
@@ -484,9 +482,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
 }
 
 @Test func vendorCredentialImportSourceStoreDeleteAllRemovesEveryProvider() throws {
-    let suiteName = "tokentorch.tests.importSource.deleteAll.\(UUID().uuidString)"
-    let defaults = try #require(UserDefaults(suiteName: suiteName))
-    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let defaults = try TemporaryUserDefaults.make()
 
     VendorCredentialImportSourceStore.save(.claudeKeychain(service: "claude"), provider: .claude, defaults: defaults)
     VendorCredentialImportSourceStore.save(.codexKeychain, provider: .codex, defaults: defaults)
@@ -781,9 +777,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: directory) }
     let fileURL = directory.appendingPathComponent("claude-repair.log")
-    let suiteName = "tokentorch.tests.repairLog.\(UUID().uuidString)"
-    let defaults = try #require(UserDefaults(suiteName: suiteName))
-    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let defaults = try TemporaryUserDefaults.make()
     defaults.set(true, forKey: AppBrand.claudeRepairLogEnabledKey)
     let session = OAuthSession(
         accessToken: "sk-ant-oat01-secretaccesstokenvalue",
@@ -815,9 +809,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: directory) }
     let fileURL = directory.appendingPathComponent("claude-repair.log")
-    let suiteName = "tokentorch.tests.repairLog.\(UUID().uuidString)"
-    let defaults = try #require(UserDefaults(suiteName: suiteName))
-    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let defaults = try TemporaryUserDefaults.make()
 
     ClaudeRepairLog.write("hidden", attemptID: "abc12345", fileURL: fileURL, defaults: defaults)
     #expect(FileManager.default.fileExists(atPath: directory.path) == false)
@@ -2201,9 +2193,7 @@ private func claudeRow(percent: Double, label: String = "5-hour limit") -> Cappe
 }
 
 @Test func usageAlertStateStoreRoundTripsThroughUserDefaults() throws {
-    let suiteName = "tokentorch.tests.usageAlertState.\(UUID().uuidString)"
-    let defaults = try #require(UserDefaults(suiteName: suiteName))
-    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let defaults = try TemporaryUserDefaults.make()
 
     let store = UsageAlertStateStore(defaults: defaults)
     #expect(store.load() == UsageAlertState())

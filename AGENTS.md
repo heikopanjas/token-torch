@@ -1,6 +1,6 @@
 # Token Torch — Development Guide
 
-Last updated: 2026-11-09 (Copilot plan names read the SKU for the individual plan code)
+Last updated: 2026-11-09 (Test UserDefaults suites live in a temp directory, not ~/Library/Preferences)
 
 This file provides comprehensive guidance to Claude Code and developers when working with this repository.
 
@@ -373,6 +373,7 @@ xcodebuild test -scheme token-torch -configuration Debug -destination 'platform=
 - 55+ unit tests in `token-torch-tests` (dates, mappers, redaction, credential guards, Keychain round-trip)
 - Live quota tests require macOS vendor logins
 - No separate display snapshot test target
+- Tests that need a `UserDefaults` suite take it from `TemporaryUserDefaults.make()` (`token-torch-tests/TemporaryUserDefaults.swift`), never from `UserDefaults(suiteName:)` with a plain name. A plain-named suite becomes `~/Library/Preferences/<name>.plist` and cannot be removed: `removePersistentDomain` leaves an empty plist, and `cfprefsd` writes a deleted one back. A suite named by an absolute path is stored at that path, so the helper keeps every suite in `$TMPDIR/token-torchTests.UserDefaults`, which the first use in each run clears. The test target is not folder-synced, so a new test file must also be added to `token-torch.xcodeproj/project.pbxproj`
 
 ### Documentation
 

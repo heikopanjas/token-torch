@@ -87,6 +87,7 @@
 		C0040000000000000079 /* TokenTorchError.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000078 /* TokenTorchError.swift */; };
 		C0040000000000000081 /* TokenTorchLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000080 /* TokenTorchLog.swift */; };
 		C0040000000000000083 /* TokenTorchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000082 /* TokenTorchTests.swift */; };
+		C0040000000000000101 /* TemporaryUserDefaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000100 /* TemporaryUserDefaults.swift */; };
 		C004000000000000008A /* VendorCredentialImportSourceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000008A /* VendorCredentialImportSourceStore.swift */; };
 		C0040000000000000099 /* CappedUsageRows.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000099 /* CappedUsageRows.swift */; };
 		C004000000000000009A /* UsageAlertEvaluator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000009A /* UsageAlertEvaluator.swift */; };
@@ -183,6 +184,7 @@
 		C0030000000000000078 /* TokenTorchError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTorchError.swift; sourceTree = "<group>"; };
 		C0030000000000000080 /* TokenTorchLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTorchLog.swift; sourceTree = "<group>"; };
 		C0030000000000000082 /* TokenTorchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenTorchTests.swift; sourceTree = "<group>"; };
+		C0030000000000000100 /* TemporaryUserDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemporaryUserDefaults.swift; sourceTree = "<group>"; };
 		C003000000000000008A /* VendorCredentialImportSourceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VendorCredentialImportSourceStore.swift; sourceTree = "<group>"; };
 		C0030000000000000099 /* CappedUsageRows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CappedUsageRows.swift; sourceTree = "<group>"; };
 		C003000000000000009A /* UsageAlertEvaluator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageAlertEvaluator.swift; sourceTree = "<group>"; };
@@ -462,6 +464,7 @@
 			isa = PBXGroup;
 			children = (
 				C0030000000000000082 /* TokenTorchTests.swift */,
+				C0030000000000000100 /* TemporaryUserDefaults.swift */,
 			);
 			path = "token-torch-tests";
 			sourceTree = "<group>";
@@ -656,6 +659,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C0040000000000000083 /* TokenTorchTests.swift in Sources */,
+				C0040000000000000101 /* TemporaryUserDefaults.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
