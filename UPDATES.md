@@ -4,6 +4,59 @@ This file is the append-only log of project decisions and notable changes, maint
 
 <!-- {changelog} -->
 
+### 2026-11-09 10:27 (v5.14.2, codex model rows follow the additional model usage switch)
+
+- the codex `model_usage` rows (`Additional models`, such as gpt-6-astra, and unavailable models) now show only when **Show additional model usage** is on; they used to be plain notes, which the menu always prints, so the switch only controlled `additional_rate_limits` windows such as codex spark
+- the rows moved to `SubscriptionQuotaReport.additionalModelNotes`, and `ProviderPreferences.visibleNotes(quota:)` selects them at display time, so toggling does not refetch
+- the rows are hidden by default because the switch defaults to off; with the switch on they follow any `promo` notes
+- rationale: the switch should control all per-model information for codex, as the user expected
+- version bump: none beyond 5.14.2 (same unreleased patch)
+
+### 2026-11-09 10:19 (v5.14.2, claude repair log is off by default)
+
+- `ClaudeRepairLog` now writes nothing unless the `tokentorch.claudeRepairLogEnabled` default is true, in every build configuration
+- turn it on with `defaults write com.panjas.tokentorch tokentorch.claudeRepairLogEnabled -bool true`, or for one launch with the arguments `-tokentorch.claudeRepairLogEnabled YES`; there is no settings control
+- while the log is off, `claude` runs without `--debug-file`, and the repair diagnostics show `repair log: off` with the enable command instead of a path to a file that does not exist
+- rationale: the user confirmed the repair fix works and does not want a diagnostics file in normal operation; a hidden default still reaches an app started from finder or at login, which an environment variable would not
+- this replaces the 2026-11-08 decision to log every repair attempt; a replacement refresh trigger still needs log data from real failures, collected with the log turned on
+- version bump: none beyond 5.14.2 (same unreleased patch)
+
+### 2026-11-08 13:53 (v5.14.2, claude repair finds the cli outside launchd path)
+
+- claude repair from the installed release app failed with `claude executable: <not found>`: an app started from finder or at login gets launchd's minimal `PATH` (`/usr/bin:/bin:/usr/sbin:/sbin`), and claude code's native installer puts `claude` in `~/.local/bin`; xcode and terminal launches inherit the shell `PATH`, which hid the bug
+- the lookup now searches `PATH`, then `~/.local/bin`, `~/.claude/local`, `/opt/homebrew/bin` and `/usr/local/bin`; an explicit claude cli path in settings still wins
+- when no executable is found, repair fails at once instead of polling the vendor session for 45 s, and logs `claude not found` with the diagnostics
+- the repair failure message no longer ends a wrapped error with a double period
+- rationale: repair must work for the default install without asking the user to set the cli path by hand
+- version bump: none beyond 5.14.2 (same unreleased patch)
+
+### 2026-11-08 04:35 (v5.14.2, claude repair unsets the config dir and logs each attempt)
+
+- correction to the 03:35 entry: an empty `CLAUDE_CONFIG_DIR` is not the same as unset; only the keychain lookup reads it with `||`; other claude code paths use `??`, so the empty value put settings, skills and agents relative to the repair working directory (seen in the 2.1.311 debug log: `user=skills`, `/private/tmp/settings.json`)
+- the repair shell now unsets `CLAUDE_CONFIG_DIR` for the default profile and exports it only for a non-empty path; the suggested manual command for the default profile is `env -u CLAUDE_CONFIG_DIR ANTHROPIC_API_KEY="" claude -p "/usage"`
+- found why repair still failed with the right keychain item: since 2.1.311, `claude -p "/usage"` answers from the cached usage snapshot (`cachedUsageUtilization`, up to 60 s old) and logs "endpoint not asked"; without a request, claude code never runs its token refresh (5 minutes before expiry, or forced after a 401)
+- added `ClaudeRepairLog`: every repair attempt goes to `~/Library/Logs/Token Torch/claude-repair.log` (mode 0600, rotated once at 1 MB, release builds too) with the trigger, session fingerprints and expiry, diagnostics, exit and duration, redacted terminal output, claude code's `--debug-file` output, and the poll result
+- rationale: the user chose to collect real failure logs before picking a replacement refresh trigger; this overrides the earlier rule that repair output is never logged; token values still never appear
+- version bump: none beyond 5.14.2 (same unreleased patch)
+
+### 2026-11-08 03:35 (v5.14.2, claude repair for the default profile)
+
+- claude repair now passes an empty `CLAUDE_CONFIG_DIR` when the imported credential is the default `Claude Code-credentials` keychain item; it used to pass `~/.claude`
+- claude code (verified in the 2.1.311 binary) adds `-<sha256(path) prefix 8>` to its keychain service whenever `CLAUDE_CONFIG_DIR` is non-empty, even for `~/.claude`; so repair looked for `Claude Code-credentials-b7aa6628`, found no login, and never refreshed the default item; an empty value counts as unset because claude code reads the variable with `||`
+- custom and hashed sources keep their directory path; with no known source, repair still prefers an existing `~/.config/claude`, else uses the default profile
+- repair now passes the `CLAUDE_CONFIG_DIR` value as a string instead of a url; the failure message's suggested command and the diagnostics follow it (diagnostics print `default (CLAUDE_CONFIG_DIR empty)`)
+- found after moving the claude config dir from `~/.config/claude` back to `~/.claude`: the 2026-08-05 fix only covered custom directories, and the default case broke as soon as repair started setting the variable
+- rationale: repair must target the keychain item the user's own `claude` writes to
+- version bump: 5.14.1 to 5.14.2 (PATCH - bug fix, no new feature)
+
+### 2026-10-31 16:45 (v5.14.1, api credit check and admin key names)
+
+- checked whether anthropic reports the claude ultra monthly api credit or the console prepaid balance; neither does: `/api/oauth/usage` has no credit field (`spend.balance` null, new `promo_credits` null); the admin api has no balance or credit endpoint (`credits`, `balance`, `billing` return 404, not in the docs), and `cost_report` lists only costs
+- `docs/unused-usage-response-fields.md` gets a 2026-10-31 section with the new claude fields (`promo_credits`, `granite_teacup`, `starry_waterfall`, `amber_cistern_offer`, `pace`, `cedar_ember.paused_held`, `weekly_scoped_shares`); codex and copilot have no new fields; the sample json files keep the 2026-10-04 capture
+- corrected the admin key keychain names in `AGENTS.md`: `com.tokentorch.keys.claude.adminKey` and `com.tokentorch.keys.codex.adminKey`, not `anthropic` / `openai`; the service is built from the `ProviderID` raw value
+- rationale: record that the credit can't be shown yet, and fix wrong names that broke a manual keychain lookup
+- no version bump: documentation only
+
 ### 2026-10-31 15:45 (v5.14.1, claude max and ultra plan names)
 
 - anthropic renamed its individual plans on 2026-10-30: max 5x is now max ($100/mo) and max 20x is now ultra ($200/mo); prices are unchanged and subscribers were migrated automatically; verified ultra accounts have no 5-hour limit, the weekly limit stays

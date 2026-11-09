@@ -679,6 +679,23 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(unset == executable.path)
 }
 
+@Test func claudeRepairFindsNativeInstallOutsideLaunchdPath() throws {
+    let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let binDirectory = home.appendingPathComponent(".local/bin")
+    try FileManager.default.createDirectory(at: binDirectory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: home) }
+    let executable = binDirectory.appendingPathComponent("claude")
+    try Data().write(to: executable)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executable.path)
+
+    let resolved = ClaudeCredentialRepair.resolvedExecutable(
+        named: "claude",
+        environment: ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin"],
+        homeDirectory: home
+    )
+    #expect(resolved == executable.path)
+}
+
 @Test func claudeCredentialPathsMapHashedKeychainServiceToConfigDir() {
     let configDir = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".config/claude")
@@ -702,11 +719,33 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
         rateLimitTier: nil,
         source: .claudeKeychain(service: service)
     )
-    let selected = ClaudeCredentialRepair.selectedRepairConfigDirectory(
+    let selected = ClaudeCredentialRepair.selectedRepairConfigDirEnvironmentValue(
         baseline: baseline,
         environment: ["CLAUDE_CONFIG_DIR": configDir.path, "HOME": "/Users/example"]
     )
-    #expect(selected == configDir)
+    #expect(selected == configDir.path)
+}
+
+@Test func claudeRepairSelectsEmptyConfigDirForDefaultKeychainService() {
+    let baseline = OAuthSession(
+        accessToken: "access",
+        refreshToken: "refresh",
+        expiresAt: nil,
+        accountID: nil,
+        subscriptionType: nil,
+        rateLimitTier: nil,
+        source: .claudeKeychain(service: ClaudeCredentialPaths.defaultKeychainService)
+    )
+    let selected = ClaudeCredentialRepair.selectedRepairConfigDirEnvironmentValue(baseline: baseline, environment: [:])
+    #expect(selected == "")
+}
+
+@Test func claudeConfigDirEnvironmentValueKeepsExplicitDefaultDirectoryForHashedService() {
+    let defaultDir = ClaudeCredentialPaths.defaultConfigDir()
+    let service = ClaudeCredentialPaths.keychainService(forConfigDir: defaultDir)
+    #expect(service != ClaudeCredentialPaths.defaultKeychainService)
+    #expect(ClaudeCredentialPaths.configDirEnvironmentValue(for: .claudeKeychain(service: service), environment: [:]) == defaultDir.path)
+    #expect(ClaudeCredentialPaths.configDirEnvironmentValue(for: .codexKeychain, environment: [:]) == nil)
 }
 
 @Test func claudeRepairUsesOneShellForEmptyKeyAndUsageCommand() {
@@ -715,18 +754,80 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(ClaudeCredentialRepair.usageRefreshShellPath == "/bin/zsh")
     #expect(
         ClaudeCredentialRepair.usageRefreshShellScript
-            == #"CLAUDE_CONFIG_DIR="$2" ANTHROPIC_API_KEY="" exec "$1" -p "/usage""#
+            == #"if [[ -n "$2" ]]; then export CLAUDE_CONFIG_DIR="$2"; else unset CLAUDE_CONFIG_DIR; fi; ANTHROPIC_API_KEY="" exec "$1" -p "/usage" ${3:+--debug-file} ${3:+"$3"}"#
     )
     #expect(
-        ClaudeCredentialRepair.usageRefreshShellArguments(claudePath: claudePath, configDirectory: configDir)
+        ClaudeCredentialRepair.usageRefreshShellArguments(claudePath: claudePath, configDir: configDir.path, debugLogPath: "/tmp/debug.log")
             == [
                 "-c",
                 ClaudeCredentialRepair.usageRefreshShellScript,
                 "token-torch-claude-repair",
                 claudePath,
-                configDir.path
+                configDir.path,
+                "/tmp/debug.log"
             ]
     )
+}
+
+@Test func claudeRepairManualCommandUnsetsConfigDirForDefaultProfile() {
+    #expect(ClaudeCredentialRepair.manualRefreshCommand(configDir: "") == #"env -u CLAUDE_CONFIG_DIR ANTHROPIC_API_KEY="" claude -p "/usage""#)
+    #expect(
+        ClaudeCredentialRepair.manualRefreshCommand(configDir: "/Users/example/.config/claude")
+            == #"CLAUDE_CONFIG_DIR="/Users/example/.config/claude" ANTHROPIC_API_KEY="" claude -p "/usage""#
+    )
+}
+
+@Test func claudeRepairLogIndentsEntriesAndNeverWritesTokens() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let fileURL = directory.appendingPathComponent("claude-repair.log")
+    let suiteName = "tokentorch.tests.repairLog.\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suiteName))
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    defaults.set(true, forKey: AppBrand.claudeRepairLogEnabledKey)
+    let session = OAuthSession(
+        accessToken: "sk-ant-oat01-secretaccesstokenvalue",
+        refreshToken: "sk-ant-ort01-secretrefreshtokenvalue",
+        expiresAt: 1_800_000_000_000,
+        accountID: nil,
+        subscriptionType: nil,
+        rateLimitTier: nil,
+        source: .claudeKeychain(service: ClaudeCredentialPaths.defaultKeychainService)
+    )
+    let now = Date(timeIntervalSince1970: 1_799_999_000)
+
+    ClaudeRepairLog.write("first\nsession: \(ClaudeRepairLog.describe(session, now: now))", attemptID: "abc12345", now: now, fileURL: fileURL, defaults: defaults)
+    ClaudeRepairLog.write("second", attemptID: "abc12345", now: now, fileURL: fileURL, defaults: defaults)
+
+    let contents = try String(contentsOf: fileURL, encoding: .utf8)
+    let lines = contents.split(separator: "\n").map(String.init)
+    #expect(lines.count == 3)
+    #expect(lines[0] == "2027-01-15T07:43:20.000Z [abc12345] first")
+    #expect(lines[1].hasPrefix("    session: Keychain \"Claude Code-credentials\", token sha256 ") == true)
+    #expect(lines[1].hasSuffix(", expires 2027-01-15T08:00:00.000Z (1000s from now), usable true") == true)
+    #expect(lines[2] == "2027-01-15T07:43:20.000Z [abc12345] second")
+    #expect(contents.contains("secret") == false)
+    let permissions = try FileManager.default.attributesOfItem(atPath: fileURL.path)[.posixPermissions] as? NSNumber
+    #expect(permissions?.intValue == 0o600)
+}
+
+@Test func claudeRepairLogIsOffUntilEnabled() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let fileURL = directory.appendingPathComponent("claude-repair.log")
+    let suiteName = "tokentorch.tests.repairLog.\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: suiteName))
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+
+    ClaudeRepairLog.write("hidden", attemptID: "abc12345", fileURL: fileURL, defaults: defaults)
+    #expect(FileManager.default.fileExists(atPath: directory.path) == false)
+    #expect(ClaudeRepairLog.statusLabel(defaults: defaults).contains(ClaudeRepairLog.enableCommand) == true)
+    #expect(Redaction.redactSecrets(ClaudeRepairLog.enableCommand) == ClaudeRepairLog.enableCommand)
+
+    defaults.set(true, forKey: AppBrand.claudeRepairLogEnabledKey)
+    ClaudeRepairLog.write("shown", attemptID: "abc12345", fileURL: fileURL, defaults: defaults)
+    #expect(try String(contentsOf: fileURL, encoding: .utf8).contains("shown") == true)
+    #expect(ClaudeRepairLog.statusLabel(defaults: defaults) == ClaudeRepairLog.fileURL().path)
 }
 
 @Test func claudeRepairReportsAuthenticationEnvironmentStatesWithoutValues() {
@@ -779,7 +880,8 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
         executablePath: ClaudeCredentialRepair.usageRefreshShellPath,
         arguments: ClaudeCredentialRepair.usageRefreshShellArguments(
             claudePath: fakeClaude.path,
-            configDirectory: configDirectory
+            configDir: configDirectory.path,
+            debugLogPath: "/tmp/debug.log"
         ),
         timeout: 5,
         environment: environment
@@ -788,7 +890,57 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
         .trimmingCharacters(in: .whitespacesAndNewlines)
 
     #expect(result.terminationStatus == 0)
-    #expect(output == "-p /usage|preserved|\(configDirectory.path)")
+    #expect(output == "-p /usage --debug-file /tmp/debug.log|preserved|\(configDirectory.path)")
+}
+
+@Test func claudeRepairShellUnsetsConfigDirForDefaultProfile() async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let fakeClaude = directory.appendingPathComponent("claude")
+    let script = """
+        #!/bin/zsh
+        print -r -- "[${CLAUDE_CONFIG_DIR-unset}]"
+        """
+    try script.write(to: fakeClaude, atomically: true, encoding: .utf8)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fakeClaude.path)
+
+    let result = try await ProcessRunner.runInPseudoTerminal(
+        executablePath: ClaudeCredentialRepair.usageRefreshShellPath,
+        arguments: ClaudeCredentialRepair.usageRefreshShellArguments(claudePath: fakeClaude.path, configDir: "", debugLogPath: "/tmp/debug.log"),
+        timeout: 5,
+        environment: ["CLAUDE_CONFIG_DIR": "/wrong/profile"]
+    )
+    let output = try #require(String(data: result.standardOutput, encoding: .utf8))
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    #expect(result.terminationStatus == 0)
+    #expect(output == "[unset]")
+}
+
+@Test func claudeRepairShellOmitsDebugFileWithoutPath() async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let fakeClaude = directory.appendingPathComponent("claude")
+    let script = """
+        #!/bin/zsh
+        print -r -- "$#|$*"
+        """
+    try script.write(to: fakeClaude, atomically: true, encoding: .utf8)
+    try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: fakeClaude.path)
+
+    let result = try await ProcessRunner.runInPseudoTerminal(
+        executablePath: ClaudeCredentialRepair.usageRefreshShellPath,
+        arguments: ClaudeCredentialRepair.usageRefreshShellArguments(claudePath: fakeClaude.path, configDir: "", debugLogPath: ""),
+        timeout: 5,
+        environment: [:]
+    )
+    let output = try #require(String(data: result.standardOutput, encoding: .utf8))
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    #expect(result.terminationStatus == 0)
+    #expect(output == "2|-p /usage")
 }
 
 @Test func processRunnerPseudoTerminalExposesControllingTerminal() async throws {
@@ -2243,13 +2395,30 @@ private func claudeRow(percent: Double, label: String = "5-hour limit") -> Cappe
           "gpt-6-zeta":{"available":false,"available_at":null,"credits_would_enable":false}}}
         """
     let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
-    let notes = CodexQuotaProvider.mapUsage(response).notes
+    let report = CodexQuotaProvider.mapUsage(response)
+    #expect(report.notes.isEmpty == true)
+    let notes = report.additionalModelNotes
     #expect(notes.contains(QuotaNote(label: "Additional models", value: "gpt-6-astra")))
     let models = notes.filter { $0.label.hasPrefix("gpt-") }
     #expect(models == [
         QuotaNote(label: "gpt-6-nova", value: "unavailable until 2026-10-22, credits would unlock it"),
         QuotaNote(label: "gpt-6-zeta", value: "unavailable")
     ])
+}
+
+@Test func additionalModelNotesFollowDisplayPreference() {
+    let regular = QuotaNote(label: "Spend limit", value: "100")
+    let model = QuotaNote(label: "Additional models", value: "gpt-6-astra")
+    var quota = SubscriptionQuotaReport.forProvider("Codex")
+    quota.notes = [regular]
+    quota.additionalModelNotes = [model]
+    var prefs = ProviderPreferences()
+
+    #expect(prefs.showAdditionalModelUsage == false)
+    #expect(prefs.visibleNotes(quota: quota) == [regular])
+
+    prefs.showAdditionalModelUsage = true
+    #expect(prefs.visibleNotes(quota: quota) == [regular, model])
 }
 
 @Test func cloudSessionCreditIsConvertedWithoutVATDeduction() {

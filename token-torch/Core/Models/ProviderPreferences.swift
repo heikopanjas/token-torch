@@ -294,6 +294,14 @@ public struct ProviderPreferences: Codable, Sendable, Equatable {
         // than moving to `additionalWindows`; hiding it is display-only.
         return mapped.filter { showClaudeFableUsage == true || $0.label != QuotaWindowLabel.claudeFableShare }
     }
+
+    /// The notes the menu lists for a subscription report, after the `showAdditionalModelUsage` display-only gate.
+    public func visibleNotes(quota: SubscriptionQuotaReport) -> [QuotaNote] {
+        if self.showAdditionalModelUsage == true {
+            return quota.notes + quota.additionalModelNotes
+        }
+        return quota.notes
+    }
 }
 
 public enum AppKeyKind: String, Sendable {

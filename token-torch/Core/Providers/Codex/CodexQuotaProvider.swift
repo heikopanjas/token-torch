@@ -250,14 +250,16 @@ public enum CodexQuotaProvider {
         // "Additional" to avoid implying that unlisted models are unavailable.
         let models = (response.modelUsage ?? [:]).sorted(by: { $0.key < $1.key })
         let availableModels = models.filter { $0.value.available == true }.map(\.key)
+        var modelNotes: [QuotaNote] = []
         if availableModels.isEmpty == false {
-            notes.append(QuotaNote(label: "Additional models", value: availableModels.joined(separator: ", ")))
+            modelNotes.append(QuotaNote(label: "Additional models", value: availableModels.joined(separator: ", ")))
         }
         for (model, availability) in models {
             if let note = Self.modelUnavailableNote(model: model, availability: availability) {
-                notes.append(note)
+                modelNotes.append(note)
             }
         }
+        report.additionalModelNotes = modelNotes
         if let promo = response.promo, promo.isEmpty == false {
             for leaf in promo.flattenedScalars(prefix: "promo") {
                 notes.append(QuotaNote(label: leaf.label, value: leaf.value))

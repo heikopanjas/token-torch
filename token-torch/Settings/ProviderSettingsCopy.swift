@@ -70,7 +70,7 @@ enum ProviderSettingsCopy {
     }
 
     static func additionalModelUsageHint() -> String {
-        "When enabled, shows extra per-model rate limits (e.g. Codex Spark) in the Codex menu view. Off by default to keep the menu concise."
+        "When enabled, shows extra per-model rate limits (e.g. Codex Spark) and model availability (e.g. GPT-6 Astra) in the Codex menu view. Off by default to keep the menu concise."
     }
 
     static func cursorValueRowsHint() -> String {
@@ -94,7 +94,7 @@ enum ProviderSettingsCopy {
     }
 
     static func claudeCLIPathHint() -> String {
-        "Optional. Absolute path to the `claude` CLI used by the repair step. Menu bar apps launched at login inherit a minimal PATH, so `claude` may not be found automatically. Leave blank to auto-detect on PATH (e.g. /opt/homebrew/bin/claude)."
+        "Optional. Absolute path to the `claude` CLI used by the repair step. Menu bar apps launched at login inherit a minimal PATH, so `claude` may not be found automatically. Leave blank to auto-detect on PATH, then in ~/.local/bin, ~/.claude/local, /opt/homebrew/bin and /usr/local/bin."
     }
 
     static func personalAccessTokenHint() -> String {

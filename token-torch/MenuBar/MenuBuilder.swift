@@ -104,7 +104,7 @@ final class MenuBuilder {
                             appendCopilotDetails(to: menu, window: window)
                         }
                     }
-                    for note in quota.notes {
+                    for note in preferences.visibleNotes(quota: quota) {
                         menu.addItem(UsageMenuItemViews.costRow(label: note.label, value: note.value, caption: note.expiresAt.map(MenuFormat.expiryCaption)))
                     }
                     if let credits = quota.credits,
