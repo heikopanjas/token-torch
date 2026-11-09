@@ -1820,6 +1820,26 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(PlanBranding.copilot(copilotPlan: "unknown_tier", accessTypeSKU: nil) == "Unknown_Tier")
 }
 
+@Test func planBrandingCopilotReadsSKUForIndividualPlan() {
+    #expect(PlanBranding.copilot(copilotPlan: "individual", accessTypeSKU: "monthly_subscriber_quota") == "Pro")
+    #expect(PlanBranding.copilotPrice(copilotPlan: "individual", accessTypeSKU: "monthly_subscriber_quota") == "$10/mo")
+    #expect(PlanBranding.copilot(copilotPlan: "individual", accessTypeSKU: "yearly_subscriber_quota") == "Pro")
+    #expect(PlanBranding.copilotPrice(copilotPlan: "individual", accessTypeSKU: "yearly_subscriber_quota") == "$10/mo")
+    #expect(PlanBranding.copilot(copilotPlan: "individual", accessTypeSKU: "plus_yearly_subscriber_quota") == "Pro+")
+    #expect(PlanBranding.copilotPrice(copilotPlan: "individual", accessTypeSKU: "plus_yearly_subscriber_quota") == "$39/mo")
+    #expect(PlanBranding.copilot(copilotPlan: "individual", accessTypeSKU: "free_educational_quota") == "Student")
+    #expect(PlanBranding.copilotPrice(copilotPlan: "individual", accessTypeSKU: "free_educational_quota") == nil)
+    #expect(PlanBranding.copilot(copilotPlan: "individual", accessTypeSKU: nil) == "Individual")
+    #expect(PlanBranding.copilotPrice(copilotPlan: "individual", accessTypeSKU: nil) == nil)
+}
+
+@Test func planBrandingCopilotIndividualProIsProPlus() {
+    #expect(PlanBranding.copilot(copilotPlan: "individual_pro", accessTypeSKU: "plus_monthly_subscriber_quota") == "Pro+")
+    #expect(PlanBranding.copilotPrice(copilotPlan: "individual_pro", accessTypeSKU: "plus_monthly_subscriber_quota") == "$39/mo")
+    #expect(PlanBranding.copilot(copilotPlan: "individual_pro", accessTypeSKU: "monthly_subscriber_quota") == "Pro+")
+    #expect(PlanBranding.copilotPrice(copilotPlan: "individual_pro", accessTypeSKU: "monthly_subscriber_quota") == "$39/mo")
+}
+
 @Test func copilotSnapshotSkipsUnlimitedGroups() {
     let unlimited = CopilotQuotaProvider.CopilotQuotaSnapshot(unlimited: true, entitlement: 0, remaining: 0, percentRemaining: 100)
     #expect(CopilotQuotaProvider.snapshotUsedPercent(unlimited) == nil)

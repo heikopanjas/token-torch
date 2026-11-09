@@ -4,6 +4,16 @@ This file is the append-only log of project decisions and notable changes, maint
 
 <!-- {changelog} -->
 
+### 2026-11-09 11:16 (v5.14.3, copilot pro no longer shows as free)
+
+- `PlanBranding.copilot` and `copilotPrice` mapped `copilot_plan` `individual` to free and read the sku only to detect `free_limited_copilot`; a copilot pro account returns `individual` + `monthly_subscriber_quota` (seen in the app log), so it showed free with no price
+- a private resolver shared by name and price now reads `access_type_sku` for `individual`: monthly and yearly subscriber skus are pro, the `plus_` skus are pro+, the `max_` sku is max, `free_educational_quota` is student
+- `individual` with a missing or unknown sku shows `Individual` with no price instead of claiming free
+- `individual_pro` moves from pro to pro+; this rests on third-party projects (onwatch, tinybar), not on an account seen here, and the user accepted that in the plan
+- the plan is never inferred from `entitlement`: this pro account has 1500 credits, the figure at least one third-party tool reads as pro+
+- rationale: the credits were right and only the plan name was wrong, because `individual` does not distinguish free from pro
+- version bump: 5.14.2 to 5.14.3 (PATCH - bug fix; 5.14.2 is already tagged and on main)
+
 ### 2026-11-09 10:27 (v5.14.2, codex model rows follow the additional model usage switch)
 
 - the codex `model_usage` rows (`Additional models`, such as gpt-6-astra, and unavailable models) now show only when **Show additional model usage** is on; they used to be plain notes, which the menu always prints, so the switch only controlled `additional_rate_limits` windows such as codex spark
