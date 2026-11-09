@@ -145,6 +145,8 @@ public struct SubscriptionQuotaReport: Codable, Sendable, Equatable {
     /// Per-model extra rate-limit windows (e.g. ChatGPT `additional_rate_limits` like Codex Spark).
     /// Kept separate so the UI can hide them behind an opt-in setting.
     public var additionalWindows: [QuotaWindow]
+    /// Per-model availability rows (e.g. ChatGPT `model_usage` like GPT-6 Astra), behind the same opt-in setting.
+    public var additionalModelNotes: [QuotaNote]
     public var notes: [QuotaNote]
     public var credits: CreditsInfo?
     public var dollarUsage: DollarUsage?
@@ -163,6 +165,7 @@ public struct SubscriptionQuotaReport: Codable, Sendable, Equatable {
         self.planTier = nil
         self.windows = []
         self.additionalWindows = []
+        self.additionalModelNotes = []
         self.notes = []
         self.credits = nil
         self.dollarUsage = nil

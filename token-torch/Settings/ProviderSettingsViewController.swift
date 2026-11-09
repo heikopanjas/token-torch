@@ -212,7 +212,7 @@ final class ProviderSettingsViewController: SettingsPaneViewController {
         if self.provider == .codex {
             let codexToggle = SettingsLayout.addCheckboxWithHint(
                 to: content,
-                title: "Show additional model usage (e.g. Codex Spark)",
+                title: "Show additional model usage (e.g. Codex Spark, GPT-6 Astra)",
                 hint: ProviderSettingsCopy.additionalModelUsageHint(),
                 width: controlW,
                 x: x,

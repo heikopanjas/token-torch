@@ -4,6 +4,14 @@ This file is the append-only log of project decisions and notable changes, maint
 
 <!-- {changelog} -->
 
+### 2026-11-09 10:27 (v5.14.2, codex model rows follow the additional model usage switch)
+
+- the codex `model_usage` rows (`Additional models`, such as gpt-6-astra, and unavailable models) now show only when **Show additional model usage** is on; they used to be plain notes, which the menu always prints, so the switch only controlled `additional_rate_limits` windows such as codex spark
+- the rows moved to `SubscriptionQuotaReport.additionalModelNotes`, and `ProviderPreferences.visibleNotes(quota:)` selects them at display time, so toggling does not refetch
+- the rows are hidden by default because the switch defaults to off; with the switch on they follow any `promo` notes
+- rationale: the switch should control all per-model information for codex, as the user expected
+- version bump: none beyond 5.14.2 (same unreleased patch)
+
 ### 2026-11-09 10:19 (v5.14.2, claude repair log is off by default)
 
 - `ClaudeRepairLog` now writes nothing unless the `tokentorch.claudeRepairLogEnabled` default is true, in every build configuration

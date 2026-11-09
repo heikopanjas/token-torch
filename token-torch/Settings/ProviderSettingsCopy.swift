@@ -70,7 +70,7 @@ enum ProviderSettingsCopy {
     }
 
     static func additionalModelUsageHint() -> String {
-        "When enabled, shows extra per-model rate limits (e.g. Codex Spark) in the Codex menu view. Off by default to keep the menu concise."
+        "When enabled, shows extra per-model rate limits (e.g. Codex Spark) and model availability (e.g. GPT-6 Astra) in the Codex menu view. Off by default to keep the menu concise."
     }
 
     static func cursorValueRowsHint() -> String {

@@ -2395,13 +2395,30 @@ private func claudeRow(percent: Double, label: String = "5-hour limit") -> Cappe
           "gpt-6-zeta":{"available":false,"available_at":null,"credits_would_enable":false}}}
         """
     let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
-    let notes = CodexQuotaProvider.mapUsage(response).notes
+    let report = CodexQuotaProvider.mapUsage(response)
+    #expect(report.notes.isEmpty == true)
+    let notes = report.additionalModelNotes
     #expect(notes.contains(QuotaNote(label: "Additional models", value: "gpt-6-astra")))
     let models = notes.filter { $0.label.hasPrefix("gpt-") }
     #expect(models == [
         QuotaNote(label: "gpt-6-nova", value: "unavailable until 2026-10-22, credits would unlock it"),
         QuotaNote(label: "gpt-6-zeta", value: "unavailable")
     ])
+}
+
+@Test func additionalModelNotesFollowDisplayPreference() {
+    let regular = QuotaNote(label: "Spend limit", value: "100")
+    let model = QuotaNote(label: "Additional models", value: "gpt-6-astra")
+    var quota = SubscriptionQuotaReport.forProvider("Codex")
+    quota.notes = [regular]
+    quota.additionalModelNotes = [model]
+    var prefs = ProviderPreferences()
+
+    #expect(prefs.showAdditionalModelUsage == false)
+    #expect(prefs.visibleNotes(quota: quota) == [regular])
+
+    prefs.showAdditionalModelUsage = true
+    #expect(prefs.visibleNotes(quota: quota) == [regular, model])
 }
 
 @Test func cloudSessionCreditIsConvertedWithoutVATDeduction() {
