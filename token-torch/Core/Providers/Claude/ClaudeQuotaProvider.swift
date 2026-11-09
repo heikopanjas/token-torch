@@ -61,6 +61,7 @@ public enum ClaudeQuotaProvider {
             if QuotaHTTP.isQuotaAuthError(error, policy: .strict) {
                 let repaired = try await ClaudeCredentialRepair.repairAndImport(
                     baseline: session,
+                    trigger: "usage request rejected: \(Redaction.redactSecrets(error.localizedDescription))",
                     interactive: interactive,
                     claudeExecutablePath: claudeExecutablePath
                 )
@@ -80,6 +81,7 @@ public enum ClaudeQuotaProvider {
         }
         return try await ClaudeCredentialRepair.repairAndImport(
             baseline: stored,
+            trigger: "Token Torch copy missing or expired",
             interactive: interactive,
             claudeExecutablePath: claudeExecutablePath
         )

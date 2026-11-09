@@ -11,6 +11,8 @@ public enum AppBrand {
     public static let migrationFlagKey = "tokentorch.migratedFromBurn"
     /// Last usage band each capped row alerted at (`UsageAlertState`), so a relaunch doesn't re-notify.
     public static let usageAlertStateKey = "tokentorch.usageAlertState"
+    /// Turns on `ClaudeRepairLog`. Set outside the app (`defaults write` or a launch argument); there is no Settings control.
+    public static let claudeRepairLogEnabledKey = "tokentorch.claudeRepairLogEnabled"
     /// User-Agent required by Anthropic's undocumented `/api/oauth/usage` endpoint, in Claude Code's own
     /// `claude-cli/<version> (external, cli)` format. Requests without a Claude Code agent are routed to an
     /// aggressive rate-limit bucket (persistent 429s), and reset grants (`cedar_ember`) are only offered to

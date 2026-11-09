@@ -8,13 +8,15 @@ enum ClaudeCredentialPaths {
         return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude")
     }
 
-    static func preferredDefaultConfigDir() -> URL {
+    /// `CLAUDE_CONFIG_DIR` value for repair when no credential source is known: `~/.config/claude` if it exists, else
+    /// empty, which repair turns into an unset variable for Claude Code's default profile.
+    static func preferredDefaultConfigDirEnvironmentValue() -> String {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let configClaude = home.appendingPathComponent(".config/claude")
         if FileManager.default.fileExists(atPath: configClaude.path) == true {
-            return configClaude
+            return configClaude.path
         }
-        return Self.defaultConfigDir()
+        return ""
     }
 
     static func configDirs(environment: [String: String] = ProcessInfo.processInfo.environment) -> [URL] {
@@ -74,5 +76,18 @@ enum ClaudeCredentialPaths {
             case .codexFile, .codexKeychain, .cursorSqlite, .cursorKeychain, .tokenTorchCopy:
                 return nil
         }
+    }
+
+    /// `CLAUDE_CONFIG_DIR` value that makes Claude Code use this source's credentials, or `nil` for a non-Claude source.
+    /// Claude Code hashes the config path into its Keychain service whenever the variable is non-empty, even for
+    /// `~/.claude`, so the default service needs the variable unset; empty here means "unset it".
+    static func configDirEnvironmentValue(
+        for source: CredentialSource,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> String? {
+        if source == .claudeKeychain(service: Self.defaultKeychainService) {
+            return ""
+        }
+        return Self.configDir(for: source, environment: environment)?.path
     }
 }

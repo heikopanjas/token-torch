@@ -94,7 +94,7 @@ enum ProviderSettingsCopy {
     }
 
     static func claudeCLIPathHint() -> String {
-        "Optional. Absolute path to the `claude` CLI used by the repair step. Menu bar apps launched at login inherit a minimal PATH, so `claude` may not be found automatically. Leave blank to auto-detect on PATH (e.g. /opt/homebrew/bin/claude)."
+        "Optional. Absolute path to the `claude` CLI used by the repair step. Menu bar apps launched at login inherit a minimal PATH, so `claude` may not be found automatically. Leave blank to auto-detect on PATH, then in ~/.local/bin, ~/.claude/local, /opt/homebrew/bin and /usr/local/bin."
     }
 
     static func personalAccessTokenHint() -> String {

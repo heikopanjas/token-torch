@@ -434,6 +434,7 @@ final class ProviderSettingsViewController: SettingsPaneViewController {
                 let baseline = try? VendorCredentialsReader.loadClaudeSession()
                 _ = try await ClaudeCredentialRepair.repairAndImport(
                     baseline: baseline,
+                    trigger: "Repair button in Claude settings",
                     interactive: true,
                     claudeExecutablePath: preferences.load().claudeCLIPath
                 )

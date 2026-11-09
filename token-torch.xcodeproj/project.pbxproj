@@ -56,6 +56,7 @@
 		C0040000000000000038 /* AnthropicOrgProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000037 /* AnthropicOrgProvider.swift */; };
 		C0040000000000000041 /* ClaudeQuotaProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000040 /* ClaudeQuotaProvider.swift */; };
 		C004000000000000008B /* ClaudeCredentialRepair.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000008B /* ClaudeCredentialRepair.swift */; };
+		C00400000000000000A0 /* ClaudeRepairLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00300000000000000A0 /* ClaudeRepairLog.swift */; };
 		C004000000000000008C /* AppNotification.swift in Sources */ = {isa = PBXBuildFile; fileRef = C003000000000000008C /* AppNotification.swift */; };
 		C0040000000000000090 /* ClaudeCredentialPaths.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000090 /* ClaudeCredentialPaths.swift */; };
 		C0040000000000000091 /* ClaudeOAuthParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000091 /* ClaudeOAuthParser.swift */; };
@@ -151,6 +152,7 @@
 		C0030000000000000037 /* AnthropicOrgProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnthropicOrgProvider.swift; sourceTree = "<group>"; };
 		C0030000000000000040 /* ClaudeQuotaProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeQuotaProvider.swift; sourceTree = "<group>"; };
 		C003000000000000008B /* ClaudeCredentialRepair.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCredentialRepair.swift; sourceTree = "<group>"; };
+		C00300000000000000A0 /* ClaudeRepairLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeRepairLog.swift; sourceTree = "<group>"; };
 		C003000000000000008C /* AppNotification.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNotification.swift; sourceTree = "<group>"; };
 		C0030000000000000090 /* ClaudeCredentialPaths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeCredentialPaths.swift; sourceTree = "<group>"; };
 		C0030000000000000091 /* ClaudeOAuthParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeOAuthParser.swift; sourceTree = "<group>"; };
@@ -419,6 +421,7 @@
 			children = (
 				C0030000000000000040 /* ClaudeQuotaProvider.swift */,
 				C003000000000000008B /* ClaudeCredentialRepair.swift */,
+				C00300000000000000A0 /* ClaudeRepairLog.swift */,
 			);
 			path = Claude;
 			sourceTree = "<group>";
@@ -619,6 +622,7 @@
 				C0040000000000000038 /* AnthropicOrgProvider.swift in Sources */,
 				C0040000000000000041 /* ClaudeQuotaProvider.swift in Sources */,
 				C004000000000000008B /* ClaudeCredentialRepair.swift in Sources */,
+				C00400000000000000A0 /* ClaudeRepairLog.swift in Sources */,
 				C0040000000000000044 /* CodexQuotaProvider.swift in Sources */,
 				C0040000000000000047 /* CopilotQuotaProvider.swift in Sources */,
 				C0040000000000000050 /* CursorQuotaProvider.swift in Sources */,
