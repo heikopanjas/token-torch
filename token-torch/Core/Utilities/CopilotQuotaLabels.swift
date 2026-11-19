@@ -22,23 +22,23 @@ public enum CopilotQuotaLabels {
         return rows
     }
 
-    /// Boolean policy row, styled like Claude `Extra usage` (`enabled` / `disabled`).
+    /// Copilot's overage policy, labeled `Extra usage` like Claude and Codex (`enabled` / `disabled`).
     public static func overagePermittedNote(_ window: QuotaWindow) -> QuotaNote? {
         guard let permitted = window.overagePermitted else { return nil }
-        return QuotaNote(label: "Overage", value: permitted ? "enabled" : "disabled")
+        return QuotaNote(label: QuotaHelpers.extraUsageLabel, value: permitted ? "enabled" : "disabled")
     }
 
     /// Cap on overage beyond the included credits; only meaningful while overage is enabled.
     public static func overageLimitNote(_ window: QuotaWindow) -> QuotaNote? {
         guard window.overagePermitted == true else { return nil }
         guard let overageEntitlement = window.overageEntitlement, overageEntitlement > 0 else { return nil }
-        return QuotaNote(label: "Overage limit", value: Self.amount(overageEntitlement, in: window))
+        return QuotaNote(label: "\(QuotaHelpers.extraUsageLabel) limit", value: Self.amount(overageEntitlement, in: window))
     }
 
-    /// Usage beyond the included amount, named to pair with "Overage limit" (`500 credits`).
+    /// Usage beyond the included amount, named to pair with "Extra usage limit" (`500 credits`).
     public static func overageUsedNote(_ window: QuotaWindow) -> QuotaNote? {
         guard let overageCount = window.overageCount, overageCount > 0 else { return nil }
-        return QuotaNote(label: "Overage used", value: Self.amount(overageCount, in: window))
+        return QuotaNote(label: "\(QuotaHelpers.extraUsageLabel) used", value: Self.amount(overageCount, in: window))
     }
 
     /// All rows for one quota group, in display order.

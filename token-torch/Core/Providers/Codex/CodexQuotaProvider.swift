@@ -240,6 +240,10 @@ public enum CodexQuotaProvider {
         if let limit = response.spendControl?.individualLimit {
             notes.append(QuotaNote(label: "Spend limit", value: String(limit)))
         }
+        // Extra usage goes right before the resets, the same order as Claude.
+        if let credits = response.credits, let note = Self.extraUsageNote(credits) {
+            notes.append(note)
+        }
         if let resetCredits = response.rateLimitResetCredits,
             let availableCount = resetCredits.availableCount,
             let note = QuotaHelpers.rateLimitResetsNote(available: availableCount, usableNow: resetCredits.applicableAvailableCount)
@@ -266,17 +270,19 @@ public enum CodexQuotaProvider {
             }
         }
         report.notes = notes
-
-        if let credits = response.credits, credits.hasCredits == true {
-            report.credits = CreditsInfo(
-                usedCents: 0,
-                limitCents: 0,
-                currency: CreditsInfo.creditUnitsCurrency,
-                balanceUSD: nil,
-                balanceCredits: credits.balance?.doubleValue
-            )
-        }
         return report
+    }
+
+    /// `credits.balance` is a credit count, shown as-is: the API gives no money value, and a fixed per-credit rate
+    /// would drift and raise VAT questions. The API has no on/off flag, so `has_credits` false reads as `disabled`.
+    private static func extraUsageNote(_ credits: ChatGptCredits) -> QuotaNote? {
+        guard credits.hasCredits == true else {
+            return QuotaNote(label: QuotaHelpers.extraUsageLabel, value: "disabled")
+        }
+        guard let balance = credits.balance?.doubleValue, balance >= 0 else { return nil }
+        let wholeCredits = Int(balance.rounded(.down))
+        let unit = (wholeCredits == 1) ? "credit" : "credits"
+        return QuotaNote(label: QuotaHelpers.extraUsageLabel, value: "\(wholeCredits) \(unit)")
     }
 
     /// Only a model that is currently locked is worth a row, e.g. `unavailable until 2026-10-22`.

@@ -70,15 +70,10 @@ public struct QuotaNote: Codable, Sendable, Equatable, Identifiable {
 }
 
 public struct CreditsInfo: Codable, Sendable, Equatable {
-    /// Sentinel `currency` for non-monetary AI credit counts (GitHub Copilot).
-    public static let creditUnitsCurrency = "CREDITS"
-
     public let usedCents: UInt64
     public let limitCents: UInt64
     public let currency: String
     public let balanceUSD: Double?
-    /// Provider-supplied remaining credit balance when the value is a count, not money.
-    public let balanceCredits: Double?
     /// Server-provided utilization percentage, when available (preferred over a recomputed value).
     public let utilizationPercent: Double?
 
@@ -87,14 +82,12 @@ public struct CreditsInfo: Codable, Sendable, Equatable {
         limitCents: UInt64,
         currency: String,
         balanceUSD: Double?,
-        balanceCredits: Double? = nil,
         utilizationPercent: Double? = nil
     ) {
         self.usedCents = usedCents
         self.limitCents = limitCents
         self.currency = currency
         self.balanceUSD = balanceUSD
-        self.balanceCredits = balanceCredits
         self.utilizationPercent = utilizationPercent
     }
 }
@@ -107,10 +100,10 @@ extension CreditsInfo {
     }
 
     /// The percentage a credits row's usage bar should show, or nil when the row states a balance
-    /// (e.g. Codex `extra_usage`) rather than a share of a cap. Single source for the row's printed
-    /// text, its usage bar, and usage-threshold alerts.
+    /// rather than a share of a cap. Single source for the row's printed text, its usage bar, and
+    /// usage-threshold alerts.
     public var cappedUsedPercent: Double? {
-        if currency != CreditsInfo.creditUnitsCurrency, balanceUSD != nil { return nil }
+        if balanceUSD != nil { return nil }
         guard limitCents > 0 else { return nil }
         return resolvedUsedPercent
     }
@@ -194,7 +187,7 @@ extension SubscriptionQuotaReport {
     }
 
     /// The percentage a non-Cursor credits row's usage bar should show, or nil when the row states a
-    /// balance rather than a share of a cap (e.g. Codex `extra_usage`, whose `limitCents` is always 0).
+    /// balance rather than a share of a cap.
     public var creditsRowPercent: Double? {
         credits?.cappedUsedPercent
     }
@@ -298,6 +291,8 @@ public enum QuotaHelpers {
     }
 
     public static let rateLimitResetsLabel = "Rate limit resets"
+    /// Shared by Claude, Codex and Copilot so the row reads the same everywhere (`enabled` / `disabled`, or a balance).
+    public static let extraUsageLabel = "Extra usage"
 
     /// One-off rate-limit resets the user can spend (Claude `cedar_ember` grants, Codex reset credits),
     /// e.g. `3 available, 1 usable now`, with the soonest expiry as the note's `expiresAt`. nil when none are

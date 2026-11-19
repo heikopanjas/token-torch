@@ -471,9 +471,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
 }
 
 @Test func vendorCredentialImportSourceStoreRoundTripsSourceMetadata() throws {
-    let suiteName = "tokentorch.tests.importSource.\(UUID().uuidString)"
-    let defaults = try #require(UserDefaults(suiteName: suiteName))
-    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let defaults = try TemporaryUserDefaults.make()
 
     let source = CredentialSource.claudeKeychain(service: "Claude Code-credentials-test")
     VendorCredentialImportSourceStore.save(source, provider: .claude, defaults: defaults)
@@ -484,9 +482,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
 }
 
 @Test func vendorCredentialImportSourceStoreDeleteAllRemovesEveryProvider() throws {
-    let suiteName = "tokentorch.tests.importSource.deleteAll.\(UUID().uuidString)"
-    let defaults = try #require(UserDefaults(suiteName: suiteName))
-    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let defaults = try TemporaryUserDefaults.make()
 
     VendorCredentialImportSourceStore.save(.claudeKeychain(service: "claude"), provider: .claude, defaults: defaults)
     VendorCredentialImportSourceStore.save(.codexKeychain, provider: .codex, defaults: defaults)
@@ -781,9 +777,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: directory) }
     let fileURL = directory.appendingPathComponent("claude-repair.log")
-    let suiteName = "tokentorch.tests.repairLog.\(UUID().uuidString)"
-    let defaults = try #require(UserDefaults(suiteName: suiteName))
-    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let defaults = try TemporaryUserDefaults.make()
     defaults.set(true, forKey: AppBrand.claudeRepairLogEnabledKey)
     let session = OAuthSession(
         accessToken: "sk-ant-oat01-secretaccesstokenvalue",
@@ -815,9 +809,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     defer { try? FileManager.default.removeItem(at: directory) }
     let fileURL = directory.appendingPathComponent("claude-repair.log")
-    let suiteName = "tokentorch.tests.repairLog.\(UUID().uuidString)"
-    let defaults = try #require(UserDefaults(suiteName: suiteName))
-    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let defaults = try TemporaryUserDefaults.make()
 
     ClaudeRepairLog.write("hidden", attemptID: "abc12345", fileURL: fileURL, defaults: defaults)
     #expect(FileManager.default.fileExists(atPath: directory.path) == false)
@@ -1391,7 +1383,7 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(sevenDay.usedPercent == 34)
 }
 
-@Test func mapCodexCreditBalanceUsesCreditUnits() throws {
+@Test func mapCodexExtraUsageShowsCreditBalance() throws {
     let json = """
         {"plan_type":"pro",
         "rate_limit":{"primary_window":{"used_percent":0,"reset_at":1780254481},"secondary_window":{"used_percent":0,"reset_at":1780841281}},
@@ -1400,12 +1392,8 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
         """
     let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
     let report = CodexQuotaProvider.mapUsage(response)
-    let credits = try #require(report.credits)
-    #expect(credits.currency == CreditsInfo.creditUnitsCurrency)
-    #expect(credits.balanceUSD == nil)
-    #expect(credits.balanceCredits == 250)
-
-    #expect(ReportLabels.codexCreditsLabel(credits) == "250 credits")
+    #expect(report.credits == nil)
+    #expect(report.notes == [QuotaNote(label: QuotaHelpers.extraUsageLabel, value: "250 credits")])
 }
 
 @Test func mapChatGptSurfacesNotesAndAdditionalWindows() throws {
@@ -1424,8 +1412,8 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     #expect(report.additionalWindows.contains { $0.label == "GPT-5.3-Codex-Spark (5h)" })
     #expect(report.additionalWindows.contains { $0.label == "GPT-5.3-Codex-Spark (7d)" })
     #expect(!report.windows.contains { $0.label.contains("Spark") })
-    // D7: healthy state hides the boolean status notes entirely.
-    #expect(report.notes.isEmpty)
+    // D7: healthy state hides the boolean status notes; only extra usage remains, and `has_credits` false reads as disabled.
+    #expect(report.notes == [QuotaNote(label: QuotaHelpers.extraUsageLabel, value: "disabled")])
 }
 
 @Test func mapCodexRoutesWeeklyOnlyAdditionalWindowByDuration() throws {
@@ -1453,7 +1441,12 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
         """
     let response = try JSONDecoder().decode(CodexQuotaProvider.ChatGptUsageResponse.self, from: Data(json.utf8))
     let report = CodexQuotaProvider.mapUsage(response)
-    #expect(report.notes.contains { $0.label == "Rate limit resets" && $0.value == "2 available" })
+    // Extra usage comes before the resets, the same order as Claude.
+    #expect(
+        report.notes == [
+            QuotaNote(label: QuotaHelpers.extraUsageLabel, value: "disabled"),
+            QuotaNote(label: QuotaHelpers.rateLimitResetsLabel, value: "2 available")
+        ])
 }
 
 @Test func mapChatGptSurfacesStatusNotesOnlyWhenLimited() throws {
@@ -1912,11 +1905,11 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
     let items = CopilotQuotaLabels.displayItems(aiCredits!)
     #expect(
         items.map(\.label) == [
-            "Entitlement", "Usage", "Overage"
+            "Entitlement", "Usage", "Extra usage"
         ])
     #expect(items.first(where: { $0.label == "Entitlement" })?.value == "20000 credits")
     #expect(items.first(where: { $0.label == "Usage" })?.value == "667 credits")
-    #expect(items.first(where: { $0.label == "Overage" })?.value == "enabled")
+    #expect(items.first(where: { $0.label == "Extra usage" })?.value == "enabled")
 }
 
 @Test func usageLevelBandsUseExclusiveUpperBounds() {
@@ -1983,8 +1976,8 @@ func processRunnerDrainsFastExitOutput(iteration: Int) async throws {
         overagePermitted: true
     )
     let items = CopilotQuotaLabels.displayItems(window)
-    #expect(items.contains(where: { $0.label == "Overage used" && $0.value == "500 credits" }))
-    #expect(items.contains(where: { $0.label == "Overage" && $0.value == "enabled" }))
+    #expect(items.contains(where: { $0.label == "Extra usage used" && $0.value == "500 credits" }))
+    #expect(items.contains(where: { $0.label == "Extra usage" && $0.value == "enabled" }))
 }
 
 @Test func mapCopilotFreeTierUsage() {
@@ -2067,23 +2060,6 @@ private func makeClaudeQuota(fablePercent: Double? = nil) -> SubscriptionQuotaRe
     prefs.claude.subscriptionQuotaEnabled = false
 
     #expect(CappedUsageRows.rows(in: result, preferences: prefs).isEmpty)
-}
-
-@Test func cappedUsageRowsExcludeCodexCreditBalance() {
-    var quota = SubscriptionQuotaReport.forProvider("Codex")
-    quota.windows = [QuotaWindow(label: "5-hour limit", usedPercent: 40, resetsAt: nil)]
-    quota.credits = CreditsInfo(
-        usedCents: 0,
-        limitCents: 0,
-        currency: CreditsInfo.creditUnitsCurrency,
-        balanceUSD: nil,
-        balanceCredits: 250
-    )
-    let prefs = ProviderPreferences()
-
-    let rows = CappedUsageRows.rows(provider: .codex, quota: quota, preferences: prefs)
-    #expect(rows.count == 1)
-    #expect(rows.allSatisfy { $0.key.source == .window })
 }
 
 private func claudeRow(percent: Double, label: String = "5-hour limit") -> CappedUsageRow {
@@ -2201,9 +2177,7 @@ private func claudeRow(percent: Double, label: String = "5-hour limit") -> Cappe
 }
 
 @Test func usageAlertStateStoreRoundTripsThroughUserDefaults() throws {
-    let suiteName = "tokentorch.tests.usageAlertState.\(UUID().uuidString)"
-    let defaults = try #require(UserDefaults(suiteName: suiteName))
-    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let defaults = try TemporaryUserDefaults.make()
 
     let store = UsageAlertStateStore(defaults: defaults)
     #expect(store.load() == UsageAlertState())
@@ -2346,9 +2320,11 @@ private func claudeRow(percent: Double, label: String = "5-hour limit") -> Cappe
         )
     }
     let enabled = CopilotQuotaLabels.displayItems(window(overagePermitted: true)).map(\.label)
-    #expect(enabled.suffix(2) == ["Overage", "Overage limit"])
-    #expect(CopilotQuotaLabels.displayItems(window(overagePermitted: true)).contains { $0.label == "Overage limit" && $0.value == "10000 credits" })
-    #expect(CopilotQuotaLabels.displayItems(window(overagePermitted: false)).contains { $0.label == "Overage limit" } == false)
+    #expect(enabled.suffix(2) == ["Extra usage", "Extra usage limit"])
+    #expect(CopilotQuotaLabels.displayItems(window(overagePermitted: true)).contains { $0.label == "Extra usage limit" && $0.value == "10000 credits" })
+    let disabled = CopilotQuotaLabels.displayItems(window(overagePermitted: false))
+    #expect(disabled.contains { $0.label == "Extra usage limit" } == false)
+    #expect(disabled.contains { $0.label == "Extra usage" && $0.value == "disabled" })
 }
 
 @Test func mapCopilotDecodesOverageEntitlementFromLiveShape() throws {
@@ -2378,7 +2354,7 @@ private func claudeRow(percent: Double, label: String = "5-hour limit") -> Cappe
 
 @Test func mapClaudeUsageExplainsExtraUsageState() throws {
     let cases = [
-        (#"{"is_enabled":false,"user_disabled":true,"spend_limit_reached":false}"#, "turned off by you"),
+        (#"{"is_enabled":false,"user_disabled":true,"spend_limit_reached":false}"#, "disabled"),
         (#"{"is_enabled":true,"used_credits":5000,"monthly_limit":5000,"spend_limit_reached":true}"#, "enabled, limit reached"),
         (#"{"is_enabled":true,"used_credits":100,"monthly_limit":5000,"spend_limit_reached":false}"#, "enabled")
     ]
