@@ -26,7 +26,6 @@ enum ReportLabels {
 
     static func creditsTitle(for provider: String) -> String {
         switch provider {
-            case "Codex": return "Extra usage"
             case "Copilot": return "AI Credits"
             default: return "On-demand credits"
         }
@@ -55,11 +54,6 @@ enum ReportLabels {
 
     /// A non-Cursor credits row (e.g. Claude `extra_usage`, Copilot AI Credits).
     static func creditsLabel(_ credits: CreditsInfo, pricing: DisplayPriceOptions) -> String? {
-        if credits.currency == CreditsInfo.creditUnitsCurrency {
-            guard credits.limitCents > 0 || credits.usedCents > 0 else { return nil }
-            let pctText = Self.percentUsedSuffix(credits.cappedUsedPercent)
-            return "\(credits.usedCents)/\(credits.limitCents)\(pctText)"
-        }
         if let balance = credits.balanceUSD {
             return pricing.formatConverted(amount: balance, from: credits.currency)
         }
@@ -71,14 +65,5 @@ enum ReportLabels {
             : pricing.formatMinorUnits(credits.limitCents, from: credits.currency)
         let pctText = Self.percentUsedSuffix(credits.cappedUsedPercent)
         return "\(used)/\(limit)\(pctText)"
-    }
-
-    /// Codex `credits.balance` is a credit count, shown as-is: the API gives no money value, and a fixed
-    /// per-credit rate would drift and raise VAT questions.
-    static func codexCreditsLabel(_ credits: CreditsInfo) -> String? {
-        guard let balance = credits.balanceCredits, balance >= 0 else { return nil }
-        let wholeCredits = Int(balance.rounded(.down))
-        let unit = (wholeCredits == 1) ? "credit" : "credits"
-        return "\(wholeCredits) \(unit)"
     }
 }

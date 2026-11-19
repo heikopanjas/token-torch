@@ -167,7 +167,6 @@ public enum ClaudeQuotaProvider {
         public let monthlyLimit: Double?
         public let utilization: Double?
         public let currency: String?
-        public let userDisabled: Bool?
         public let spendLimitReached: Bool?
 
         public init(
@@ -176,7 +175,6 @@ public enum ClaudeQuotaProvider {
             monthlyLimit: Double?,
             utilization: Double?,
             currency: String?,
-            userDisabled: Bool? = nil,
             spendLimitReached: Bool? = nil
         ) {
             self.isEnabled = isEnabled
@@ -184,7 +182,6 @@ public enum ClaudeQuotaProvider {
             self.monthlyLimit = monthlyLimit
             self.utilization = utilization
             self.currency = currency
-            self.userDisabled = userDisabled
             self.spendLimitReached = spendLimitReached
         }
 
@@ -194,7 +191,6 @@ public enum ClaudeQuotaProvider {
             case monthlyLimit = "monthly_limit"
             case utilization
             case currency
-            case userDisabled = "user_disabled"
             case spendLimitReached = "spend_limit_reached"
         }
     }
@@ -369,7 +365,7 @@ public enum ClaudeQuotaProvider {
         return QuotaHelpers.rateLimitResetsNote(available: available, expiresAt: soonestExpiry)
     }
 
-    /// Distinguishes a user's own opt-out and a reached spend limit from a plain on/off state.
+    /// Distinguishes a reached spend limit from a plain on/off state. A user's own opt-out reads as `disabled`, like the other providers.
     private static func extraUsageNote(_ extra: ClaudeExtraUsage) -> QuotaNote? {
         guard let isEnabled = extra.isEnabled else { return nil }
         let value: String
@@ -377,9 +373,9 @@ public enum ClaudeQuotaProvider {
             value = (extra.spendLimitReached == true) ? "enabled, limit reached" : "enabled"
         }
         else {
-            value = (extra.userDisabled == true) ? "turned off by you" : "disabled"
+            value = "disabled"
         }
-        return QuotaNote(label: "Extra usage", value: value)
+        return QuotaNote(label: QuotaHelpers.extraUsageLabel, value: value)
     }
 
     /// Fable has no top-level `seven_day_*` key; the usage API reports it only as a model-scoped

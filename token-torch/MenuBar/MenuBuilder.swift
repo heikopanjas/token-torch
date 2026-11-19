@@ -108,7 +108,7 @@ final class MenuBuilder {
                         menu.addItem(UsageMenuItemViews.costRow(label: note.label, value: note.value, caption: note.expiresAt.map(MenuFormat.expiryCaption)))
                     }
                     if let credits = quota.credits,
-                        let label = creditsLabel(for: quota, credits: credits, pricing: pricing)
+                        let label = ReportLabels.creditsLabel(credits, pricing: pricing)
                     {
                         let creditsTitle = ReportLabels.creditsTitle(for: quota.provider)
                         menu.addItem(
@@ -132,17 +132,6 @@ final class MenuBuilder {
                     )
                 )
         }
-    }
-
-    private func creditsLabel(
-        for quota: SubscriptionQuotaReport,
-        credits: CreditsInfo,
-        pricing: DisplayPriceOptions
-    ) -> String? {
-        if quota.provider == "Codex" {
-            return ReportLabels.codexCreditsLabel(credits)
-        }
-        return ReportLabels.creditsLabel(credits, pricing: pricing)
     }
 
     /// One window row, the same for every non-Cursor provider: percent (or dollar amounts), reset or expiry

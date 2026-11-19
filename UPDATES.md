@@ -4,6 +4,16 @@ This file is the append-only log of project decisions and notable changes, maint
 
 <!-- {changelog} -->
 
+### 2026-11-19 19:29 (v5.14.4, extra usage rows match across providers)
+
+- codex now lists `Extra usage` before `Rate limit resets`, as claude already did; the codex balance became a note from `CodexQuotaProvider.extraUsageNote` instead of a credits row, because the menu draws the credits row after every note
+- codex reads `disabled` when `has_credits` is false; the api has no on/off flag, so a zero balance also reads as disabled (user decision)
+- claude shows `disabled` instead of `turned off by you`; `extra_usage.user_disabled` is no longer decoded
+- copilot `Overage`, `Overage limit` and `Overage used` are now `Extra usage`, `Extra usage limit` and `Extra usage used`; all three providers share `QuotaHelpers.extraUsageLabel`
+- removed the codex-only credits path that became unused: `ReportLabels.codexCreditsLabel`, `CreditsInfo.balanceCredits` and `CreditsInfo.creditUnitsCurrency`
+- rationale: the same concept should read the same way, in the same place, for every provider
+- version bump: 5.14.3 to 5.14.4 (PATCH - display wording and order; 5.14.3 is already tagged)
+
 ### 2026-11-09 22:45 (v5.14.3, tests no longer leave plists in ~/Library/Preferences)
 
 - the five tests that build a `UserDefaults` suite (import source store, repair log, usage alert state) now get it from `TemporaryUserDefaults.make()`; each suite is a plist under `$TMPDIR/token-torchTests.UserDefaults`, which the first use in a run clears
